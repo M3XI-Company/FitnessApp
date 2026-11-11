@@ -3,9 +3,11 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StoreProvider } from '../lib/store'
 import { C } from '../theme'
+import { DeviceFrame } from '../components/DeviceFrame'
 
 export default function RootLayout() {
   return (
+    <DeviceFrame>
     <SafeAreaProvider>
       <StoreProvider>
         <StatusBar style="dark" />
@@ -22,5 +24,6 @@ export default function RootLayout() {
         </Stack>
       </StoreProvider>
     </SafeAreaProvider>
+    </DeviceFrame>
   )
 }
