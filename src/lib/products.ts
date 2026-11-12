@@ -12,6 +12,12 @@ export interface Product extends FoodItem {
   additives?: number
   nova?: number
   allergens: string[]
+  /** listed as sold in the UK on Open Food Facts */
+  ukListed: boolean
+  /** has energy data */
+  complete: boolean
+  /** 'nutriscore' when the grade comes from Open Food Facts, otherwise Breeze's own score */
+  gradeSource: 'nutriscore' | 'breeze'
 }
 
 type Level = 'low' | 'medium' | 'high'
@@ -24,60 +30,70 @@ export interface Analysis {
   cons: string[]
 }
 
-/** Offline demo products so the scanner is testable without a camera or network */
-const DEMO: Record<string, Omit<Product, 'id' | 'barcode' | 'kcal' | 'protein' | 'carbs' | 'fat' | 'serving'>> = {
-  '5000159484695': { name: 'Chocolate Bar', brand: 'Demo Snacks', emoji: '🍫', servingG: 45, per100: { kcal: 488, protein: 4.6, carbs: 60, fat: 25, sugar: 49, satFat: 9.6, salt: 0.6, fiber: 1.4 }, nova: 4, additives: 3, allergens: ['milk', 'peanuts'] },
-  '3017620422003': { name: 'Hazelnut Cocoa Spread', brand: 'Demo Foods', emoji: '🥄', servingG: 15, per100: { kcal: 539, protein: 6.3, carbs: 57.5, fat: 30.9, sugar: 56.3, satFat: 10.6, salt: 0.11, fiber: 0 }, nova: 4, additives: 1, allergens: ['milk', 'nuts', 'soy'] },
-  '0041196910131': { name: 'Plain Greek Yogurt 0%', brand: 'Demo Dairy', emoji: '🥛', servingG: 170, per100: { kcal: 59, protein: 10.3, carbs: 3.6, fat: 0.4, sugar: 3.2, satFat: 0.1, salt: 0.09, fiber: 0 }, nova: 1, additives: 0, allergens: ['milk'] },
-  '8076809513753': { name: 'Wholegrain Penne', brand: 'Demo Pasta', emoji: '🍝', servingG: 80, per100: { kcal: 352, protein: 13, carbs: 65, fat: 2.5, sugar: 3, satFat: 0.5, salt: 0.01, fiber: 8 }, nova: 1, additives: 0, allergens: ['gluten'] },
-}
-export const DEMO_CODES = Object.entries(DEMO).map(([code, p]) => ({ code, name: p.name, emoji: p.emoji! }))
+/** Real UK products for trying the scanner without a camera (looked up live — no stored data). */
+export const SAMPLE_CODES = [
+  { code: '5000157024671', name: 'Heinz Beanz', emoji: '🥫' },
+  { code: '5036589200970', name: 'Yeo Valley Greek style', emoji: '🥛' },
+  { code: '5010044000404', name: 'Warburtons Wholemeal', emoji: '🍞' },
+  { code: '7622201148782', name: 'Cadbury Dairy Milk', emoji: '🍫' },
+]
 
-const fromPer100 = (code: string, base: Omit<Product, 'id' | 'barcode' | 'kcal' | 'protein' | 'carbs' | 'fat' | 'serving'>): Product => {
-  const f = base.servingG / 100
+const OFF = 'https://uk.openfoodfacts.org'
+const FIELDS = 'code,product_name,brands,nutriments,serving_quantity,nutriscore_grade,nova_group,image_front_small_url,ingredients_text,additives_n,allergens_tags,countries_tags'
+// Open Food Facts asks apps to identify themselves (ignored by browsers, honoured on iOS/Android)
+const HEADERS = { 'User-Agent': 'Breeze/1.0 (https://github.com/M3XI-Company/FitnessApp)' }
+
+const num = (v: unknown) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0)
+
+function fromOff(pr: any): Product {
+  const n = pr.nutriments ?? {}
+  const kcal = num(n['energy-kcal_100g']) || num(n['energy_100g']) / 4.184
+  const g = String(pr.nutriscore_grade ?? '').toUpperCase()
+  const servingG = num(pr.serving_quantity) || 100
+  const per100 = { kcal, protein: num(n.proteins_100g), carbs: num(n.carbohydrates_100g), fat: num(n.fat_100g), sugar: num(n.sugars_100g), satFat: num(n['saturated-fat_100g']), salt: num(n.salt_100g), fiber: num(n.fiber_100g) }
+  const f = servingG / 100
   const p: Product = {
-    ...base, id: `off-${code}`, barcode: code, serving: `${base.servingG} g`,
-    kcal: Math.round(base.per100.kcal * f), protein: +(base.per100.protein * f).toFixed(1),
-    carbs: +(base.per100.carbs * f).toFixed(1), fat: +(base.per100.fat * f).toFixed(1),
+    id: `off-${pr.code}`, barcode: String(pr.code), source: 'off',
+    name: pr.product_name || 'Unnamed product', brand: pr.brands?.split(',')[0]?.trim(), emoji: '🛒',
+    serving: `${Math.round(servingG)} g`, servingG, per100,
+    kcal: Math.round(kcal * f), kj: Math.round(kcal * 4.184 * f),
+    protein: +(per100.protein * f).toFixed(1), carbs: +(per100.carbs * f).toFixed(1), fat: +(per100.fat * f).toFixed(1),
+    grade: (['A', 'B', 'C', 'D', 'E'].includes(g) ? g : undefined) as Product['grade'],
+    gradeSource: ['A', 'B', 'C', 'D', 'E'].includes(g) ? 'nutriscore' : 'breeze',
+    image: pr.image_front_small_url, ingredients: pr.ingredients_text, additives: pr.additives_n, nova: pr.nova_group,
+    allergens: (pr.allergens_tags ?? []).map((a: string) => a.replace(/^en:/, '')),
+    ukListed: (pr.countries_tags ?? []).includes('en:united-kingdom'),
+    complete: kcal > 0,
   }
   if (!p.grade) p.grade = analyze(p).grade
   return p
 }
 
-export async function lookupBarcode(code: string): Promise<Product | null> {
-  const clean = code.replace(/\D/g, '')
-  if (DEMO[clean]) return fromPer100(clean, DEMO[clean])
-  const fields = 'product_name,brands,nutriments,serving_quantity,nutriscore_grade,nova_group,image_front_small_url,ingredients_text,additives_n,allergens_tags'
+async function get(url: string, ms = 9000) {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 8000)
+  const timer = setTimeout(() => ctrl.abort(), ms)
   try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${clean}.json?fields=${fields}`, { signal: ctrl.signal })
-    if (!res.ok) return null
-    const json = await res.json()
-    if (json.status !== 1 || !json.product) return null
-    const pr = json.product
-    const n = pr.nutriments ?? {}
-    const num = (v: unknown) => (typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0)
-    const kcal = num(n['energy-kcal_100g']) || num(n['energy_100g']) / 4.184
-    const g = (pr.nutriscore_grade ?? '').toUpperCase()
-    return fromPer100(clean, {
-      name: pr.product_name || 'Unknown product',
-      brand: pr.brands?.split(',')[0],
-      emoji: '🛒',
-      servingG: num(pr.serving_quantity) || 100,
-      per100: { kcal, protein: num(n.proteins_100g), carbs: num(n.carbohydrates_100g), fat: num(n.fat_100g), sugar: num(n.sugars_100g), satFat: num(n['saturated-fat_100g']), salt: num(n.salt_100g), fiber: num(n.fiber_100g) },
-      grade: (['A', 'B', 'C', 'D', 'E'].includes(g) ? g : undefined) as Product['grade'],
-      image: pr.image_front_small_url,
-      ingredients: pr.ingredients_text,
-      additives: pr.additives_n,
-      nova: pr.nova_group,
-      allergens: (pr.allergens_tags ?? []).map((a: string) => a.replace(/^en:/, '')),
-    })
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
-  }
+    const res = await fetch(url, { signal: ctrl.signal, headers: HEADERS })
+    return res.ok ? await res.json() : null
+  } catch { return null } finally { clearTimeout(timer) }
+}
+
+export type LookupResult = { ok: true; product: Product } | { ok: false; reason: 'not_found' | 'offline' }
+
+export async function lookupBarcode(code: string): Promise<LookupResult> {
+  const clean = code.replace(/\D/g, '')
+  const json = await get(`${OFF}/api/v2/product/${clean}.json?fields=${FIELDS}`)
+  if (json === null) return { ok: false, reason: 'offline' }
+  if (json.status !== 1 || !json.product) return { ok: false, reason: 'not_found' }
+  return { ok: true, product: fromOff({ code: clean, ...json.product }) }
+}
+
+/** Branded UK products by name (Open Food Facts search is rate-limited — call on explicit user action only). */
+export async function searchUkProducts(q: string): Promise<Product[] | null> {
+  const url = `${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&json=1&page_size=20&sort_by=unique_scans_n&fields=${FIELDS}&tagtype_0=countries&tag_contains_0=contains&tag_0=united-kingdom`
+  const json = await get(url, 12000)
+  if (!json) return null
+  return (json.products ?? []).map(fromOff).filter((p: Product) => p.complete)
 }
 
 const level = (v: number, med: number, high: number): Level => (v > high ? 'high' : v > med ? 'medium' : 'low')

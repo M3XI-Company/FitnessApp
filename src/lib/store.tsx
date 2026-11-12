@@ -60,6 +60,7 @@ type Action =
   | { type: 'profile'; profile: Profile }
   | { type: 'addFood'; entry: FoodEntry }
   | { type: 'removeFood'; id: string }
+  | { type: 'updateFood'; entry: FoodEntry }
   | { type: 'water'; date: string; delta: number }
   | { type: 'addSet'; set: SetLog }
   | { type: 'removeSet'; id: string }
@@ -81,6 +82,7 @@ function reducer(s: AppState, a: Action): AppState {
     case 'profile': return { ...s, profile: a.profile, targets: computeTargets(a.profile) }
     case 'addFood': return { ...s, food: [...s.food, a.entry] }
     case 'removeFood': return { ...s, food: s.food.filter((x) => x.id !== a.id) }
+    case 'updateFood': return { ...s, food: s.food.map((x) => (x.id === a.entry.id ? a.entry : x)) }
     case 'water': return { ...s, water: { ...s.water, [a.date]: Math.max(0, (s.water[a.date] ?? 0) + a.delta) } }
     case 'addSet': return { ...s, sets: [...s.sets, a.set] }
     case 'removeSet': return { ...s, sets: s.sets.filter((x) => x.id !== a.id) }

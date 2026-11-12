@@ -70,7 +70,7 @@ export default function Food() {
                 <IconButton icon="add" variant="fill" size={34} onPress={() => router.push({ pathname: '/add-food', params: { meal: meal.slot } })} label={`Add to ${meal.label}`} />
               </View>
               {items.map((f) => (
-                <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.sep }}>
+                <Pressable key={f.id} onPress={() => { tap(); router.push({ pathname: '/edit-food', params: { id: f.id } }) }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.sep }, pressed && { backgroundColor: C.fill }]}>
                   {editing && (
                     <Pressable onPress={() => { tap(); dispatch({ type: 'removeFood', id: f.id }) }} accessibilityLabel={`Delete ${f.name}`}>
                       <Icon name="remove-circle" size={24} color={C.red} />
@@ -79,10 +79,10 @@ export default function Food() {
                   <Text style={{ fontSize: 22 }}>{f.emoji ?? '🍽️'}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[T.body, { fontWeight: '600' }]} numberOfLines={1}>{f.name}</Text>
-                    <Text style={T.caption}>{f.qty !== 1 ? `${f.qty} × ` : ''}{f.serving}{f.brand ? ` · ${f.brand}` : ''}</Text>
+                    <Text style={T.caption}>{f.grams ? `${f.grams} g` : `${f.qty !== 1 ? `${f.qty} × ` : ''}${f.serving}`}{f.brand ? ` · ${f.brand}` : ''}{f.isEstimate ? ' · estimate' : ''}</Text>
                   </View>
                   <Text style={[T.headline, T.num]}>{Math.round(f.kcal)}</Text>
-                </View>
+                </Pressable>
               ))}
             </Card>
           )

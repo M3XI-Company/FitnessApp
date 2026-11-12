@@ -4,7 +4,8 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useStore } from '../lib/store'
-import { DEMO_CODES, analyze, lookupBarcode, type Product } from '../lib/products'
+import { SAMPLE_CODES, analyze, lookupBarcode, type Product } from '../lib/products'
+import { SOURCES } from '../lib/sources'
 import { MEALS, defaultMeal } from '../lib/meals'
 import { todayKey, uid } from '../lib/date'
 import { round } from '../lib/nutrition'
@@ -24,7 +25,7 @@ export default function Scanner() {
   const [permission, requestPermission] = useCameraPermissions()
   const [loading, setLoading] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
-  const [notFound, setNotFound] = useState<string | null>(null)
+  const [notFound, setNotFound] = useState<{ code: string; reason: 'not_found' | 'offline' } | null>(null)
   const [manual, setManual] = useState('')
   const [qty, setQty] = useState(1)
   const [torch, setTorch] = useState(false)
@@ -36,9 +37,9 @@ export default function Scanner() {
     lock.current = true
     tap()
     setLoading(true); setNotFound(null)
-    const p = await lookupBarcode(code)
+    const res = await lookupBarcode(code)
     setLoading(false)
-    if (p) { success(); setProduct(p); setQty(1) } else { setNotFound(code); lock.current = false }
+    if (res.ok) { success(); setProduct(res.product); setQty(1) } else { setNotFound({ code, reason: res.reason }); lock.current = false }
   }
   const onScan = (r: BarcodeScanningResult) => { if (!product) lookup(r.data) }
   const reset = () => { setProduct(null); setNotFound(null); lock.current = false }
@@ -47,7 +48,7 @@ export default function Scanner() {
     if (!product) return
     dispatch({ type: 'addFood', entry: {
       id: uid(), date: todayKey(), meal, name: product.name, brand: product.brand, serving: product.serving, emoji: product.emoji, qty,
-      kcal: product.kcal * qty, protein: product.protein * qty, carbs: product.carbs * qty, fat: product.fat * qty, source: mode === 'barcode' ? 'barcode' : 'scan',
+      kcal: product.kcal * qty, protein: product.protein * qty, carbs: product.carbs * qty, fat: product.fat * qty, source: mode === 'barcode' ? 'barcode' : 'scan', dataSource: 'off', grams: product.servingG * qty,
     } })
     success()
     router.dismissAll()
@@ -91,7 +92,7 @@ export default function Scanner() {
           </View>
 
           {notFound && (
-            <View style={st.notice}><Icon name="alert-circle" color={C.orange} /><Text style={{ color: '#fff', flex: 1 }}>No product found for {notFound}. Try again or add it manually.</Text></View>
+            <View style={st.notice}><Icon name="alert-circle" color={C.orange} /><Text style={{ color: '#fff', flex: 1 }}>{notFound.reason === 'offline' ? "Couldn't reach the product database. Check your connection and try again." : `${notFound.code} isn't in Open Food Facts yet. Search the food instead, or add it manually.`}</Text></View>
           )}
 
           {/* Manual + demo */}
@@ -103,7 +104,7 @@ export default function Scanner() {
             </View>
             <Text style={{ color: 'rgba(255,255,255,.5)', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 }}>TRY A SAMPLE</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {DEMO_CODES.map((d) => (
+              {SAMPLE_CODES.map((d) => (
                 <Pressable key={d.code} onPress={() => lookup(d.code)} style={st.sample}><Text style={{ color: '#fff', fontWeight: '600' }}>{d.emoji} {d.name}</Text></Pressable>
               ))}
             </View>
@@ -130,6 +131,12 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
           <Text style={T.sub}>{product.brand ?? 'Unknown brand'} · {product.barcode}</Text>
         </View>
       </View>
+      {!product.ukListed && (
+        <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#F8EBD8' }}>
+          <Icon name="information-circle" color={C.orange} />
+          <Text style={[T.sub, { flex: 1, color: C.text }]}>Not listed as sold in the UK. UK recipes can differ — check the pack label matches.</Text>
+        </View>
+      )}
 
       {/* Grade card (Product scanner) */}
       {mode === 'product' && (
@@ -141,6 +148,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
             </View>
             <View style={{ flex: 1 }}>
               <Text style={T.title3}>{a.verdict}</Text>
+              <Text style={T.caption}>{product.gradeSource === 'nutriscore' ? 'Grade: Nutri-Score via Open Food Facts · score: Breeze' : 'Grade and score calculated by Breeze'}</Text>
               <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
                 {(['A', 'B', 'C', 'D', 'E'] as const).map((g) => <View key={g} style={{ opacity: g === a.grade ? 1 : 0.25 }}><Grade g={g} size={g === a.grade ? 30 : 24} /></View>)}
               </View>
@@ -174,11 +182,13 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
           ))}
         </View>
         <View style={{ gap: 6 }}>
+          <Text style={T.caption}>{Math.round((product.kj ?? product.kcal * 4.184) * qty)} kJ · values per serving from the pack data · traffic lights per 100 g (FSA thresholds)</Text>
           <Text style={T.sub}>{kcal <= kcalLeft ? `Fits your day — ${Math.round(kcalLeft - kcal)} kcal left after this` : `${Math.round(kcal - kcalLeft)} kcal over your remaining budget`}</Text>
           <Bar pct={kcalLeft > 0 ? kcal / kcalLeft : 1} color={kcal <= kcalLeft ? C.accent : C.orange} />
         </View>
       </View>
 
+      <Text style={[T.caption, { lineHeight: 16 }]}>{SOURCES.off.attribution}</Text>
       <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} icon="add" onPress={onAdd} />
       <Button title="Scan another" variant="ghost" icon="scan" onPress={onRescan} />
     </ScrollView>

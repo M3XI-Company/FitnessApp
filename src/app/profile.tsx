@@ -114,6 +114,7 @@ export default function Profile() {
           <Row left={<IconTile icon="trending-down" />} title="Goal" subtitle={`${p.goal === 'lose' ? 'Lose weight' : p.goal === 'gain' ? 'Build muscle' : 'Maintain'} · target ${p.targetWeightKg} kg`} />
           <Row left={<IconTile icon="create-outline" />} title="Edit plan" onPress={() => router.push('/onboarding')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
           <Row left={<IconTile icon="scale-outline" />} title="Log weight" onPress={() => router.push('/weight')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
+          <Row left={<IconTile icon="document-text-outline" />} title="Data sources & licences" onPress={() => router.push('/licences')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
         </List>
 
         <Button title="Reset demo data" variant="ghost" icon="refresh" style={{ marginTop: 24 }} onPress={() => dispatch({ type: 'reset' })} />

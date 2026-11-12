@@ -3,7 +3,9 @@ import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, 
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useStore } from '../lib/store'
-import { searchFoods } from '../data/foods'
+import { searchCofid } from '../lib/foodDb'
+import { searchUkProducts } from '../lib/products'
+import { SOURCES } from '../lib/sources'
 import { BOXED_MEALS } from '../data/boxedMeals'
 import { MEALS, defaultMeal } from '../lib/meals'
 import { todayKey, uid } from '../lib/date'
@@ -23,6 +25,17 @@ export default function AddFood() {
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<FoodItem | null>(null)
   const [qty, setQty] = useState(1)
+  const [grams, setGrams] = useState(100)
+  const [online, setOnline] = useState<FoodItem[] | null>(null)
+  const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const factor = picked?.servingG ? grams / picked.servingG : qty
+  const pick = (item: FoodItem) => { setPicked(item); setQty(1); setGrams(item.servingG ?? 100) }
+  const searchOnline = async () => {
+    setOnlineState('loading')
+    const res = await searchUkProducts(q)
+    if (res === null) { setOnlineState('error'); return }
+    setOnline(res); setOnlineState('idle')
+  }
   const [manual, setManual] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' })
 
   const recent = useMemo(() => {
@@ -35,6 +48,8 @@ export default function AddFood() {
 
   const add = (item: FoodItem, n: number, source: 'search' | 'boxed' | 'manual' = 'search') => {
     dispatch({ type: 'addFood', entry: {
+      dataSource: item.source ?? (source === 'manual' ? 'manual' : source === 'boxed' ? 'boxed' : undefined),
+      grams: item.servingG ? Math.round(item.servingG * n) : undefined,
       id: uid(), date: todayKey(), meal, name: item.name, brand: item.brand, serving: item.serving, emoji: item.emoji, qty: n, source,
       kcal: item.kcal * n, protein: item.protein * n, carbs: item.carbs * n, fat: item.fat * n,
     } })
@@ -42,13 +57,13 @@ export default function AddFood() {
     router.back()
   }
 
-  const list = mode === 'search' ? searchFoods(q) : recent
+  const list = mode === 'search' ? [...searchCofid(q), ...(online ?? [])] : recent
   const row = (item: FoodItem) => (
-    <Pressable key={item.id} onPress={() => { setPicked(item); setQty(1) }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: picked?.id === item.id ? C.accentSoft : C.card, borderRadius: 16, marginBottom: 8 }, pressed && { opacity: 0.8 }]}>
+    <Pressable key={item.id} onPress={() => pick(item)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: picked?.id === item.id ? C.accentSoft : C.card, borderRadius: 16, marginBottom: 8 }, pressed && { opacity: 0.8 }]}>
       <Text style={{ fontSize: 26 }}>{item.emoji ?? '🍽️'}</Text>
       <View style={{ flex: 1 }}>
         <Text style={T.headline} numberOfLines={1}>{item.name}</Text>
-        <Text style={T.sub}>{Math.round(item.kcal)} kcal · {item.serving}</Text>
+        <Text style={T.sub} numberOfLines={1}>{Math.round(item.kcal)} kcal · {item.serving}{item.brand ? ` · ${item.brand}` : ''} · {item.source ? SOURCES[item.source].short : 'Recent'}</Text>
       </View>
       <Grade g={item.grade} size={26} />
       <Icon name={picked?.id === item.id ? 'checkmark-circle' : 'add-circle'} size={26} color={C.accent} />
@@ -74,11 +89,21 @@ export default function AddFood() {
           ))}
         </View>
         <Segmented value={mode} onChange={(v) => { setMode(v); setPicked(null) }} options={[{ value: 'search', label: 'Search' }, { value: 'recent', label: 'Recent' }, { value: 'boxed', label: 'Boxed' }, { value: 'manual', label: 'Manual' }]} />
-        {mode === 'search' && <SearchField value={q} onChangeText={setQ} placeholder="Search foods" />}
+        {mode === 'search' && <SearchField value={q} onChangeText={(v) => { setQ(v); setOnline(null); setOnlineState('idle') }} placeholder="Search 2,800+ UK foods" />}
       </View>
 
       {(mode === 'search' || mode === 'recent') && (
         <FlatList data={list} keyExtractor={(i) => i.id} renderItem={({ item }) => row(item)} contentContainerStyle={{ padding: 16, paddingBottom: 200 }} keyboardShouldPersistTaps="handled"
+          ListFooterComponent={mode === 'search' ? (
+            <View style={{ gap: 10, marginTop: 6 }}>
+              {q.trim().length > 1 && online === null && (
+                <Button variant="tinted" icon="cart-outline" title={onlineState === 'loading' ? 'Searching UK products…' : `Search UK branded products for “${q.trim()}”`} disabled={onlineState === 'loading'} onPress={searchOnline} />
+              )}
+              {onlineState === 'error' && <Text style={[T.sub, { textAlign: 'center' }]}>{"Couldn't reach Open Food Facts. Try again in a moment."}</Text>}
+              {online !== null && online.length === 0 && <Text style={[T.sub, { textAlign: 'center' }]}>No UK branded products found.</Text>}
+              <Text style={[T.caption, { lineHeight: 16 }]}>Generic foods: {SOURCES.cofid.attribution}{online ? ` Branded products: ${SOURCES.off.attribution}` : ''}</Text>
+            </View>
+          ) : undefined}
           ListEmptyComponent={<Text style={[T.sub, { textAlign: 'center', marginTop: 30 }]}>{mode === 'recent' ? 'Nothing logged yet.' : `No results for “${q}”. Try scanning the barcode or add it manually.`}</Text>} />
       )}
 
@@ -116,15 +141,15 @@ export default function AddFood() {
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 18 + insets.bottom, gap: 14, boxShadow: '0 -10px 40px rgba(15,30,60,.12)' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={{ fontSize: 30 }}>{picked.emoji}</Text>
-            <View style={{ flex: 1 }}><Text style={T.title3} numberOfLines={1}>{picked.name}</Text><Text style={T.sub}>{picked.serving}</Text></View>
-            <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />
+            <View style={{ flex: 1 }}><Text style={T.title3} numberOfLines={1}>{picked.name}</Text><Text style={T.sub}>{picked.servingG ? `${picked.serving} = ${Math.round(picked.kcal)} kcal` : picked.serving}</Text></View>
+            {picked.servingG ? <Stepper value={grams} step={10} min={5} suffix="g" onChange={setGrams} /> : <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />}
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             {([['Calories', picked.kcal, ''], ['Protein', picked.protein, 'g'], ['Carbs', picked.carbs, 'g'], ['Fat', picked.fat, 'g']] as const).map(([l, v, u]) => (
-              <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{round(v * qty)}{u}</Text><Text style={T.caption}>{l}</Text></View>
+              <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{round(v * factor)}{u}</Text><Text style={T.caption}>{l}</Text></View>
             ))}
           </View>
-          <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} onPress={() => add(picked, qty)} />
+          <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} onPress={() => add(picked, factor)} />
         </View>
       )}
     </KeyboardAvoidingView>

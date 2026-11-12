@@ -28,8 +28,15 @@ export interface Targets extends Macros {
   waterMl: number
 }
 
+/** Where nutrition values came from — drives attribution and "estimate" labels */
+export type FoodSource = 'cofid' | 'off' | 'manual' | 'ai' | 'boxed'
+
 export interface FoodItem extends Macros {
   id: string
+  source?: FoodSource
+  /** grams in one serving; when set, the UI lets people log by weight */
+  servingG?: number
+  kj?: number
   name: string
   brand?: string
   serving: string
@@ -48,7 +55,13 @@ export interface FoodEntry extends Macros {
   serving: string
   qty: number
   emoji?: string
-  source: 'search' | 'barcode' | 'boxed' | 'manual' | 'scan'
+  source: 'search' | 'barcode' | 'boxed' | 'manual' | 'scan' | 'photo'
+  /** nutrition database the values came from */
+  dataSource?: FoodSource
+  /** grams eaten, when logged by weight */
+  grams?: number
+  /** true when values are an estimate (e.g. from a photo) rather than a label/database */
+  isEstimate?: boolean
 }
 
 export interface SetLog {
