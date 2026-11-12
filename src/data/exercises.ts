@@ -65,6 +65,6 @@ export const EQUIPMENT: Equipment[] = ['Barbell', 'Dumbbell', 'Machine', 'Cable'
 export const exerciseById = (id: string) => EXERCISES.find((e) => e.id === id)
 
 export const MUSCLE_COLOR: Record<Muscle, string> = {
-  Chest: '#0A6CFF', Back: '#2F80ED', Legs: '#0EA5E9', Glutes: '#06B6D4',
-  Shoulders: '#4F46E5', Arms: '#6366F1', Core: '#38BDF8', Cardio: '#1D4ED8',
+  Chest: '#9A7535', Back: '#7A5C25', Legs: '#141210', Glutes: '#5C5248',
+  Shoulders: '#A88544', Arms: '#8C7A5E', Core: '#6B6358', Cardio: '#B5483B',
 }

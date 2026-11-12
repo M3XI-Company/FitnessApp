@@ -28,11 +28,11 @@ export function DeviceFrame({ children }: { children: ReactNode }) {
 }
 
 const st = StyleSheet.create({
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#DCE6F5' },
-  phone: { width: 413, height: 884, borderRadius: 64, padding: 12, backgroundColor: '#0B1220', boxShadow: '0 40px 90px rgba(10,40,100,.35)' },
-  screen: { flex: 1, borderRadius: 52, overflow: 'hidden', backgroundColor: '#F2F5FA' },
+  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9E1D2' },
+  phone: { width: 413, height: 884, borderRadius: 64, padding: 12, backgroundColor: '#141210', boxShadow: '0 40px 90px rgba(59,47,30,.35)' },
+  screen: { flex: 1, borderRadius: 52, overflow: 'hidden', backgroundColor: '#F5EFE4' },
   statusBar: { height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 30, paddingTop: 6 },
-  time: { fontSize: 15, fontWeight: '600', color: '#0B1220', width: 70 },
+  time: { fontSize: 15, fontWeight: '600', color: '#141210', width: 70 },
   island: { width: 122, height: 34, borderRadius: 20, backgroundColor: '#000' },
-  home: { position: 'absolute', bottom: 8, alignSelf: 'center', width: 134, height: 5, borderRadius: 3, backgroundColor: '#0B1220', opacity: 0.85 },
+  home: { position: 'absolute', bottom: 8, alignSelf: 'center', width: 134, height: 5, borderRadius: 3, backgroundColor: '#141210', opacity: 0.85 },
 })

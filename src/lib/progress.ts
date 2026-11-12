@@ -76,7 +76,7 @@ export const xp = (s: AppState) => {
   return { total, level, into: total - curBase, span: nextBase - curBase }
 }
 
-export const LEVEL_NAMES = ['Ripple', 'Wave', 'Current', 'Surge', 'Tide', 'Swell', 'Riptide', 'Tsunami']
+export const LEVEL_NAMES = ['Whisper', 'Breath', 'Breeze', 'Zephyr', 'Gust', 'Gale', 'Tempest', 'Hurricane']
 export const levelName = (lvl: number) => LEVEL_NAMES[Math.min(LEVEL_NAMES.length - 1, Math.floor((lvl - 1) / 2))]
 
 export const goalProgress = (s: AppState, metric: string, target: number) => {

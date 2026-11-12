@@ -4,7 +4,7 @@ import type { AppState, ChatMessage, FoodEntry, Profile, SetLog, UserGoal, Water
 import { computeTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
 
-const STORAGE_KEY = 'tide.v1'
+const STORAGE_KEY = 'breeze.v1'
 
 const defaultProfile: Profile = {
   name: 'Alex', sex: 'male', age: 29, heightCm: 178, weightKg: 82, targetWeightKg: 76,
@@ -51,6 +51,8 @@ function seed(): AppState {
     boxedPlan: { [t]: ['overnight-oats', 'chicken-bowl', 'salmon-plate'] },
     chat: [],
     buddies: [],
+    blocked: [],
+    reports: [],
   }
 }
 
@@ -69,6 +71,9 @@ type Action =
   | { type: 'chat'; messages: ChatMessage[] }
   | { type: 'toggleBuddy'; id: string }
   | { type: 'reset' }
+  | { type: 'block'; id: string }
+  | { type: 'report'; targetId: string; reason: string }
+  | { type: 'buddySafety' }
   | { type: 'hydrate'; state: AppState }
 
 function reducer(s: AppState, a: Action): AppState {
@@ -95,6 +100,9 @@ function reducer(s: AppState, a: Action): AppState {
     case 'chat': return { ...s, chat: [...s.chat, ...a.messages] }
     case 'toggleBuddy': return { ...s, buddies: s.buddies.includes(a.id) ? s.buddies.filter((x) => x !== a.id) : [...s.buddies, a.id] }
     case 'reset': return seed()
+    case 'block': return { ...s, blocked: [...new Set([...s.blocked, a.id])], buddies: s.buddies.filter((x) => x !== a.id) }
+    case 'report': return { ...s, reports: [...s.reports, { id: uid(), targetId: a.targetId, reason: a.reason, at: new Date().toISOString() }], blocked: [...new Set([...s.blocked, a.targetId])], buddies: s.buddies.filter((x) => x !== a.targetId) }
+    case 'buddySafety': return { ...s, buddySafetyAt: new Date().toISOString() }
     case 'hydrate': return a.state
   }
 }

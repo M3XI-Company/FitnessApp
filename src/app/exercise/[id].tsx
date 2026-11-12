@@ -7,7 +7,7 @@ import { MUSCLE_COLOR, exerciseById } from '../../data/exercises'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
-import { C, T } from '../../theme'
+import { C, T, G, F } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, Stepper, success, tap } from '../../components/ui'
 
 export default function ExerciseDetail() {
@@ -45,9 +45,9 @@ export default function ExerciseDetail() {
 
         {/* Progression target */}
         {target && (
-          <LinearGradient colors={['#2A86FF', '#0047CC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
-            <Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 }}>NEXT TARGET</Text>
-            <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }}>
+          <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
+            <Text style={{ color: C.goldLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
+            <Text style={{ color: C.cream, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
               {target.weight ? `${target.weight} kg × ` : ''}{target.reps}{isTimed ? ' s' : ' reps'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,.9)', fontSize: 14, marginTop: 4 }}>{target.note}</Text>
@@ -55,7 +55,7 @@ export default function ExerciseDetail() {
         )}
 
         {prFlag === '1' && (
-          <Card tight style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF8E6' }}>
+          <Card tight style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.accentSoft }}>
             <Text style={{ fontSize: 24 }}>🏆</Text><Text style={[T.headline, { flex: 1 }]}>New personal record!</Text>
           </Card>
         )}
@@ -76,7 +76,7 @@ export default function ExerciseDetail() {
           <Button title={`Log set ${today.length + 1}`} icon="checkmark" onPress={logSet} />
           {today.map((s, i) => (
             <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.blue50, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.blue, fontWeight: '800' }}>{i + 1}</Text></View>
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.accent, fontWeight: '800' }}>{i + 1}</Text></View>
               <Text style={[T.headline, T.num, { flex: 1 }]}>{s.weight ? `${s.weight} kg × ` : ''}{s.reps}{isTimed ? ' s' : ''}</Text>
               <Text style={[T.caption, T.num]}>e1RM {round(e1rm(s.weight, s.reps), 1)}</Text>
               <Pressable onPress={() => { tap(); dispatch({ type: 'removeSet', id: s.id }) }} hitSlop={8} accessibilityLabel="Delete set"><Icon name="trash-outline" size={18} color={C.text3} /></Pressable>
@@ -98,7 +98,7 @@ export default function ExerciseDetail() {
         <Card style={{ gap: 10 }}>
           {ex.cues.map((c, i) => (
             <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.goldLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
               <Text style={[T.body, { flex: 1 }]}>{c}</Text>
             </View>
           ))}

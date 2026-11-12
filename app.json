@@ -1,27 +1,27 @@
 {
   "expo": {
-    "name": "Tide",
-    "slug": "tide-fitness",
+    "name": "Breeze",
+    "slug": "breeze",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tide.fitness",
+      "bundleIdentifier": "com.m3xi.breeze",
       "infoPlist": {
-        "NSCameraUsageDescription": "Tide uses the camera to scan food barcodes and product labels."
+        "NSCameraUsageDescription": "Breeze uses the camera to scan food barcodes and product labels."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0A6CFF",
+        "backgroundColor": "#141210",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.tide.fitness",
+      "package": "com.m3xi.breeze",
       "permissions": [
         "android.permission.CAMERA"
       ]
@@ -36,15 +36,16 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Tide uses the camera to scan food barcodes and product labels."
+          "cameraPermission": "Breeze uses the camera to scan food barcodes and product labels."
         }
-      ]
+      ],
+      "expo-font"
     ],
-    "scheme": "tide",
+    "scheme": "breeze",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F2F5FA"
+      "backgroundColor": "#F5EFE4"
     }
   }
 }

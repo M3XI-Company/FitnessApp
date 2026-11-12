@@ -36,9 +36,9 @@ export default function Food() {
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Text style={[T.title1, T.num]}>{round(m.kcal)} <Text style={[T.headline, { color: C.text3 }]}>/ {t.kcal} kcal</Text></Text>
-          <Text style={[T.sub, { color: m.kcal > t.kcal ? C.orange : C.blue, fontWeight: '700' }]}>{Math.round((m.kcal / t.kcal) * 100)}%</Text>
+          <Text style={[T.sub, { color: m.kcal > t.kcal ? C.orange : C.accent, fontWeight: '700' }]}>{Math.round((m.kcal / t.kcal) * 100)}%</Text>
         </View>
-        <View style={{ marginTop: 10 }}><Bar pct={m.kcal / t.kcal} color={m.kcal > t.kcal ? C.orange : C.blue} height={10} /></View>
+        <View style={{ marginTop: 10 }}><Bar pct={m.kcal / t.kcal} color={m.kcal > t.kcal ? C.orange : C.accent} height={10} /></View>
         <View style={{ flexDirection: 'row', gap: 14, marginTop: 16 }}>
           {([['Protein', m.protein, t.protein, C.protein], ['Carbs', m.carbs, t.carbs, C.carbs], ['Fat', m.fat, t.fat, C.fat]] as const).map(([l, v, max, c]) => (
             <View key={l} style={{ flex: 1, gap: 6 }}>
@@ -51,7 +51,7 @@ export default function Food() {
       </Card>
 
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 14, marginRight: 4 }}>
-        <Pressable onPress={() => { tap(); setEditing(!editing) }} hitSlop={10}><Text style={{ color: C.blue, fontWeight: '600', fontSize: 15 }}>{editing ? 'Done' : 'Edit'}</Text></Pressable>
+        <Pressable onPress={() => { tap(); setEditing(!editing) }} hitSlop={10}><Text style={{ color: C.accent, fontWeight: '600', fontSize: 15 }}>{editing ? 'Done' : 'Edit'}</Text></Pressable>
       </View>
 
       {/* Meals */}
@@ -91,7 +91,7 @@ export default function Food() {
 
       {/* Plans entry */}
       <Card onPress={() => router.push({ pathname: '/plans', params: { tab: 'boxed' } })} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <IconTile icon="cube" color="#fff" bg={C.blue} size={44} />
+        <IconTile icon="cube" color="#fff" bg={C.accent} size={44} />
         <View style={{ flex: 1 }}>
           <Text style={T.headline}>Boxed meals & ingredients</Text>
           <Text style={T.sub}>Plan your day, get a shopping list</Text>

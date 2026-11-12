@@ -44,14 +44,14 @@ export default function AddFood() {
 
   const list = mode === 'search' ? searchFoods(q) : recent
   const row = (item: FoodItem) => (
-    <Pressable key={item.id} onPress={() => { setPicked(item); setQty(1) }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: picked?.id === item.id ? C.blue50 : C.card, borderRadius: 16, marginBottom: 8 }, pressed && { opacity: 0.8 }]}>
+    <Pressable key={item.id} onPress={() => { setPicked(item); setQty(1) }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: picked?.id === item.id ? C.accentSoft : C.card, borderRadius: 16, marginBottom: 8 }, pressed && { opacity: 0.8 }]}>
       <Text style={{ fontSize: 26 }}>{item.emoji ?? '🍽️'}</Text>
       <View style={{ flex: 1 }}>
         <Text style={T.headline} numberOfLines={1}>{item.name}</Text>
         <Text style={T.sub}>{Math.round(item.kcal)} kcal · {item.serving}</Text>
       </View>
       <Grade g={item.grade} size={26} />
-      <Icon name={picked?.id === item.id ? 'checkmark-circle' : 'add-circle'} size={26} color={C.blue} />
+      <Icon name={picked?.id === item.id ? 'checkmark-circle' : 'add-circle'} size={26} color={C.accent} />
     </Pressable>
   )
 
@@ -91,7 +91,7 @@ export default function AddFood() {
                 <Text style={T.headline} numberOfLines={1}>{b.name}</Text>
                 <Text style={T.sub}>{b.kcal} kcal · {b.protein}g protein · {b.minutes} min</Text>
               </View>
-              <Icon name="add-circle" size={26} color={C.blue} />
+              <Icon name="add-circle" size={26} color={C.accent} />
             </Card>
           ))}
         </ScrollView>

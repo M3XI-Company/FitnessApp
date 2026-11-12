@@ -21,7 +21,7 @@ export default function QuickAdd() {
     ['sparkles-outline', 'Ask AI trainer', go(() => router.navigate('/coach'))],
   ]
   return (
-    <Pressable style={{ flex: 1, backgroundColor: 'rgba(8,15,30,.4)', justifyContent: 'flex-end' }} onPress={() => router.back()}>
+    <Pressable style={{ flex: 1, backgroundColor: 'rgba(20,18,16,.42)', justifyContent: 'flex-end' }} onPress={() => router.back()}>
       <Pressable onPress={() => {}} style={{ margin: 12, marginBottom: Math.max(12, insets.bottom) + 84, backgroundColor: C.bg, borderRadius: 28, padding: 16 }}>
         <Text style={[T.title3, { marginBottom: 12, marginLeft: 4 }]}>Quick add</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>

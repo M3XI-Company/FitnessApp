@@ -13,6 +13,8 @@ export interface Profile {
   activity: Activity
   goal: GoalType
   onboarded: boolean
+  /** ISO time the user accepted the health & safety notice */
+  healthNoticeAt?: string
 }
 
 export interface Macros {
@@ -96,4 +98,8 @@ export interface AppState {
   goals: UserGoal[]
   chat: ChatMessage[]
   buddies: string[] // connected buddy ids
+  blocked: string[]
+  reports: { id: string; targetId: string; reason: string; at: string }[]
+  /** ISO time the user accepted the meeting-safety guidelines */
+  buddySafetyAt?: string
 }

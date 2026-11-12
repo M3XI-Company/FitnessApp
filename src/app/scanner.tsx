@@ -10,7 +10,7 @@ import { todayKey, uid } from '../lib/date'
 import { round } from '../lib/nutrition'
 import { dayMacros } from '../lib/progress'
 import type { MealSlot } from '../lib/types'
-import { C, GRADE_COLOR, T } from '../theme'
+import { C, GRADE_COLOR, T, F } from '../theme'
 import { Bar, Button, Grade, Icon, IconButton, Stepper, success, tap } from '../components/ui'
 
 type Mode = 'barcode' | 'product'
@@ -57,7 +57,7 @@ export default function Scanner() {
   const cameraReady = permission?.granted && Platform.OS !== 'web'
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#050B18' }}>
+    <View style={{ flex: 1, backgroundColor: '#141210' }}>
       {cameraReady && !product && (
         <CameraView style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} onBarcodeScanned={loading ? undefined : onScan}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'] }} />
@@ -136,7 +136,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
         <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 18, gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 6, borderColor: GRADE_COLOR[a.grade], alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 24, fontWeight: '800', color: C.text }}>{a.score}</Text>
+              <Text style={{ fontSize: 32, fontFamily: F.hand, color: C.text, lineHeight: 34 }}>{a.score}</Text>
               <Text style={{ fontSize: 10, fontWeight: '700', color: C.text3, marginTop: -2 }}>/100</Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -175,7 +175,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
         </View>
         <View style={{ gap: 6 }}>
           <Text style={T.sub}>{kcal <= kcalLeft ? `Fits your day — ${Math.round(kcalLeft - kcal)} kcal left after this` : `${Math.round(kcal - kcalLeft)} kcal over your remaining budget`}</Text>
-          <Bar pct={kcalLeft > 0 ? kcal / kcalLeft : 1} color={kcal <= kcalLeft ? C.blue : C.orange} />
+          <Bar pct={kcalLeft > 0 ? kcal / kcalLeft : 1} color={kcal <= kcalLeft ? C.accent : C.orange} />
         </View>
       </View>
 
@@ -198,6 +198,6 @@ const st = StyleSheet.create({
   hint: { color: '#fff', fontWeight: '600', fontSize: 15, marginTop: 22, textAlign: 'center' },
   notice: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.1)' },
   manual: { flexDirection: 'row', alignItems: 'center', height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.12)', paddingLeft: 16, paddingRight: 6 },
-  go: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center' },
+  go: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
   sample: { paddingHorizontal: 14, height: 38, borderRadius: 99, justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.12)' },
 })

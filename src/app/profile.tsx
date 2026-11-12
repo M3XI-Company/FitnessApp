@@ -6,7 +6,7 @@ import { useStore } from '../lib/store'
 import { exerciseHistory, goalProgress, levelName, LEVEL_NAMES, logStreak, waterDaysStreak, workoutDates, xp } from '../lib/progress'
 import { todayKey, uid } from '../lib/date'
 import type { UserGoal } from '../lib/types'
-import { C, T, blueGlow } from '../theme'
+import { C, T, glow, G, F } from '../theme'
 import { Bar, Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap } from '../components/ui'
 
 const PRESETS: Omit<UserGoal, 'id' | 'createdAt'>[] = [
@@ -40,15 +40,15 @@ export default function Profile() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Profile & Goals" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
-        <LinearGradient colors={['#2A86FF', '#0A6CFF', '#0040C0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, blueGlow]}>
+        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 24 }}>{p.name[0]?.toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{p.name}</Text>
+              <Text style={{ color: C.cream, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,.8)', fontWeight: '600' }}>Level {lv.level} · {levelName(lv.level)} · {lv.total} XP</Text>
             </View>
           </View>
-          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color="#fff" track="rgba(255,255,255,.22)" /></View>
+          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color={C.gold} track="rgba(255,255,255,.14)" /></View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>{lv.span - lv.into} XP to level {lv.level + 1}</Text>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>Next rank: {LEVEL_NAMES[Math.min(LEVEL_NAMES.length - 1, Math.floor(lv.level / 2))]}</Text>
@@ -61,7 +61,7 @@ export default function Profile() {
           <Card style={{ gap: 8, marginBottom: 12 }}>
             {PRESETS.filter((x) => !state.goals.some((g) => g.title === x.title)).map((x) => (
               <Pressable key={x.title} onPress={() => { tap(); dispatch({ type: 'addGoal', goal: { ...x, id: uid(), createdAt: todayKey() } }) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
-                <Icon name="add-circle" color={C.blue} size={24} /><Text style={T.headline}>{x.title}</Text>
+                <Icon name="add-circle" color={C.accent} size={24} /><Text style={T.headline}>{x.title}</Text>
               </Pressable>
             ))}
           </Card>
@@ -73,16 +73,16 @@ export default function Profile() {
             return (
               <Card key={g.id} tight style={{ gap: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <IconTile icon={done ? 'trophy' : 'flag'} color={done ? '#fff' : C.blue} bg={done ? C.green : C.blue50} />
+                  <IconTile icon={done ? 'trophy' : 'flag'} color={done ? '#fff' : C.accent} bg={done ? C.green : C.accentSoft} />
                   <View style={{ flex: 1 }}>
                     <Text style={T.headline}>{g.title}</Text>
                     <Text style={T.sub}>{g.metric === 'weight' ? `${pr.value} kg → ${g.target} kg` : `${pr.value} / ${g.target}`}</Text>
                   </View>
                   {adding ? (
                     <Pressable onPress={() => dispatch({ type: 'removeGoal', id: g.id })} hitSlop={8} accessibilityLabel="Remove goal"><Icon name="remove-circle" color={C.red} size={24} /></Pressable>
-                  ) : <Text style={[T.headline, { color: done ? C.green : C.blue }]}>{Math.min(100, Math.round(pr.pct * 100))}%</Text>}
+                  ) : <Text style={[T.headline, { color: done ? C.green : C.accent }]}>{Math.min(100, Math.round(pr.pct * 100))}%</Text>}
                 </View>
-                <Bar pct={pr.pct} color={done ? C.green : C.blue} height={6} />
+                <Bar pct={pr.pct} color={done ? C.green : C.accent} height={6} />
               </Card>
             )
           })}
@@ -92,7 +92,7 @@ export default function Profile() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {achievements.map((a) => (
             <View key={a.t} style={{ width: '23%', alignItems: 'center', gap: 4, opacity: a.ok ? 1 : 0.35 }}>
-              <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: a.ok ? C.blue50 : C.fill2, alignItems: 'center', justifyContent: 'center', borderWidth: a.ok ? 2 : 0, borderColor: C.blue }}><Text style={{ fontSize: 28 }}>{a.e}</Text></View>
+              <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: a.ok ? C.accentSoft : C.fill2, alignItems: 'center', justifyContent: 'center', borderWidth: a.ok ? 2 : 0, borderColor: C.accent }}><Text style={{ fontSize: 28 }}>{a.e}</Text></View>
               <Text style={[T.caption, { color: C.text, fontWeight: '700', textAlign: 'center' }]} numberOfLines={1}>{a.t}</Text>
               <Text style={[T.caption, { fontSize: 10, textAlign: 'center' }]} numberOfLines={2}>{a.d}</Text>
             </View>

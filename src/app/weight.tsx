@@ -15,7 +15,7 @@ export default function WeightSheet() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Log weight" onClose={() => router.back()} />
       <View style={{ padding: 20, gap: 18, alignItems: 'center' }}>
-        <Text style={[{ fontSize: 56, fontWeight: '800', letterSpacing: -2, color: C.text }, T.num]}>{kg.toFixed(1)}<Text style={[T.title2, { color: C.text3 }]}> kg</Text></Text>
+        <Text style={[T.bigNum, { fontSize: 72, lineHeight: 80 }]}>{kg.toFixed(1)}<Text style={[T.title2, { color: C.text3 }]}> kg</Text></Text>
         <Stepper value={kg} step={0.1} onChange={(v) => setKg(round(v, 1))} />
         <Text style={T.sub}>{toGo === 0 ? 'You are at your target 🎉' : `${Math.abs(toGo)} kg ${toGo > 0 ? 'above' : 'below'} your target of ${state.profile.targetWeightKg} kg`}</Text>
         <Button title="Save" style={{ alignSelf: 'stretch' }} onPress={() => { dispatch({ type: 'weight', date: todayKey(), kg }); success(); router.back() }} />

@@ -6,7 +6,7 @@ import { useStore } from '../../lib/store'
 import { dayMacros, goalProgress, levelName, logStreak, workoutsThisWeek, xp } from '../../lib/progress'
 import { lastNDays, prettyDate, todayKey, weekdayShort } from '../../lib/date'
 import { round } from '../../lib/nutrition'
-import { C, T, blueGlow } from '../../theme'
+import { C, F, T, glow, G } from '../../theme'
 import { Bar, Card, FadeIn, Icon, IconButton, IconTile, Ring, Screen, SectionHeader, tap } from '../../components/ui'
 import { WaterCard } from '../../components/WaterCard'
 
@@ -26,7 +26,7 @@ export default function Today() {
     <Screen
       eyebrow={`${greet} · ${prettyDate(date)}`}
       title={date === todayKey() ? 'Today' : prettyDate(date).split(',')[0]}
-      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
+      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.goldLight, fontFamily: F.hand, fontSize: 24 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
     >
       {/* Week strip */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -36,8 +36,8 @@ export default function Today() {
           return (
             <Pressable key={d} onPress={() => { tap(); setDate(d) }} style={{ alignItems: 'center', gap: 6, width: 42, paddingVertical: 8, borderRadius: 14, backgroundColor: on ? C.card : 'transparent' }}>
               <Text style={[T.caption, on && { color: C.text }]}>{weekdayShort(d)}</Text>
-              <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: logged ? 'solid' : 'dashed', borderColor: on ? C.blue : logged ? C.blue100 : '#CBD3E0', backgroundColor: on ? C.blue : 'transparent' }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : C.text }}>{+d.slice(8)}</Text>
+              <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: logged ? 'solid' : 'dashed', borderColor: on ? C.ink : logged ? C.gold : C.accentLine, backgroundColor: on ? C.ink : 'transparent' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: on ? C.goldLight : C.text }}>{+d.slice(8)}</Text>
               </View>
             </Pressable>
           )
@@ -48,15 +48,15 @@ export default function Today() {
         {/* Calories hero */}
         <Card onPress={() => router.navigate('/food')} style={{ flexDirection: 'row', alignItems: 'center', padding: 22 }}>
           <View style={{ flex: 1 }}>
-            <Text style={[{ fontSize: 46, fontWeight: '800', letterSpacing: -1.5, color: C.text }, T.num]}>{Math.abs(left).toLocaleString()}</Text>
+            <Text style={T.bigNum}>{Math.abs(left).toLocaleString()}</Text>
             <Text style={[T.headline, { color: C.text2 }]}>{left >= 0 ? 'Calories left' : 'Calories over'}</Text>
             <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
               <View><Text style={T.caption}>Eaten</Text><Text style={[T.headline, T.num]}>{round(m.kcal)}</Text></View>
               <View><Text style={T.caption}>Goal</Text><Text style={[T.headline, T.num]}>{t.kcal}</Text></View>
             </View>
           </View>
-          <Ring value={m.kcal} max={t.kcal} size={118} stroke={11} color={left < 0 ? C.orange : C.blue}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: C.blue50, alignItems: 'center', justifyContent: 'center' }}><Icon name="flame" size={28} color={C.blue} /></View>
+          <Ring value={m.kcal} max={t.kcal} size={118} stroke={11} color={left < 0 ? C.orange : C.gold}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="flame" size={28} color={C.accent} /></View>
           </Ring>
         </Card>
 
@@ -81,18 +81,18 @@ export default function Today() {
       {/* Level / streak */}
       <SectionHeader title="Progress" action="Goals" onAction={() => router.push('/profile')} />
       <Pressable onPress={() => { tap(); router.push('/profile') }}>
-        <LinearGradient colors={['#2A86FF', '#0A6CFF', '#0040C0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 22, padding: 18 }, blueGlow]}>
+        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 22, padding: 18 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 }}>LEVEL {level.level}</Text>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 }}>{levelName(level.level)}</Text>
+              <Text style={{ color: C.goldLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>LEVEL {level.level}</Text>
+              <Text style={{ color: C.cream, fontSize: 34, fontFamily: F.hand, lineHeight: 38 }}>{levelName(level.level)}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 16 }}>
-              <View style={{ alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>🔥 {streak}</Text><Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, fontWeight: '600' }}>day streak</Text></View>
-              <View style={{ alignItems: 'center' }}><Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>{workoutsThisWeek(state)}</Text><Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, fontWeight: '600' }}>workouts</Text></View>
+              <View style={{ alignItems: 'center' }}><Text style={{ color: C.cream, fontSize: 28, fontFamily: F.hand }}>🔥 {streak}</Text><Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, fontWeight: '600' }}>day streak</Text></View>
+              <View style={{ alignItems: 'center' }}><Text style={{ color: C.cream, fontSize: 28, fontFamily: F.hand }}>{workoutsThisWeek(state)}</Text><Text style={{ color: 'rgba(255,255,255,.75)', fontSize: 11, fontWeight: '600' }}>workouts</Text></View>
             </View>
           </View>
-          <View style={{ marginTop: 14 }}><Bar pct={level.into / level.span} color="#fff" track="rgba(255,255,255,.22)" /></View>
+          <View style={{ marginTop: 14 }}><Bar pct={level.into / level.span} color={C.gold} track="rgba(255,255,255,.14)" /></View>
           <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600', marginTop: 6 }}>{level.into} / {level.span} XP to level {level.level + 1}</Text>
         </LinearGradient>
       </Pressable>
@@ -101,10 +101,10 @@ export default function Today() {
           const p = goalProgress(state, g.metric, g.target)
           return (
             <Card key={g.id} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <IconTile icon={p.pct >= 1 ? 'checkmark' : 'flag'} color={p.pct >= 1 ? '#fff' : C.blue} bg={p.pct >= 1 ? C.green : C.blue50} />
+              <IconTile icon={p.pct >= 1 ? 'checkmark' : 'flag'} color={p.pct >= 1 ? '#fff' : C.accent} bg={p.pct >= 1 ? C.green : C.accentSoft} />
               <View style={{ flex: 1, gap: 6 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={T.headline}>{g.title}</Text><Text style={[T.sub, T.num]}>{Math.min(100, Math.round(p.pct * 100))}%</Text></View>
-                <Bar pct={p.pct} color={p.pct >= 1 ? C.green : C.blue} height={6} />
+                <Bar pct={p.pct} color={p.pct >= 1 ? C.green : C.gold} height={6} />
               </View>
             </Card>
           )

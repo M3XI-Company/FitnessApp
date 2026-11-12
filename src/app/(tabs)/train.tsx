@@ -80,7 +80,7 @@ function Progress() {
             <Card key={l.id} onPress={() => router.push(`/exercise/${l.id}`)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <View><Text style={T.headline}>{l.name}</Text><Text style={T.caption}>Estimated 1-rep max</Text></View>
-                <Pill color={gain >= 0 ? '#15803D' : C.red} bg={gain >= 0 ? '#E7F8EE' : '#FDECEC'}>{`${gain >= 0 ? '+' : ''}${gain} kg`}</Pill>
+                <Pill color={gain >= 0 ? C.green : C.red} bg={gain >= 0 ? '#E9F0E6' : '#F6E3DF'}>{`${gain >= 0 ? '+' : ''}${gain} kg`}</Pill>
               </View>
               <LineChart data={l.h} unit=" kg" height={110} />
             </Card>
@@ -96,7 +96,7 @@ function Progress() {
           {first ? <Text style={[T.sub, { color: now <= first ? C.green : C.orange, fontWeight: '700' }]}>{now <= first ? '▼' : '▲'} {Math.abs(round(now - first, 1))} kg</Text> : null}
         </View>
         <Text style={T.caption}>Target {state.profile.targetWeightKg} kg</Text>
-        <View style={{ marginTop: 10 }}><LineChart data={state.weights.map((w) => ({ value: w.kg }))} unit=" kg" color={C.indigo} height={110} /></View>
+        <View style={{ marginTop: 10 }}><LineChart data={state.weights.map((w) => ({ value: w.kg }))} unit=" kg" color={C.fat} height={110} /></View>
         <Button title="Log weight" variant="tinted" icon="scale-outline" onPress={() => router.push('/weight')} style={{ marginTop: 10 }} />
       </Card>
     </View>

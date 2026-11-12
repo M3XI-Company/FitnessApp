@@ -6,7 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../lib/store'
 import { computeTargets } from '../lib/nutrition'
 import type { Activity, GoalType, Profile } from '../lib/types'
-import { C, T, blueGlow, shadow } from '../theme'
+import { MIN_AGE } from '../lib/age'
+import { C, T, glow, shadow, G, F } from '../theme'
 import { Bar, Button, Card, FadeIn, Icon, IconButton, Pill, Ring, Stepper, success, tap } from '../components/ui'
 
 const ACTIVITIES: { v: Activity; t: string; d: string }[] = [
@@ -40,26 +41,28 @@ export default function Onboarding() {
   const insets = useSafeAreaInsets()
   const [p, setP] = useState<Profile>(state.profile)
   const [step, setStep] = useState(0)
+  const [accepted, setAccepted] = useState(!!state.profile.healthNoticeAt)
   const set = (patch: Partial<Profile>) => setP((x) => ({ ...x, ...patch }))
   const targets = computeTargets(p)
   const total = 6
 
   const finish = () => {
-    dispatch({ type: 'profile', profile: { ...p, onboarded: true } })
+    dispatch({ type: 'profile', profile: { ...p, age: Math.max(MIN_AGE, p.age), onboarded: true, healthNoticeAt: p.healthNoticeAt ?? new Date().toISOString() } })
     success()
     router.replace('/')
   }
 
   const screens = [
     <View key="0" style={{ alignItems: 'center', paddingTop: 30 }}>
-      <LinearGradient colors={['#3B8BFF', '#0047CC']} style={[{ width: 96, height: 96, borderRadius: 26, alignItems: 'center', justifyContent: 'center' }, blueGlow]}>
-        <Icon name="water" size={52} color="#fff" />
+      <LinearGradient colors={G.ink} style={[{ width: 104, height: 104, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }, glow]}>
+        <Text style={{ fontFamily: F.hand, fontSize: 64, color: C.goldLight, lineHeight: 70, marginTop: 4 }}>B</Text>
       </LinearGradient>
-      <Text style={[T.largeTitle, { marginTop: 24, textAlign: 'center' }]}>Welcome to Tide</Text>
-      <Text style={[T.body, { color: C.text2, fontSize: 17, textAlign: 'center', lineHeight: 24, marginTop: 8, maxWidth: 300 }]}>Calories, training, water and an AI coach — in one calm, focused app.</Text>
+      <Text style={[T.bigNum, { marginTop: 22, textAlign: 'center' }]}>Breeze</Text>
+      <Text style={[T.eyebrow, { color: C.accent, marginTop: -2 }]}>by M3XI</Text>
+      <Text style={[T.body, { color: C.text2, fontSize: 17, textAlign: 'center', lineHeight: 24, marginTop: 8, maxWidth: 300 }]}>Training, food, water and your community — written down beautifully, in one calm place.</Text>
       <View style={{ gap: 8, width: '100%', marginTop: 24 }}>
         {[['barcode-outline', 'Scan barcodes & products'], ['barbell-outline', 'Track reps and progression'], ['cube-outline', 'Boxed meal & water plans'], ['sparkles-outline', 'AI trainer that knows your data']].map(([i, x]) => (
-          <Card key={x} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Icon name={i as 'water'} color={C.blue} size={22} /><Text style={T.headline}>{x}</Text></Card>
+          <Card key={x} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Icon name={i as 'water'} color={C.accent} size={22} /><Text style={T.headline}>{x}</Text></Card>
         ))}
       </View>
     </View>,
@@ -73,9 +76,9 @@ export default function Onboarding() {
     </View>,
     <View key="2" style={{ gap: 12 }}>
       <Text style={T.title1}>Your body</Text>
-      <Text style={[T.sub, { marginTop: -4 }]}>This lets us build a plan that fits you.</Text>
+      <Text style={[T.sub, { marginTop: -4 }]}>This lets us build a plan that fits you. Breeze is for ages 16+; buddy discovery and messages unlock at 18.</Text>
       {([['Age', 'age', 1, 'yrs'], ['Height', 'heightCm', 1, 'cm'], ['Weight', 'weightKg', 0.5, 'kg']] as const).map(([label, k, st, suf]) => (
-        <Card key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={T.headline}>{label}</Text><Stepper value={p[k]} step={st} suffix={suf} onChange={(v) => set({ [k]: v } as Partial<Profile>)} /></Card>
+        <Card key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={T.headline}>{label}</Text><Stepper value={p[k]} step={st} min={k === 'age' ? MIN_AGE : 0} suffix={suf} onChange={(v) => set({ [k]: k === 'age' ? Math.max(MIN_AGE, Math.round(v)) : v } as Partial<Profile>)} /></Card>
       ))}
     </View>,
     <View key="3" style={{ gap: 10 }}>
@@ -95,7 +98,7 @@ export default function Onboarding() {
       <Text style={[T.sub, { textAlign: 'center' }]}>You can edit this anytime in your profile.</Text>
       <Card style={{ width: '100%', alignItems: 'center', marginTop: 18 }}>
         <Ring value={1} max={1} size={170} stroke={14}>
-          <Text style={[{ fontSize: 40, fontWeight: '800', letterSpacing: -1, color: C.text }, T.num]}>{targets.kcal}</Text>
+          <Text style={T.bigNum}>{targets.kcal}</Text>
           <Text style={T.caption}>calories / day</Text>
         </Ring>
         <View style={{ flexDirection: 'row', width: '100%', marginTop: 18 }}>
@@ -114,6 +117,13 @@ export default function Onboarding() {
           <Text style={{ fontWeight: '700', color: C.text }}>{Math.max(1, Math.round(Math.abs(p.weightKg - p.targetWeightKg) / (p.goal === 'lose' ? 0.5 : 0.25)))} weeks</Text>.
         </Text>
       )}
+      <Pressable onPress={() => { tap(); setAccepted(!accepted) }} style={[{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 18, backgroundColor: '#fff', marginTop: 18, width: '100%' }, shadow]} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}>
+        <Icon name={accepted ? 'checkbox' : 'square-outline'} size={24} color={accepted ? C.ink : C.text3} />
+        <Text style={[T.sub, { flex: 1, lineHeight: 19 }]}>
+          <Text style={{ fontWeight: '700', color: C.text }}>Health & safety. </Text>
+          {"Breeze gives general fitness and nutrition guidance and estimates. It is not medical advice and doesn't replace a qualified trainer, dietitian or doctor. Stop exercising if you feel pain, and check with a professional if you have a health condition."}
+        </Text>
+      </Pressable>
     </View>,
   ]
 
@@ -126,7 +136,7 @@ export default function Onboarding() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 16, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         <FadeIn key={step}>{screens[step]}</FadeIn>
       </ScrollView>
-      <Button variant="dark" title={step === 0 ? 'Get started' : step === total - 1 ? "Let's go" : 'Continue'} disabled={step === 1 && !p.name.trim()}
+      <Button variant="dark" title={step === 0 ? 'Get started' : step === total - 1 ? "Let's go" : 'Continue'} disabled={(step === 1 && !p.name.trim()) || (step === total - 1 && !accepted)}
         onPress={() => (step < total - 1 ? setStep(step + 1) : finish())} />
     </View>
   )
