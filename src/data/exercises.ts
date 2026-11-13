@@ -1,6 +1,58 @@
+import type { Slug } from 'react-native-body-highlighter'
+
 export type Muscle = 'Chest' | 'Back' | 'Legs' | 'Shoulders' | 'Arms' | 'Core' | 'Glutes' | 'Cardio'
 export type Equipment = 'Barbell' | 'Dumbbell' | 'Machine' | 'Cable' | 'Bodyweight' | 'Kettlebell'
 export type Level = 'Beginner' | 'Intermediate' | 'Advanced'
+
+/** Muscles as named on the anatomical map */
+export type MuscleSlug = Extract<Slug, 'abs' | 'adductors' | 'biceps' | 'calves' | 'chest' | 'deltoids' | 'forearm' | 'gluteal' | 'hamstring' | 'lower-back' | 'obliques' | 'quadriceps' | 'tibialis' | 'trapezius' | 'triceps' | 'upper-back'>
+
+export const MUSCLE_NAME: Record<MuscleSlug, string> = {
+  abs: 'Abdominals', adductors: 'Adductors (inner thigh)', biceps: 'Biceps', calves: 'Calves', chest: 'Chest (pectorals)', deltoids: 'Shoulders (deltoids)',
+  forearm: 'Forearms', gluteal: 'Glutes', hamstring: 'Hamstrings', 'lower-back': 'Lower back (erectors)', obliques: 'Obliques', quadriceps: 'Quadriceps',
+  tibialis: 'Shins (tibialis)', trapezius: 'Trapezius', triceps: 'Triceps', 'upper-back': 'Upper back (lats & rhomboids)',
+}
+
+/** Primary (main movers) and secondary (assisting) muscles for each exercise */
+export const WORKS: Record<string, { primary: MuscleSlug[]; secondary: MuscleSlug[] }> = {
+  bench: { primary: ['chest', 'triceps'], secondary: ['deltoids'] },
+  'incline-db': { primary: ['chest', 'deltoids'], secondary: ['triceps'] },
+  pushup: { primary: ['chest', 'triceps'], secondary: ['deltoids', 'abs'] },
+  'cable-fly': { primary: ['chest'], secondary: ['deltoids'] },
+  dips: { primary: ['chest', 'triceps'], secondary: ['deltoids'] },
+  deadlift: { primary: ['gluteal', 'hamstring', 'lower-back'], secondary: ['quadriceps', 'trapezius', 'upper-back', 'forearm'] },
+  pullup: { primary: ['upper-back'], secondary: ['biceps', 'forearm', 'deltoids'] },
+  row: { primary: ['upper-back', 'trapezius'], secondary: ['biceps', 'lower-back', 'deltoids'] },
+  'lat-pulldown': { primary: ['upper-back'], secondary: ['biceps', 'forearm'] },
+  'seated-row': { primary: ['upper-back', 'trapezius'], secondary: ['biceps'] },
+  'db-row': { primary: ['upper-back'], secondary: ['biceps', 'trapezius'] },
+  squat: { primary: ['quadriceps', 'gluteal'], secondary: ['hamstring', 'adductors', 'lower-back', 'abs'] },
+  'front-squat': { primary: ['quadriceps'], secondary: ['gluteal', 'abs', 'upper-back'] },
+  'leg-press': { primary: ['quadriceps', 'gluteal'], secondary: ['hamstring', 'adductors'] },
+  lunge: { primary: ['quadriceps', 'gluteal'], secondary: ['hamstring', 'adductors', 'calves'] },
+  'leg-curl': { primary: ['hamstring'], secondary: ['calves'] },
+  'leg-ext': { primary: ['quadriceps'], secondary: [] },
+  calf: { primary: ['calves'], secondary: [] },
+  rdl: { primary: ['hamstring', 'gluteal'], secondary: ['lower-back'] },
+  'hip-thrust': { primary: ['gluteal'], secondary: ['hamstring', 'quadriceps'] },
+  'glute-bridge': { primary: ['gluteal'], secondary: ['hamstring'] },
+  ohp: { primary: ['deltoids'], secondary: ['triceps', 'trapezius', 'abs'] },
+  'db-shoulder': { primary: ['deltoids'], secondary: ['triceps', 'trapezius'] },
+  lateral: { primary: ['deltoids'], secondary: ['trapezius'] },
+  'face-pull': { primary: ['deltoids', 'trapezius'], secondary: ['upper-back'] },
+  curl: { primary: ['biceps'], secondary: ['forearm'] },
+  hammer: { primary: ['biceps', 'forearm'], secondary: [] },
+  pushdown: { primary: ['triceps'], secondary: [] },
+  skull: { primary: ['triceps'], secondary: [] },
+  plank: { primary: ['abs'], secondary: ['obliques', 'deltoids', 'gluteal'] },
+  'hanging-raise': { primary: ['abs'], secondary: ['obliques', 'forearm'] },
+  'cable-crunch': { primary: ['abs'], secondary: ['obliques'] },
+  'kb-swing': { primary: ['gluteal', 'hamstring'], secondary: ['lower-back', 'deltoids', 'abs'] },
+  burpee: { primary: ['quadriceps', 'chest'], secondary: ['deltoids', 'triceps', 'abs', 'calves'] },
+  goblet: { primary: ['quadriceps', 'gluteal'], secondary: ['abs', 'adductors'] },
+  mountain: { primary: ['abs'], secondary: ['deltoids', 'quadriceps', 'obliques'] },
+}
+export const worksFor = (id: string) => WORKS[id] ?? { primary: [], secondary: [] }
 
 export interface Exercise {
   id: string
@@ -65,6 +117,6 @@ export const EQUIPMENT: Equipment[] = ['Barbell', 'Dumbbell', 'Machine', 'Cable'
 export const exerciseById = (id: string) => EXERCISES.find((e) => e.id === id)
 
 export const MUSCLE_COLOR: Record<Muscle, string> = {
-  Chest: '#1F6FB2', Back: '#7A5C25', Legs: '#0F2440', Glutes: '#5C5248',
-  Shoulders: '#A88544', Arms: '#8C7A5E', Core: '#6B6358', Cardio: '#B5483B',
+  Chest: '#1F6FB2', Back: '#2B5C8F', Legs: '#0F2440', Glutes: '#4E6380',
+  Shoulders: '#3E8FD6', Arms: '#5B7FA6', Core: '#5BB3EA', Cardio: '#F2765A',
 }

@@ -3,7 +3,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../../lib/store'
-import { MUSCLE_COLOR, exerciseById } from '../../data/exercises'
+import { MUSCLE_COLOR, exerciseById, worksFor } from '../../data/exercises'
+import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
@@ -52,6 +53,10 @@ export default function ExerciseDetail() {
 
         <Trainer3D exerciseId={ex.id} />
         <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
+        <Card style={{ marginBottom: 14, gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
+          <MuscleMap primary={worksFor(ex.id).primary} secondary={worksFor(ex.id).secondary} gender={state.profile.sex} />
+        </Card>
         {supportsForm(ex.id) && (
           <Button title="Check my form with the camera" icon="videocam-outline" variant="tinted" onPress={() => router.push(`/form-check/${ex.id}`)} style={{ marginBottom: 14 }} />
         )}

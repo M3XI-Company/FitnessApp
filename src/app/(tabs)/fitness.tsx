@@ -3,7 +3,8 @@ import { Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AITrainer } from '../../components/coach/AITrainer'
 import { useStore } from '../../lib/store'
-import { EQUIPMENT, EXERCISES, MUSCLES, MUSCLE_COLOR, type Equipment, type Muscle } from '../../data/exercises'
+import { EQUIPMENT, EXERCISES, MUSCLES, MUSCLE_NAME, worksFor, type Equipment, type Muscle } from '../../data/exercises'
+import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, workoutDates, workoutsThisWeek } from '../../lib/progress'
 import { lastNDays, weekdayShort } from '../../lib/date'
 import { round } from '../../lib/nutrition'
@@ -53,9 +54,9 @@ function Library() {
           const best = sets.length ? Math.max(...sets.map((x) => x.weight)) : 0
           return (
             <Row key={e.id} first={i === 0} onPress={() => router.push(`/exercise/${e.id}`)}
-              left={<View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: MUSCLE_COLOR[e.muscle] + '1A', alignItems: 'center', justifyContent: 'center' }}><Icon name="barbell" size={20} color={MUSCLE_COLOR[e.muscle]} /></View>}
+              left={<View style={{ width: 54, height: 72, borderRadius: 12, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}><MuscleMap primary={worksFor(e.id).primary} secondary={worksFor(e.id).secondary} gender={state.profile.sex} scale={0.17} sides="auto" legend={false} /></View>}
               title={e.name}
-              subtitle={`${e.muscle} · ${e.equipment} · ${e.reps[0]}–${e.reps[1]} reps`}
+              subtitle={`${worksFor(e.id).primary.map((m) => MUSCLE_NAME[m].split(' (')[0]).join(', ')} · ${e.equipment}`}
               right={<View style={{ alignItems: 'flex-end', gap: 2 }}>{best ? <Text style={[T.headline, T.num]}>{best} kg</Text> : <Pill color={C.text2} bg={C.fill}>{e.level}</Pill>}<Icon name="chevron-forward" size={16} color={C.text3} /></View>} />
           )
         })}

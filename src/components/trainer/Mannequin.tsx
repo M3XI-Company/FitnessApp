@@ -4,9 +4,20 @@ import { useFrame } from './r3f'
 import { sample, type Pattern } from './poses'
 
 const D = Math.PI / 180
-const BODY = '#EFE6D3'
-const JOINT = '#C8A96A'
 const METAL = '#1C3557'
+const PLATE = '#5BB3EA'
+const SHORTS = '#0F2440'
+const HAIR = '#2B2118'
+const SHOE = '#F7FBFF'
+const SOLE = '#5BB3EA'
+const MAIN = '#F2765A' // worked muscles (coral)
+const ASSIST = '#FFB38A' // assisting muscles (peach)
+
+/** Five skin tones for the figure */
+export const SKIN_TONES = ['#F3D5C0', '#E4B896', '#C98F68', '#965F3F', '#5C3A26']
+
+/** Slightly deeper version of a hex colour, for muscle definition */
+const shade = (hex: string, f = 0.9) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0')).join('')
 
 type G = THREE.Group | null
 interface Rig {
@@ -18,24 +29,45 @@ interface Rig {
   barbell: G; dbL: G; dbR: G; kb: G; bench: G; seat: G; bar: G; dipL: G; dipR: G
 }
 
-function Limb({ length, radius }: { length: number; radius: number }) {
+const Skin = ({ tone }: { tone: string }) => <meshStandardMaterial color={tone} roughness={0.62} metalness={0} />
+
+function Limb({ length, radius, tone }: { length: number; radius: number; tone: string }) {
   return (
     <mesh position={[0, -length / 2, 0]} castShadow>
-      <capsuleGeometry args={[radius, Math.max(0.01, length - radius * 2), 6, 12]} />
-      <meshStandardMaterial color={BODY} roughness={0.55} metalness={0.05} />
+      <capsuleGeometry args={[radius, Math.max(0.01, length - radius * 2), 8, 16]} />
+      <Skin tone={tone} />
     </mesh>
   )
 }
-const Joint = ({ r = 0.045 }: { r?: number }) => (
-  <mesh><sphereGeometry args={[r, 16, 12]} /><meshStandardMaterial color={JOINT} roughness={0.35} metalness={0.6} /></mesh>
-)
+
+export interface Works { primary: string[]; secondary: string[] }
+
+/**
+ * One anatomical muscle group, drawn as a sculpted ellipsoid over the limb.
+ * Main movers glow coral, assisting muscles peach, the rest show natural definition.
+ * `cover` hides an idle muscle under clothing (shorts, sports top).
+ */
+function Muscle({ slug, tone, works, position, scale, cover }: { slug: string; tone: string; works: Works; position: [number, number, number]; scale: [number, number, number]; cover?: string }) {
+  const main = works.primary.includes(slug)
+  const assist = !main && works.secondary.includes(slug)
+  const color = main ? MAIN : assist ? ASSIST : cover ?? shade(tone)
+  return (
+    <mesh position={position} scale={scale} castShadow>
+      <sphereGeometry args={[1, 24, 18]} />
+      <meshStandardMaterial color={color} roughness={main || assist ? 0.45 : cover ? 0.8 : 0.6} emissive={main ? MAIN : assist ? ASSIST : '#000000'} emissiveIntensity={main ? 0.35 : assist ? 0.15 : 0} />
+    </mesh>
+  )
+}
 
 /**
  * An original, faceless articulated mannequin. Joint angles come from the
  * pattern library and are applied every frame; the body is then grounded on
  * the floor, a bench, a seat or a bar depending on the movement.
  */
-export function Mannequin({ pattern, speedRef, onPhase, playingRef }: {
+export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { primary: [], secondary: [] }, tone = SKIN_TONES[1], female = false }: {
+  works?: Works
+  tone?: string
+  female?: boolean
   pattern: Pattern
   speedRef: MutableRefObject<number>
   playingRef: MutableRefObject<boolean>
@@ -126,64 +158,97 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef }: {
       <group ref={set('root')}>
         <group ref={set('pelvis')}>
           <group ref={set('pelvisPt')} />
-          <mesh><capsuleGeometry args={[0.1, 0.12, 6, 12]} /><meshStandardMaterial color={BODY} roughness={0.55} /></mesh>
+          {/* hips and shorts */}
+          <mesh scale={[female ? 1.08 : 1, 1, 0.92]}><capsuleGeometry args={[0.1, 0.1, 8, 16]} /><meshStandardMaterial color={SHORTS} roughness={0.8} /></mesh>
+          {(['L', 'R'] as const).map((sd) => <Muscle key={sd} slug="gluteal" tone={tone} works={works} position={[sd === 'L' ? 0.065 : -0.065, -0.06, -0.07]} scale={[0.085, 0.09, 0.065]} cover={SHORTS} />)}
           <group ref={set('spine')} position={[0, 0.08, 0]}>
-            <Joint r={0.05} />
-            <group position={[0, 0.2, 0]} rotation={[Math.PI, 0, 0]}><Limb length={0.22} radius={0.085} /></group>
+            {/* abdomen */}
+            <mesh position={[0, 0.11, 0]} scale={[female ? 0.92 : 1, 1, 0.9]}><capsuleGeometry args={[0.088, 0.07, 8, 16]} /><Skin tone={tone} /></mesh>
+            {[0.05, 0.1, 0.15].flatMap((y) => [-1, 1].map((sx) => <Muscle key={`abs${y}${sx}`} slug="abs" tone={tone} works={works} position={[sx * 0.028, y, 0.072]} scale={[0.026, 0.023, 0.016]} />))}
+            {(['L', 'R'] as const).map((sd) => <Muscle key={`ob${sd}`} slug="obliques" tone={tone} works={works} position={[sd === 'L' ? 0.072 : -0.072, 0.1, 0.03]} scale={[0.028, 0.075, 0.05]} />)}
+            {(['L', 'R'] as const).map((sd) => <Muscle key={`lb${sd}`} slug="lower-back" tone={tone} works={works} position={[sd === 'L' ? 0.032 : -0.032, 0.1, -0.068]} scale={[0.03, 0.08, 0.025]} />)}
             <group ref={set('chest')} position={[0, 0.22, 0]}>
               <group ref={set('chestPt')} position={[0, 0.1, 0]} />
-              <mesh position={[0, 0.13, 0]} scale={[1.55, 1, 0.9]}><capsuleGeometry args={[0.1, 0.1, 6, 12]} /><meshStandardMaterial color={BODY} roughness={0.55} /></mesh>
+              {/* ribcage (sports top for the female figure) */}
+              <mesh position={[0, 0.13, 0]} scale={[female ? 1.4 : 1.55, 1, 0.88]}><capsuleGeometry args={[0.1, 0.1, 8, 16]} />{female ? <meshStandardMaterial color={SHORTS} roughness={0.8} /> : <Skin tone={tone} />}</mesh>
+              {(['L', 'R'] as const).map((sd) => {
+                const x = sd === 'L' ? 1 : -1
+                return (
+                  <group key={`torso${sd}`}>
+                    <Muscle slug="chest" tone={tone} works={works} position={[x * 0.072, 0.17, 0.07]} scale={[0.082, 0.058, 0.035]} cover={female ? SHORTS : undefined} />
+                    <Muscle slug="upper-back" tone={tone} works={works} position={[x * 0.095, 0.12, -0.055]} scale={[0.068, 0.13, 0.04]} cover={female ? SHORTS : undefined} />
+                    <Muscle slug="trapezius" tone={tone} works={works} position={[x * 0.055, 0.255, -0.03]} scale={[0.07, 0.045, 0.045]} />
+                  </group>
+                )
+              })}
               <group ref={set('neck')} position={[0, 0.27, 0]}>
-                <mesh position={[0, 0.03, 0]}><cylinderGeometry args={[0.035, 0.04, 0.07, 12]} /><meshStandardMaterial color={BODY} /></mesh>
+                <mesh position={[0, 0.04, 0]}><cylinderGeometry args={[0.042, 0.048, 0.09, 16]} /><Skin tone={tone} /></mesh>
                 <group ref={set('head')} position={[0, 0.15, 0]}>
-                  <mesh scale={[0.9, 1.08, 0.95]}><sphereGeometry args={[0.105, 24, 18]} /><meshStandardMaterial color={BODY} roughness={0.5} /></mesh>
-                  <mesh position={[0, 0.0, 0.085]} rotation={[0, 0, 0]}><sphereGeometry args={[0.03, 12, 8]} /><meshStandardMaterial color={JOINT} metalness={0.6} roughness={0.35} /></mesh>
+                  <mesh scale={[0.88, 1.08, 0.95]}><sphereGeometry args={[0.105, 32, 24]} /><Skin tone={tone} /></mesh>
+                  {/* hair */}
+                  <mesh position={[0, 0.03, -0.012]} scale={[0.93, 0.92, 0.98]}><sphereGeometry args={[0.108, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.55]} /><meshStandardMaterial color={HAIR} roughness={0.9} /></mesh>
+                  {female && <mesh position={[0, 0.0, -0.12]} scale={[0.8, 1.3, 0.8]}><sphereGeometry args={[0.04, 16, 12]} /><meshStandardMaterial color={HAIR} roughness={0.9} /></mesh>}
+                  {[-1, 1].map((x) => <mesh key={x} position={[x * 0.09, -0.005, 0]} scale={[0.5, 1, 0.8]}><sphereGeometry args={[0.025, 12, 10]} /><Skin tone={tone} /></mesh>)}
                 </group>
               </group>
-              {(['L', 'R'] as const).map((s) => (
-                <group key={s} ref={set(s === 'L' ? 'shL' : 'shR')} position={[s === 'L' ? 0.2 : -0.2, 0.22, 0]}>
-                  <Joint r={0.05} />
-                  <Limb length={0.28} radius={0.045} />
-                  <group ref={set(s === 'L' ? 'elL' : 'elR')} position={[0, -0.29, 0]}>
-                    <group ref={set(s === 'L' ? 'elbowPtL' : 'elbowPtR')} />
-                    <Joint r={0.04} />
-                    <Limb length={0.25} radius={0.038} />
-                    <group ref={set(s === 'L' ? 'handL' : 'handR')} position={[0, -0.28, 0]}>
-                      <mesh><sphereGeometry args={[0.045, 14, 10]} /><meshStandardMaterial color={BODY} roughness={0.55} /></mesh>
+              {(['L', 'R'] as const).map((sd) => (
+                <group key={sd} ref={set(sd === 'L' ? 'shL' : 'shR')} position={[sd === 'L' ? (female ? 0.18 : 0.2) : (female ? -0.18 : -0.2), 0.22, 0]}>
+                  <Muscle slug="deltoids" tone={tone} works={works} position={[0, -0.03, 0]} scale={[0.064, 0.072, 0.064]} />
+                  <Limb length={0.28} radius={0.04} tone={tone} />
+                  <Muscle slug="biceps" tone={tone} works={works} position={[0, -0.15, 0.028]} scale={[0.038, 0.088, 0.034]} />
+                  <Muscle slug="triceps" tone={tone} works={works} position={[0, -0.14, -0.028]} scale={[0.04, 0.095, 0.035]} />
+                  <group ref={set(sd === 'L' ? 'elL' : 'elR')} position={[0, -0.29, 0]}>
+                    <group ref={set(sd === 'L' ? 'elbowPtL' : 'elbowPtR')} />
+                    <mesh><sphereGeometry args={[0.038, 16, 12]} /><Skin tone={tone} /></mesh>
+                    <Limb length={0.25} radius={0.033} tone={tone} />
+                    <Muscle slug="forearm" tone={tone} works={works} position={[0, -0.08, 0.005]} scale={[0.042, 0.085, 0.04]} />
+                    <group ref={set(sd === 'L' ? 'handL' : 'handR')} position={[0, -0.28, 0]}>
+                      <mesh scale={[0.85, 1.2, 0.6]}><sphereGeometry args={[0.042, 16, 12]} /><Skin tone={tone} /></mesh>
                     </group>
                   </group>
                 </group>
               ))}
             </group>
           </group>
-          {(['L', 'R'] as const).map((s) => (
-            <group key={s} ref={set(s === 'L' ? 'hipL' : 'hipR')} position={[s === 'L' ? 0.095 : -0.095, -0.05, 0]}>
-              <Joint r={0.055} />
-              <Limb length={0.43} radius={0.065} />
-              <group ref={set(s === 'L' ? 'kneeL' : 'kneeR')} position={[0, -0.44, 0]}>
-                <group ref={set(s === 'L' ? 'kneePtL' : 'kneePtR')} position={[0, 0, 0.05]} />
-                <Joint r={0.05} />
-                <Limb length={0.41} radius={0.05} />
-                <group ref={set(s === 'L' ? 'ankleL' : 'ankleR')} position={[0, -0.42, 0]}>
-                  <mesh position={[0, -0.035, 0.055]}><boxGeometry args={[0.09, 0.07, 0.23]} /><meshStandardMaterial color={BODY} roughness={0.55} /></mesh>
-                  <group ref={set(s === 'L' ? 'heelL' : 'heelR')} position={[0, -0.07, -0.05]} />
-                  <group ref={set(s === 'L' ? 'toeL' : 'toeR')} position={[0, -0.07, 0.165]} />
+          {(['L', 'R'] as const).map((sd) => {
+            const inner = sd === 'L' ? -1 : 1
+            return (
+              <group key={sd} ref={set(sd === 'L' ? 'hipL' : 'hipR')} position={[sd === 'L' ? 0.095 : -0.095, -0.05, 0]}>
+                {/* shorts leg */}
+                <mesh position={[0, -0.09, 0]}><cylinderGeometry args={[0.078, 0.072, 0.2, 20]} /><meshStandardMaterial color={SHORTS} roughness={0.8} /></mesh>
+                <Limb length={0.43} radius={0.06} tone={tone} />
+                <Muscle slug="quadriceps" tone={tone} works={works} position={[0, -0.26, 0.032]} scale={[0.064, 0.15, 0.045]} />
+                <Muscle slug="hamstring" tone={tone} works={works} position={[0, -0.26, -0.032]} scale={[0.058, 0.14, 0.045]} />
+                <Muscle slug="adductors" tone={tone} works={works} position={[inner * 0.032, -0.22, 0]} scale={[0.035, 0.12, 0.042]} />
+                <group ref={set(sd === 'L' ? 'kneeL' : 'kneeR')} position={[0, -0.44, 0]}>
+                  <group ref={set(sd === 'L' ? 'kneePtL' : 'kneePtR')} position={[0, 0, 0.05]} />
+                  <mesh><sphereGeometry args={[0.05, 16, 12]} /><Skin tone={tone} /></mesh>
+                  <Limb length={0.41} radius={0.043} tone={tone} />
+                  <Muscle slug="calves" tone={tone} works={works} position={[0, -0.13, -0.03]} scale={[0.047, 0.1, 0.042]} />
+                  <Muscle slug="tibialis" tone={tone} works={works} position={[0, -0.17, 0.028]} scale={[0.026, 0.11, 0.025]} />
+                  <group ref={set(sd === 'L' ? 'ankleL' : 'ankleR')} position={[0, -0.42, 0]}>
+                    {/* trainers */}
+                    <mesh position={[0, -0.035, 0.055]}><boxGeometry args={[0.09, 0.07, 0.23]} /><meshStandardMaterial color={SHOE} roughness={0.6} /></mesh>
+                    <mesh position={[0, -0.068, 0.055]}><boxGeometry args={[0.094, 0.014, 0.235]} /><meshStandardMaterial color={SOLE} roughness={0.7} /></mesh>
+                    <group ref={set(sd === 'L' ? 'heelL' : 'heelR')} position={[0, -0.07, -0.05]} />
+                    <group ref={set(sd === 'L' ? 'toeL' : 'toeR')} position={[0, -0.07, 0.165]} />
+                  </group>
                 </group>
               </group>
-            </group>
-          ))}
+            )
+          })}
         </group>
       </group>
 
       {/* equipment (positioned every frame) */}
       <group ref={set('barbell')} visible={false}>
         <mesh><cylinderGeometry args={[0.014, 0.014, 1.6, 10]} /><meshStandardMaterial color={METAL} metalness={0.8} roughness={0.3} /></mesh>
-        {[-0.68, 0.68].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.2, 0.2, 0.05, 28]} /><meshStandardMaterial color={JOINT} metalness={0.5} roughness={0.35} /></mesh>)}
+        {[-0.68, 0.68].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.2, 0.2, 0.05, 28]} /><meshStandardMaterial color={PLATE} metalness={0.3} roughness={0.4} /></mesh>)}
       </group>
       {(['dbL', 'dbR'] as const).map((k) => (
         <group key={k} ref={set(k)} visible={false}>
           <mesh><cylinderGeometry args={[0.015, 0.015, 0.2, 8]} /><meshStandardMaterial color={METAL} metalness={0.8} /></mesh>
-          {[-0.09, 0.09].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.055, 0.055, 0.05, 16]} /><meshStandardMaterial color={JOINT} metalness={0.5} roughness={0.35} /></mesh>)}
+          {[-0.09, 0.09].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.055, 0.055, 0.05, 16]} /><meshStandardMaterial color={PLATE} metalness={0.3} roughness={0.4} /></mesh>)}
         </group>
       ))}
       <group ref={set('kb')} visible={false}>

@@ -20,6 +20,8 @@ export interface Profile {
   healthNoticeAt?: string
   /** ISO time the user agreed to on-device camera form checks */
   formConsentAt?: string
+  /** index into the 3D figure's skin tones */
+  figureTone?: number
 }
 
 export interface Macros {

@@ -2,7 +2,9 @@ import { Component, useMemo, useRef, useState, type ReactNode } from 'react'
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Canvas } from './r3f'
-import { Mannequin } from './Mannequin'
+import { Mannequin, SKIN_TONES } from './Mannequin'
+import { useStore } from '../../lib/store'
+import { worksFor } from '../../data/exercises'
 import { patternFor } from './poses'
 import { C, F, G } from '../../theme'
 import { Icon, tap } from '../ui'
@@ -21,6 +23,9 @@ const VIEWS = [{ label: 'Front', yaw: 0 }, { label: '¾', yaw: 0.65 }, { label: 
 /** Interactive 3D demonstration: drag to rotate, choose a view, change speed, pause. */
 export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; height?: number }) {
   const pattern = useMemo(() => patternFor(exerciseId), [exerciseId])
+  const { state, dispatch } = useStore()
+  const toneIdx = state.profile.figureTone ?? 1
+  const works = worksFor(exerciseId)
   const hang = pattern.ground === 'hang' && (pattern.hangHeight ?? 0) > 2
   const speedRef = useRef(1)
   const playingRef = useRef(true)
@@ -44,12 +49,12 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
       <LinearGradient colors={G.night} style={{ height }}>
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <GLBoundary>
-            <Canvas shadows camera={{ position: [0, hang ? 1.55 : 1.25, hang ? 5.0 : 4.1], fov: 38 }} gl={{ alpha: true, antialias: true }} onCreated={(s) => s.camera.lookAt(0, hang ? 1.2 : 0.85, 0)}>
+            <Canvas shadows camera={{ position: [0, hang ? 1.55 : 1.2, hang ? 4.6 : 3.45], fov: 38 }} gl={{ alpha: true, antialias: true }} onCreated={(s) => s.camera.lookAt(0, hang ? 1.2 : 0.85, 0)}>
               <ambientLight intensity={0.75} />
               <directionalLight position={[2.5, 4, 3]} intensity={1.6} castShadow />
               <directionalLight position={[-3, 2, -2]} intensity={0.5} color={C.skyLight} />
               <group rotation={[0, yaw, 0]}>
-                <Mannequin pattern={pattern} speedRef={speedRef} playingRef={playingRef} onPhase={(l) => setLabel(l)} />
+                <Mannequin pattern={pattern} speedRef={speedRef} playingRef={playingRef} onPhase={(l) => setLabel(l)} works={works} tone={SKIN_TONES[toneIdx]} female={state.profile.sex === 'female'} />
                 <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
                   <circleGeometry args={[1.25, 64]} /><meshStandardMaterial color="#1C3557" roughness={0.9} />
                 </mesh>
@@ -63,7 +68,12 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
         {/* drag surface */}
         <View style={StyleSheet.absoluteFill} {...pan.panHandlers} accessibilityLabel="3D trainer. Drag to rotate." />
         <View style={st.topRow} pointerEvents="box-none">
-          <View style={st.badge}><Icon name="sync-outline" size={13} color={C.skyLight} /><Text style={st.badgeText}>Drag to rotate</Text></View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <View style={st.badge}><Icon name="sync-outline" size={13} color={C.skyLight} /><Text style={st.badgeText}>Drag to rotate</Text></View>
+            <Pressable accessibilityLabel="Change skin tone" onPress={() => { tap(); dispatch({ type: 'profile', profile: { ...state.profile, figureTone: (toneIdx + 1) % SKIN_TONES.length } }) }} style={[st.chip, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+              <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: SKIN_TONES[toneIdx], borderWidth: 1.5, borderColor: '#FFFFFF' }} />
+            </Pressable>
+          </View>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {VIEWS.map((vw) => (
               <Pressable key={vw.label} onPress={() => { tap(); setYaw(vw.yaw) }} style={st.chip}><Text style={st.chipText}>{vw.label}</Text></Pressable>
