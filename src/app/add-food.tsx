@@ -81,6 +81,9 @@ export default function AddFood() {
             </Pressable>
           ))}
         </ScrollView>
+        <Card tight onPress={() => router.push({ pathname: '/food-photo', params: { meal } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <IconTile icon="camera" size={34} color={C.goldLight} bg={C.ink} /><View style={{ flex: 1 }}><Text style={T.headline}>Snap your meal</Text><Text style={T.caption}>AI identifies it · UK nutrition data</Text></View><Icon name="chevron-forward" color={C.text3} />
+        </Card>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {([['barcode-outline', 'Scan barcode', 'barcode'], ['scan-outline', 'Product scan', 'product']] as const).map(([icon, label, m]) => (
             <Card key={m} tight onPress={() => router.push({ pathname: '/scanner', params: { mode: m, meal } })} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>

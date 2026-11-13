@@ -5,7 +5,7 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    ignores: ['dist/*', 'supabase/*', 'public/mediapipe/*'],
   },
   {
     // 3D trainer: React Three Fiber JSX uses three.js props (position, args, rotation…) the DOM rule

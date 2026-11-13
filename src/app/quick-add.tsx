@@ -13,6 +13,7 @@ export default function QuickAdd() {
   const items: [IconName, string, () => void][] = [
     ['barcode-outline', 'Scan barcode', go(() => router.push({ pathname: '/scanner', params: { mode: 'barcode' } }))],
     ['scan-outline', 'Product scanner', go(() => router.push({ pathname: '/scanner', params: { mode: 'product' } }))],
+    ['camera-outline', 'Snap your meal', go(() => router.push('/food-photo'))],
     ['search', 'Log food', go(() => router.push('/add-food'))],
     ['water', `+${state.waterPlan.glassMl} ml water`, () => { success(); dispatch({ type: 'water', date: todayKey(), delta: state.waterPlan.glassMl }); router.back() }],
     ['barbell-outline', 'Log workout', go(() => router.navigate('/train'))],

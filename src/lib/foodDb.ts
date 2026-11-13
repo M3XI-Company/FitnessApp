@@ -37,3 +37,17 @@ export function searchCofid(q: string, limit = 40): FoodItem[] {
 export const cofidCount = FOODS.length
 export const cofidByName = (name: string) => FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase())
 export const allCofid = () => FOODS
+
+/**
+ * Best CoFID candidates for a free-text query from the photo model.
+ * Tries every word first, then relaxes by dropping trailing words, so
+ * "chicken breast grilled skinless" still finds "Chicken, breast, grilled…".
+ */
+export function matchCofid(query: string, limit = 6): FoodItem[] {
+  const words = query.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1)
+  for (let n = words.length; n > 0; n--) {
+    const hits = searchCofid(words.slice(0, n).join(' '), limit)
+    if (hits.length) return hits
+  }
+  return []
+}
