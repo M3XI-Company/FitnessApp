@@ -2,12 +2,19 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../../lib/store'
-import { addDays, prettyDate, todayKey } from '../../lib/date'
+import { addDays, prettyDate, todayKey, uid } from '../../lib/date'
 import { ZERO, dayTotals, fmt } from '../../lib/nutrition'
-import { MEALS } from '../../lib/meals'
+import { useMeals } from '../../lib/meals'
+import type { FoodEntry } from '../../lib/types'
+import { WaterCard } from '../../components/WaterCard'
 import { C, T } from '../../theme'
-import { Bar, Card, Icon, IconButton, IconTile, Screen, tap } from '../../components/ui'
+import { Bar, Button, Card, Field, Icon, IconButton, IconTile, Screen, SectionHeader, success, tap } from '../../components/ui'
 
+
+const st = {
+  mealAction: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: C.sep },
+  mealActionText: { color: C.accent, fontWeight: '600' as const, fontSize: 14 },
+}
 
 export default function Food() {
   const { state, dispatch } = useStore()
@@ -17,6 +24,14 @@ export default function Food() {
   const day = dayTotals(state.food, date)
   const m = day.total
   const isToday = date === todayKey()
+  const meals = useMeals()
+  const [newCat, setNewCat] = useState<string | null>(null)
+  const yesterday = dayTotals(state.food, addDays(date, -1)).entries
+  // copy entries to this day with new ids; values are already exact, so nothing is recalculated
+  const copy = (from: FoodEntry[], slot: string) => {
+    dispatch({ type: 'logEntries', entries: from.map((e) => ({ ...e, id: uid(), date, meal: slot, demo: undefined })) })
+    success()
+  }
 
   return (
     <Screen title="Food" right={
@@ -36,7 +51,7 @@ export default function Food() {
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Text style={[T.title1, T.num]}>{fmt.kcal(m.kcal)} <Text style={[T.headline, { color: C.text3 }]}>/ {t.kcal} kcal</Text></Text>
-          <Text style={[T.sub, { color: m.kcal > t.kcal ? C.orange : C.accent, fontWeight: '700' }]}>{Math.round((m.kcal / t.kcal) * 100)}%</Text>
+          <Pressable onPress={() => { tap(); router.push('/targets') }} hitSlop={8}><Text style={[T.sub, { color: C.accent, fontWeight: '700' }]}>Targets ›</Text></Pressable>
         </View>
         <View style={{ marginTop: 10 }}><Bar pct={m.kcal / t.kcal} color={m.kcal > t.kcal ? C.orange : C.accent} height={10} /></View>
         <View style={{ flexDirection: 'row', gap: 14, marginTop: 16 }}>
@@ -56,7 +71,7 @@ export default function Food() {
 
       {/* Meals */}
       <View style={{ gap: 12, marginTop: 8 }}>
-        {MEALS.map((meal) => {
+        {meals.map((meal) => {
           const items = day.entries.filter((f) => f.meal === meal.slot)
           const sum = day.byMeal[meal.slot] ?? ZERO
           return (
@@ -65,8 +80,11 @@ export default function Food() {
                 <IconTile emoji={meal.emoji} size={44} bg={C.fill} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.title3}>{meal.label}</Text>
-                  <Text style={T.sub}>{fmt.kcal(sum.kcal)} / {Math.round(t.kcal * meal.share)} kcal</Text>
+                  <Text style={T.sub}>{fmt.kcal(sum.kcal)}{meal.share ? ` / ${Math.round(t.kcal * meal.share)}` : ''} kcal · {fmt.g(sum.protein)} g protein</Text>
                 </View>
+                {editing && !['breakfast', 'lunch', 'dinner', 'snack'].includes(meal.slot) && (
+                  <IconButton icon="trash-outline" variant="fill" size={34} onPress={() => dispatch({ type: 'removeCategory', slot: meal.slot })} label={`Remove ${meal.label}`} />
+                )}
                 <IconButton icon="add" variant="fill" size={34} onPress={() => router.push({ pathname: '/add-food', params: { meal: meal.slot } })} label={`Add to ${meal.label}`} />
               </View>
               {items.map((f) => (
@@ -84,20 +102,43 @@ export default function Food() {
                   <Text style={[T.headline, T.num]}>{fmt.kcal(f.kcal)}</Text>
                 </Pressable>
               ))}
+              {(() => {
+                const prev = yesterday.filter((e) => e.meal === meal.slot)
+                if (items.length) return (
+                  <Pressable onPress={() => { tap(); router.push({ pathname: '/meal-builder', params: { date, slot: meal.slot } }) }} style={st.mealAction}>
+                    <Icon name="bookmark-outline" size={16} color={C.accent} /><Text style={st.mealActionText}>Save as a meal</Text>
+                  </Pressable>
+                )
+                if (prev.length) return (
+                  <Pressable onPress={() => { tap(); copy(prev, meal.slot) }} style={st.mealAction}>
+                    <Icon name="copy-outline" size={16} color={C.accent} /><Text style={st.mealActionText}>Copy yesterday’s {meal.label.toLowerCase()} ({fmt.kcal(prev.reduce((a, e) => a + e.kcal, 0))} kcal)</Text>
+                  </Pressable>
+                )
+                return null
+              })()}
             </Card>
           )
         })}
       </View>
 
-      {/* Plans entry */}
-      <Card onPress={() => router.push({ pathname: '/plans', params: { tab: 'boxed' } })} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <IconTile icon="cube" color="#fff" bg={C.accent} size={44} />
-        <View style={{ flex: 1 }}>
-          <Text style={T.headline}>Boxed meals & ingredients</Text>
-          <Text style={T.sub}>Plan your day, get a shopping list</Text>
-        </View>
-        <Icon name="chevron-forward" color={C.text3} />
-      </Card>
+      {/* Custom meal categories */}
+      {newCat === null ? (
+        <Pressable onPress={() => { tap(); setNewCat('') }} style={[st.mealAction, { justifyContent: 'center', marginTop: 12 }]}>
+          <Icon name="add-circle-outline" size={18} color={C.accent} /><Text style={st.mealActionText}>Add a meal category</Text>
+        </Pressable>
+      ) : (
+        <Card style={{ marginTop: 12, gap: 10 }}>
+          <Field autoFocus placeholder="e.g. Pre-workout, Second breakfast" value={newCat} onChangeText={setNewCat} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Button small variant="ghost" title="Cancel" style={{ flex: 1 }} onPress={() => setNewCat(null)} />
+            <Button small title="Add" style={{ flex: 1 }} disabled={!newCat.trim() || meals.some((x) => x.label.toLowerCase() === newCat.trim().toLowerCase())}
+              onPress={() => { dispatch({ type: 'addCategory', category: { slot: `custom-${uid()}`, label: newCat.trim(), emoji: '🍴' } }); setNewCat(null) }} />
+          </View>
+        </Card>
+      )}
+
+      <SectionHeader title="Water" action="Plan" onAction={() => router.push({ pathname: '/plans', params: { tab: 'water' } })} />
+      <WaterCard date={date} />
     </Screen>
   )
 }

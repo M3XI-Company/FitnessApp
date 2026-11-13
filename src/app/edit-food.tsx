@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useStore } from '../lib/store'
-import { MEALS } from '../lib/meals'
+import { useMeals } from '../lib/meals'
 import { SOURCES } from '../lib/sources'
 import { fmt, rescaleEntry } from '../lib/nutrition'
 import type { FoodEntry, MealSlot } from '../lib/types'
@@ -15,6 +15,7 @@ type MacroKey = 'kcal' | 'protein' | 'carbs' | 'fat'
 export default function EditFood() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { state, dispatch } = useStore()
+  const meals = useMeals()
   const entry = state.food.find((f) => f.id === id)
   const [meal, setMeal] = useState<MealSlot>(entry?.meal ?? 'snack')
   const [draft, setDraft] = useState<FoodEntry | undefined>(entry)
@@ -54,7 +55,7 @@ export default function EditFood() {
           </View>
         </Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {MEALS.map((m) => (
+          {meals.map((m) => (
             <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
               <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
             </Pressable>

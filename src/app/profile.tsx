@@ -99,7 +99,7 @@ export default function Profile() {
           ))}
         </View>
 
-        <SectionHeader title="Daily targets" />
+        <SectionHeader title="Daily targets" action="Edit" onAction={() => router.push('/targets')} />
         <List>
           <Row first left={<IconTile icon="flame" />} title="Calories" right={<Text style={T.headline}>{t.kcal} kcal</Text>} />
           <Row left={<IconTile icon="fish" />} title="Protein" right={<Text style={T.headline}>{t.protein} g</Text>} />
@@ -127,7 +127,13 @@ export default function Profile() {
           <Row left={<IconTile icon="ban-outline" />} title="Blocked people" subtitle={`${state.blocked.length} blocked · ${state.reports.length} reports sent`} />
         </List>
 
-        <Button title="Reset demo data" variant="ghost" icon="refresh" style={{ marginTop: 24 }} onPress={() => dispatch({ type: 'reset' })} />
+        <SectionHeader title="Demo data" />
+        <Card style={{ gap: 10 }}>
+          <Text style={[T.body, { lineHeight: 21 }]}>{state.demo
+            ? 'Sample history is loaded so you can explore Breeze: two weeks of meals, workouts, weight and water. It’s marked as demo data and can be removed without touching anything you logged.'
+            : 'No demo data. Everything in your diary was logged by you.'}</Text>
+          <Button small variant={state.demo ? 'ghost' : 'tinted'} icon={state.demo ? 'trash-outline' : 'sparkles-outline'} title={state.demo ? 'Remove demo data' : 'Load demo data'} onPress={() => dispatch({ type: 'demo', on: !state.demo })} />
+        </Card>
       </ScrollView>
     </View>
   )

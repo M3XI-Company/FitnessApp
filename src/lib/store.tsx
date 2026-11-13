@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { AppState, ChatMessage, FoodEntry, Profile, SetLog, UserGoal, WaterPlan } from './types'
-import { computeTargets } from './nutrition'
+import type { AppState, ChatMessage, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan } from './types'
+import { effectiveTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
 
 const STORAGE_KEY = 'breeze.v1'
@@ -11,8 +11,21 @@ const defaultProfile: Profile = {
   activity: 'moderate', goal: 'lose', onboarded: false,
 }
 
-/** Seed a couple of weeks of realistic history so every screen has something to show. */
-function seed(): AppState {
+/** Development builds start with demo data so every screen has something to show; release builds start empty. */
+export const DEMO_BY_DEFAULT = typeof __DEV__ !== 'undefined' ? __DEV__ : false
+
+function emptyState(): AppState {
+  return {
+    profile: defaultProfile, targets: effectiveTargets(defaultProfile),
+    food: [], water: {}, sets: [], weights: [], goals: [],
+    waterPlan: { startHour: 8, endHour: 21, glassMl: 250 },
+    boxedPlan: {}, chat: [], buddies: [], blocked: [], reports: [],
+    favourites: [], savedMeals: [], mealCategories: [], demo: false,
+  }
+}
+
+/** Demonstration data: two weeks of sample history. Every item is flagged demo so it can be removed. */
+function demoData() {
   const t = todayKey()
   const sets: SetLog[] = []
   const plan: [string, number, number][] = [['bench', 70, 2.5], ['squat', 90, 2.5], ['row', 60, 2.5], ['ohp', 42.5, 1.25]]
@@ -44,17 +57,32 @@ function seed(): AppState {
     { id: 'g4', title: 'Hydrate 7 days in a row', metric: 'water_days', target: 7, createdAt: t },
   ]
   return {
-    profile: defaultProfile,
-    targets: computeTargets(defaultProfile),
-    food, water, sets, weights, goals,
-    waterPlan: { startHour: 8, endHour: 21, glassMl: 250 },
-    boxedPlan: { [t]: ['overnight-oats', 'chicken-bowl', 'salmon-plate'] },
-    chat: [],
-    buddies: [],
-    blocked: [],
-    reports: [],
+    food: food.map((f) => ({ ...f, demo: true })),
+    sets: sets.map((x) => ({ ...x, demo: true })),
+    weights: weights.map((w) => ({ ...w, demo: true })),
+    water, goals,
   }
 }
+
+function withDemo(s: AppState): AppState {
+  const d = demoData()
+  const water = { ...s.water }
+  for (const [k, v] of Object.entries(d.water)) water[k] = (water[k] ?? 0) + v
+  return {
+    ...s, demo: true,
+    food: [...d.food, ...s.food], sets: [...d.sets, ...s.sets],
+    weights: [...d.weights, ...s.weights].sort((a, b) => a.date.localeCompare(b.date)),
+    water, demoWater: Object.keys(d.water), goals: s.goals.length ? s.goals : d.goals,
+  }
+}
+
+function withoutDemo(s: AppState): AppState {
+  const water = { ...s.water }
+  for (const k of s.demoWater ?? []) delete water[k]
+  return { ...s, demo: false, demoWater: [], food: s.food.filter((f) => !f.demo), sets: s.sets.filter((x) => !x.demo), weights: s.weights.filter((w) => !w.demo), water }
+}
+
+const initialState = () => (DEMO_BY_DEFAULT ? withDemo(emptyState()) : emptyState())
 
 type Action =
   | { type: 'profile'; profile: Profile }
@@ -72,6 +100,14 @@ type Action =
   | { type: 'chat'; messages: ChatMessage[] }
   | { type: 'toggleBuddy'; id: string }
   | { type: 'reset' }
+  | { type: 'setTargets'; custom?: Partial<Targets> }
+  | { type: 'toggleFavourite'; item: FoodItem }
+  | { type: 'saveMeal'; meal: SavedMeal }
+  | { type: 'deleteSavedMeal'; id: string }
+  | { type: 'logEntries'; entries: FoodEntry[] }
+  | { type: 'addCategory'; category: MealCategory }
+  | { type: 'removeCategory'; slot: string }
+  | { type: 'demo'; on: boolean }
   | { type: 'block'; id: string }
   | { type: 'report'; targetId: string; reason: string }
   | { type: 'buddySafety' }
@@ -79,7 +115,7 @@ type Action =
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
-    case 'profile': return { ...s, profile: a.profile, targets: computeTargets(a.profile) }
+    case 'profile': return { ...s, profile: a.profile, targets: effectiveTargets(a.profile, s.customTargets) }
     case 'addFood': return { ...s, food: [...s.food, a.entry] }
     case 'removeFood': return { ...s, food: s.food.filter((x) => x.id !== a.id) }
     case 'updateFood': return { ...s, food: s.food.map((x) => (x.id === a.entry.id ? a.entry : x)) }
@@ -89,7 +125,7 @@ function reducer(s: AppState, a: Action): AppState {
     case 'weight': {
       const rest = s.weights.filter((w) => w.date !== a.date)
       const profile = { ...s.profile, weightKg: a.kg }
-      return { ...s, weights: [...rest, { date: a.date, kg: a.kg }].sort((x, y) => x.date.localeCompare(y.date)), profile, targets: computeTargets(profile) }
+      return { ...s, weights: [...rest, { date: a.date, kg: a.kg }].sort((x, y) => x.date.localeCompare(y.date)), profile, targets: effectiveTargets(profile, s.customTargets) }
     }
     case 'waterPlan': return { ...s, waterPlan: a.plan }
     case 'toggleBoxed': {
@@ -101,7 +137,23 @@ function reducer(s: AppState, a: Action): AppState {
     case 'removeGoal': return { ...s, goals: s.goals.filter((g) => g.id !== a.id) }
     case 'chat': return { ...s, chat: [...s.chat, ...a.messages] }
     case 'toggleBuddy': return { ...s, buddies: s.buddies.includes(a.id) ? s.buddies.filter((x) => x !== a.id) : [...s.buddies, a.id] }
-    case 'reset': return seed()
+    case 'reset': return initialState()
+    case 'setTargets': return { ...s, customTargets: a.custom, targets: effectiveTargets(s.profile, a.custom) }
+    case 'toggleFavourite': {
+      const key = (i: FoodItem) => `${i.name}|${i.servingG ?? i.serving}`
+      const has = s.favourites.some((f) => key(f) === key(a.item))
+      return { ...s, favourites: has ? s.favourites.filter((f) => key(f) !== key(a.item)) : [{ ...a.item }, ...s.favourites] }
+    }
+    case 'saveMeal': return { ...s, savedMeals: [a.meal, ...s.savedMeals.filter((m) => m.id !== a.meal.id)] }
+    case 'deleteSavedMeal': return { ...s, savedMeals: s.savedMeals.filter((m) => m.id !== a.id) }
+    case 'logEntries': return { ...s, food: [...s.food, ...a.entries] }
+    case 'addCategory': return { ...s, mealCategories: [...s.mealCategories, a.category] }
+    case 'removeCategory': return {
+      ...s, mealCategories: s.mealCategories.filter((c) => c.slot !== a.slot),
+      // nothing is lost: entries in a removed category move to Snacks
+      food: s.food.map((f) => (f.meal === a.slot ? { ...f, meal: 'snack' } : f)),
+    }
+    case 'demo': return a.on ? (s.demo ? s : withDemo(s)) : withoutDemo(s)
     case 'block': return { ...s, blocked: [...new Set([...s.blocked, a.id])], buddies: s.buddies.filter((x) => x !== a.id) }
     case 'report': return { ...s, reports: [...s.reports, { id: uid(), targetId: a.targetId, reason: a.reason, at: new Date().toISOString() }], blocked: [...new Set([...s.blocked, a.targetId])], buddies: s.buddies.filter((x) => x !== a.targetId) }
     case 'buddySafety': return { ...s, buddySafetyAt: new Date().toISOString() }
@@ -112,13 +164,13 @@ function reducer(s: AppState, a: Action): AppState {
 const Ctx = createContext<{ state: AppState; dispatch: (a: Action) => void; ready: boolean } | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, seed)
+  const [state, dispatch] = useReducer(reducer, undefined, initialState)
   const [ready, setReady] = useState(false)
 
   // Hydrate from device storage once, then persist every change
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => { if (raw) dispatch({ type: 'hydrate', state: { ...seed(), ...JSON.parse(raw) } }) })
+      .then((raw) => { if (raw) { const saved = JSON.parse(raw); dispatch({ type: 'hydrate', state: { ...emptyState(), demo: !!saved.demo, ...saved } }) } })
       .catch(() => { /* corrupt storage: keep seed */ })
       .finally(() => setReady(true))
   }, [])

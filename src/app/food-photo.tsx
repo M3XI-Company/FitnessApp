@@ -6,7 +6,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { useStore } from '../lib/store'
 import { analysePhoto, photoScanConfigured, type PhotoError, type PhotoResult } from '../lib/foodPhoto'
 import { matchCofid } from '../lib/foodDb'
-import { MEALS, defaultMeal } from '../lib/meals'
+import { defaultMeal, mealLabel, useMeals } from '../lib/meals'
 import { SOURCES } from '../lib/sources'
 import { todayKey, uid } from '../lib/date'
 import { fmt, makeEntry, nutritionFor } from '../lib/nutrition'
@@ -29,6 +29,7 @@ const CONF = { high: { label: 'Confident', color: C.green, bg: '#E9F0E6' }, medi
 export default function FoodPhoto() {
   const params = useLocalSearchParams<{ meal?: MealSlot }>()
   const { dispatch } = useStore()
+  const meals = useMeals()
   const [meal, setMeal] = useState<MealSlot>(params.meal ?? defaultMeal())
   const [photo, setPhoto] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -117,7 +118,7 @@ export default function FoodPhoto() {
         {rows.length > 0 && (
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {MEALS.map((m) => (
+              {meals.map((m) => (
                 <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
                   <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
                 </Pressable>
@@ -156,7 +157,7 @@ export default function FoodPhoto() {
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={T.headline}>Estimated total</Text><Text style={T.title2}>{fmt.kcal(total)} kcal</Text>
             </Card>
-            <Button title={`Log ${chosen.length} item${chosen.length === 1 ? '' : 's'} to ${MEALS.find((m) => m.slot === meal)!.label}`} disabled={!chosen.length} onPress={log} />
+            <Button title={`Log ${chosen.length} item${chosen.length === 1 ? '' : 's'} to ${mealLabel(meal, meals)}`} disabled={!chosen.length} onPress={log} />
             <Button title="Retake" variant="ghost" icon="camera-reverse-outline" onPress={() => { setResult(null); setRows([]); setPhoto(null) }} />
             <Text style={[T.caption, { lineHeight: 16 }]}>{SOURCES.ai.attribution} {SOURCES.cofid.attribution} {result ? `${result.remaining} photo scans left this month.` : ''}</Text>
           </>

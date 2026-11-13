@@ -1,7 +1,10 @@
 export type Sex = 'male' | 'female'
 export type Activity = 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete'
 export type GoalType = 'lose' | 'maintain' | 'gain'
-export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+/** 'breakfast' | 'lunch' | 'dinner' | 'snack', or the id of a custom meal category */
+export type MealSlot = string
+
+export interface MealCategory { slot: MealSlot; label: string; emoji: string; share?: number }
 
 export interface Profile {
   name: string
@@ -64,6 +67,21 @@ export interface FoodEntry extends Macros {
   grams?: number
   /** true when values are an estimate (e.g. from a photo) rather than a label/database */
   isEstimate?: boolean
+  /** demonstration data (seeded), removable from Profile */
+  demo?: boolean
+}
+
+/** How much of a food was eaten: by weight (needs item.servingG) or by servings */
+export type Amount = { grams: number } | { servings: number }
+
+/** A saved meal (from the diary) or a custom meal (built by the user) */
+export interface SavedMeal {
+  id: string
+  name: string
+  emoji: string
+  kind: 'saved' | 'custom'
+  items: { item: FoodItem; amount: Amount }[]
+  createdAt: string
 }
 
 export interface SetLog {
@@ -72,11 +90,13 @@ export interface SetLog {
   exerciseId: string
   weight: number
   reps: number
+  demo?: boolean
 }
 
 export interface WeightLog {
   date: string
   kg: number
+  demo?: boolean
 }
 
 export interface WaterPlan {
@@ -117,4 +137,14 @@ export interface AppState {
   reports: { id: string; targetId: string; reason: string; at: string }[]
   /** ISO time the user accepted the meeting-safety guidelines */
   buddySafetyAt?: string
+  /** targets the user set by hand (override the calculated ones) */
+  customTargets?: Partial<Targets>
+  favourites: FoodItem[]
+  savedMeals: SavedMeal[]
+  /** custom meal categories, in addition to breakfast/lunch/dinner/snacks */
+  mealCategories: MealCategory[]
+  /** whether demonstration data is loaded */
+  demo: boolean
+  /** dates whose water total came from demo data */
+  demoWater?: string[]
 }

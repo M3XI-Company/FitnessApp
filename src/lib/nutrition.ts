@@ -3,7 +3,9 @@
  * Rule: entries store exact (unrounded) values; rounding happens only for display
  * (fmt.*). Day totals are the sum of entries, so meal totals always add up to the day.
  */
-import type { Activity, FoodEntry, FoodItem, Macros, MealSlot, Profile, Targets } from './types'
+import type { Activity, Amount, FoodEntry, FoodItem, Macros, MealSlot, Profile, Targets } from './types'
+
+export type { Amount }
 
 const ACTIVITY_FACTOR: Record<Activity, number> = {
   sedentary: 1.2,
@@ -33,6 +35,9 @@ export function targetAssumptions(p: Profile) {
   ]
 }
 
+/** Calculated targets with any hand-set values on top */
+export const effectiveTargets = (p: Profile, custom?: Partial<Targets>): Targets => ({ ...computeTargets(p), ...custom })
+
 export const computeTargets = (p: Profile): Targets => {
   const maintenance = tdee(p)
   const adj = p.goal === 'lose' ? -500 : p.goal === 'gain' ? 300 : 0
@@ -52,9 +57,6 @@ export const sumMacros = (items: Macros[]): Macros => items.reduce<Macros>((a, b
 export const scaleMacros = (m: Macros, factor: number): Macros => ({ kcal: m.kcal * factor, protein: m.protein * factor, carbs: m.carbs * factor, fat: m.fat * factor })
 export const subtractMacros = (a: Macros, b: Macros): Macros => ({ kcal: a.kcal - b.kcal, protein: a.protein - b.protein, carbs: a.carbs - b.carbs, fat: a.fat - b.fat })
 
-/** How much of a food was eaten: by weight (needs item.servingG) or by servings */
-export type Amount = { grams: number } | { servings: number }
-
 /** Factor applied to a FoodItem's per-serving values */
 export function amountFactor(item: Pick<FoodItem, 'servingG'>, amount: Amount): number {
   if ('grams' in amount) {
@@ -68,7 +70,7 @@ export function amountFactor(item: Pick<FoodItem, 'servingG'>, amount: Amount): 
 export const nutritionFor = (item: FoodItem, amount: Amount): Macros => scaleMacros(pick(item), amountFactor(item, amount))
 
 /** Build a diary entry from a food and an amount — every logging path uses this */
-export function makeEntry(item: FoodItem, amount: Amount, meta: { id: string; date: string; meal: MealSlot; source: FoodEntry['source']; isEstimate?: boolean; dataSource?: FoodEntry['dataSource'] }): FoodEntry {
+export function makeEntry(item: FoodItem, amount: Amount, meta: { id: string; date: string; meal: MealSlot; source: FoodEntry['source']; isEstimate?: boolean; dataSource?: FoodEntry['dataSource']; demo?: boolean }): FoodEntry {
   const m = nutritionFor(item, amount)
   const grams = 'grams' in amount ? amount.grams : item.servingG ? item.servingG * amount.servings : undefined
   return {
@@ -118,3 +120,13 @@ export const round = (n: number, d = 0) => {
   const f = 10 ** d
   return Math.round(n * f) / f
 }
+
+/** Turn a logged entry back into a reusable food + amount (for saved meals, favourites, copy) */
+export function entryToItem(e: FoodEntry): { item: FoodItem; amount: Amount } {
+  if (e.grams) return { item: { id: e.id, name: e.name, brand: e.brand, emoji: e.emoji, source: e.dataSource, serving: `${fmt.g0(e.grams)} g`, servingG: e.grams, kcal: e.kcal, protein: e.protein, carbs: e.carbs, fat: e.fat }, amount: { grams: e.grams } }
+  const q = e.qty || 1
+  return { item: { id: e.id, name: e.name, brand: e.brand, emoji: e.emoji, source: e.dataSource, serving: e.serving, kcal: e.kcal / q, protein: e.protein / q, carbs: e.carbs / q, fat: e.fat / q }, amount: { servings: q } }
+}
+
+/** Total nutrition of a saved/custom meal */
+export const mealNutrition = (items: { item: FoodItem; amount: Amount }[]) => sumMacros(items.map((i) => nutritionFor(i.item, i.amount)))

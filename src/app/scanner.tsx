@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useStore } from '../lib/store'
 import { SAMPLE_CODES, analyze, lookupBarcode, type Product } from '../lib/products'
 import { SOURCES } from '../lib/sources'
-import { MEALS, defaultMeal } from '../lib/meals'
+import { defaultMeal, mealLabel, useMeals } from '../lib/meals'
 import { todayKey, uid } from '../lib/date'
 import { fmt, kcalToKj, makeEntry, nutritionFor } from '../lib/nutrition'
 import { dayMacros } from '../lib/progress'
@@ -118,6 +118,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
   product: Product; mode: Mode; qty: number; setQty: (n: number) => void; onAdd: () => void; onRescan: () => void; meal: MealSlot; kcalLeft: number; bottom: number
 }) {
   const a = analyze(product)
+  const meals = useMeals()
   const n = nutritionFor(product, { servings: qty })
   const kcal = n.kcal
   return (
@@ -187,7 +188,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
       </View>
 
       <Text style={[T.caption, { lineHeight: 16 }]}>{SOURCES.off.attribution}</Text>
-      <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} icon="add" onPress={onAdd} />
+      <Button title={`Add to ${mealLabel(meal, meals)}`} icon="add" onPress={onAdd} />
       <Button title="Scan another" variant="ghost" icon="scan" onPress={onRescan} />
     </ScrollView>
   )
