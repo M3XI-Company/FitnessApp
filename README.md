@@ -2,28 +2,33 @@
 
 A fitness and wellness app for iOS and Android, built with **Expo (React Native + TypeScript)**. Cream, white, black and champagne gold, with handwritten notebook headings.
 
-| Today | Food | 3D trainer | Camera form check | Snap your meal | Gym buddies (18+) |
+**Food-first:** understand your food → discover your meals → track your progress. Fitness and community support it.
+
+| Home | Food | Recipes | Recipe | Snap your meal | 3D trainer |
 |---|---|---|---|---|---|
-| ![](docs/screenshots/today.png) | ![](docs/screenshots/food.png) | ![](docs/screenshots/trainer-3d.png) | ![](docs/screenshots/form-check.png) | ![](docs/screenshots/photo-scan.png) | ![](docs/screenshots/buddy-safety.png) |
+| ![](docs/screenshots/today.png) | ![](docs/screenshots/food.png) | ![](docs/screenshots/recipes.png) | ![](docs/screenshots/recipe.png) | ![](docs/screenshots/photo-scan.png) | ![](docs/screenshots/trainer-3d.png) |
+
+Navigation: **Home · Food · Recipes · Fitness · Social**
 
 ## Features
 
 | Area | What it does |
 |---|---|
-| **Onboarding** | Builds a daily calorie, macro and water plan; minimum age 16; health & safety notice must be accepted |
-| **Food tracking** | Diary by meal, calories-left hero, macro rings, every entry editable |
-| **UK nutrition data** | 2,854 generic foods from the UK government's CoFID 2021 dataset (Open Government Licence), logged by grams; salt shown as salt; kJ and kcal |
-| **Barcode & product scanner** | Live UK lookups on Open Food Facts (ODbL), warning when a product isn't listed as sold in the UK, FSA traffic lights, A–E grade, fit to your day |
-| **Snap your meal** | Photo → Claude vision identifies foods and estimates grams on Breeze's server → nutrition from CoFID → you confirm before logging |
-| **3D trainer** | Original 3D mannequin demonstrates all 36 exercises; drag to rotate, front/¾/side, half speed, phase cues |
-| **Camera form check** | On-device pose tracking counts reps and gives cautious, dismissible form cues; nothing recorded |
-| **Reps & progression** | Set logging, next-session targets, PRs, estimated 1-rep-max trends, rest timer |
-| **Goals & progression** | XP and levels (Whisper → Hurricane), streaks, goals, achievements |
-| **Plans** | Boxed meals for the week, shopping list by aisle, water schedule |
-| **AI trainer** | Chat coach that builds workouts and gives advice from your own logs (rule-based, on-device) |
-| **Gym buddies (18+)** | Meeting-safety guidelines, approximate distance only, block and report; no adult–minor matching |
+| **Home** | Calories remaining with protein/carbs/fat, one-tap logging (search, barcode, photo, saved), meals that fit your remaining calories and protein, eat-it-again, then fitness and community |
+| **Food diary** | Meals by category (add your own categories), every entry editable, copy yesterday, save any meal for reuse, water |
+| **Targets** | Calculated from your details (Mifflin–St Jeor), assumptions shown in plain English, every target editable |
+| **Food logging** | 2,854 UK foods (CoFID 2021, OGL) by grams, UK branded products and barcodes (Open Food Facts), favourites, saved and custom meals, manual entry, AI photo recognition |
+| **Recipes** | 22 launch recipes built from CoFID ingredients: nutrition per serving, allergens and diet labels are calculated, not typed. Need-based filters, best-fit ranking with reasons, servings scaling, method with timers, **Add to food diary** |
+| **Meal plan** | Plan recipes for the week and get a shopping list grouped by supermarket section |
+| **Ready meals** | *Coming soon* — no provider listings until agreements exist |
+| **Fitness** | 3D trainer for 36 exercises, camera form check (on-device), sets/reps/progression, rest timer, AI trainer |
+| **Social** | Gym buddies (18+, safety guidelines, block/report; sample profiles until accounts launch); community features listed as coming soon |
 
-Safety, privacy and age policy: [`docs/SAFETY_AND_PRIVACY.md`](docs/SAFETY_AND_PRIVACY.md) · Data licences: in-app under Profile → Data sources & licences.
+One nutrition engine (`src/lib/nutrition.ts`) does every calculation, so meal, day and recipe totals always agree. Entries store exact values and round only for display.
+
+Demo data: development builds start with two weeks of flagged sample history; release builds start empty. Remove or load it in Profile → Demo data.
+
+Safety, privacy and age policy: [`docs/SAFETY_AND_PRIVACY.md`](docs/SAFETY_AND_PRIVACY.md) · Data licences: in-app under Profile → Data sources & licences · Plan: [`docs/FOOD_FIRST_PROPOSAL.md`](docs/FOOD_FIRST_PROPOSAL.md).
 
 ## Run it in an emulator
 
@@ -45,14 +50,16 @@ Testing notes:
 ```bash
 npx tsc --noEmit
 npx expo lint
-npm test            # form-feedback engine unit tests
+npm test            # 30 tests: nutrition engine, recipes, form feedback
 ```
 
 ## Project structure
 
 ```
 src/app/                 screens (Expo Router)
-  (tabs)/                Today · Food · Train · Coach
+  (tabs)/                Home · Food · Recipes · Fitness · Social
+  recipe/[id].tsx        recipe page with Add to diary
+  targets.tsx, meal-builder.tsx
   exercise/[id].tsx      3D trainer, set logging, rest timer
   form-check/[id].tsx    camera form check (consent → setup → live → review)
   scanner.tsx            barcode / product scanner
@@ -61,7 +68,8 @@ src/app/                 screens (Expo Router)
 src/components/trainer/  3D mannequin, movement library, React Three Fiber view
 src/components/form/     camera + pose runner (WebView on device, iframe on web)
 src/lib/form/            form-feedback engine (pure TypeScript, unit-tested)
-src/lib/                 store, nutrition maths, UK food search, products, age policy, licences
+src/lib/                 store, nutrition engine, recipes engine, UK food search, products, age policy, licences
+src/data/recipes.ts      launch recipes (ingredients reference CoFID foods)
 src/data/cofid.json      UK CoFID 2021 (generated by scripts/import_cofid.py)
 supabase/                food-photo Edge Function + ai_usage migration
 scripts/                 CoFID importer, MediaPipe asset setup

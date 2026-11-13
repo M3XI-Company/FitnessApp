@@ -1,6 +1,8 @@
 # Breeze: food-first audit and proposal
 
-*Response to the "Breeze Master Product & Development Specification". This is for review before substantial implementation starts.*
+*Response to the "Breeze Master Product & Development Specification".*
+
+> **Status:** decisions made: ready meals as **Cook | Order** inside Recipes, **typographic covers** until licensed photos exist, **demo listings in test builds only**. **P1 and P2 are built:** shared nutrition engine with tests, editable targets, favourites, saved and custom meals, custom categories, copy day, demo-data switch, new Home and navigation, and 22 recipes calculated from CoFID with Add to diary. **Next: P3, ready meals** (provider catalogue, demo listings for test builds, filters, external links).
 
 **Direction:** Understand your food → Discover your meals → Track your progress. Food becomes the centre; fitness and community support it. The Breeze identity (cream, warm white, black, champagne gold, handwritten headings) stays.
 
