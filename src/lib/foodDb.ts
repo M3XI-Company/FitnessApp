@@ -51,3 +51,7 @@ export function matchCofid(query: string, limit = 6): FoodItem[] {
   }
   return []
 }
+
+const BY_ID = new Map(FOODS.map((f) => [f.id, f]))
+/** A CoFID food by id as a per-100 g FoodItem, or undefined */
+export const cofidItem = (id: string): FoodItem | undefined => { const f = BY_ID.get(id); return f ? toItem(f) : undefined }

@@ -5,7 +5,7 @@ import { cofidCount } from '../lib/foodDb'
 import { C, T } from '../theme'
 import { Card, Icon, SheetHeader } from '../components/ui'
 
-const ORDER = ['cofid', 'off', 'ai', 'boxed', 'manual'] as const
+const ORDER = ['cofid', 'off', 'recipe', 'ai', 'manual'] as const
 
 export default function Licences() {
   return (

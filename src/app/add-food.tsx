@@ -16,11 +16,11 @@ import { Button, Card, Field, Grade, Icon, IconTile, SearchField, Segmented, She
 type Mode = 'search' | 'recent' | 'favourites' | 'meals' | 'manual'
 
 export default function AddFood() {
-  const params = useLocalSearchParams<{ meal?: MealSlot }>()
+  const params = useLocalSearchParams<{ meal?: MealSlot; mode?: 'meals' }>()
   const { state, dispatch } = useStore()
   const insets = useSafeAreaInsets()
   const [meal, setMeal] = useState<MealSlot>(params.meal ?? defaultMeal())
-  const [mode, setMode] = useState<Mode>('search')
+  const [mode, setMode] = useState<Mode>(params.mode ?? 'search')
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<FoodItem | null>(null)
   const [qty, setQty] = useState(1)

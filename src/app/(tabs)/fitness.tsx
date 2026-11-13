@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Text, View } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
+import { AITrainer } from '../../components/coach/AITrainer'
 import { useStore } from '../../lib/store'
 import { EQUIPMENT, EXERCISES, MUSCLES, MUSCLE_COLOR, type Equipment, type Muscle } from '../../data/exercises'
 import { exerciseHistory, workoutDates, workoutsThisWeek } from '../../lib/progress'
@@ -9,11 +10,25 @@ import { round } from '../../lib/nutrition'
 import { C, T } from '../../theme'
 import { Bars, Button, Card, Chips, Icon, IconButton, LineChart, List, Pill, Row, Screen, SearchField, SectionHeader, Segmented } from '../../components/ui'
 
-export default function Train() {
-  const [tab, setTab] = useState<'library' | 'progress'>('library')
+type Tab = 'library' | 'progress' | 'coach'
+
+export default function Fitness() {
+  const { q } = useLocalSearchParams<{ q?: string }>()
+  const [picked, setTab] = useState<Tab>('library')
+  // a question sent from elsewhere (e.g. Home) opens the AI trainer
+  const tab: Tab = q ? 'coach' : picked
+  const seg = <Segmented value={tab} onChange={setTab} options={[{ value: 'library', label: 'Exercises' }, { value: 'progress', label: 'Progress' }, { value: 'coach', label: 'AI trainer' }]} style={{ marginBottom: tab === 'coach' ? 8 : 14 }} />
+  if (tab === 'coach') {
+    return (
+      <Screen title="Fitness" scroll={false}>
+        <View style={{ paddingHorizontal: 16 }}>{seg}</View>
+        <AITrainer />
+      </Screen>
+    )
+  }
   return (
-    <Screen title="Train" right={<IconButton icon="sparkles" variant="blue" onPress={() => router.navigate({ pathname: '/coach', params: { q: 'Build me a workout' } })} label="AI workout" />}>
-      <Segmented value={tab} onChange={setTab} options={[{ value: 'library', label: 'Exercises' }, { value: 'progress', label: 'Progress' }]} style={{ marginBottom: 14 }} />
+    <Screen title="Fitness" right={<IconButton icon="sparkles" variant="blue" onPress={() => router.setParams({ q: 'Build me a workout' })} label="AI workout" />}>
+      {seg}
       {tab === 'library' ? <Library /> : <Progress />}
     </Screen>
   )

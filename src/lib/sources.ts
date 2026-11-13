@@ -23,5 +23,6 @@ export const SOURCES: Record<FoodSource, { name: string; short: string; licence:
     licence: '—',
     attribution: 'Food identified from your photo by an AI model; nutrition from the databases above. Portions are estimates — please check them.',
   },
-  boxed: { name: 'Breeze boxed meals', short: 'Breeze recipe', licence: '© M3XI', attribution: 'Recipe nutrition calculated by Breeze; values are estimates.' },
+  boxed: { name: 'Breeze boxed meals (retired)', short: 'Boxed meal', licence: '© M3XI', attribution: 'Older entries from the retired boxed-meal list; values were entered by hand.' },
+  recipe: { name: 'Breeze recipes', short: 'Breeze recipe', licence: 'Recipes © M3XI; nutrition from CoFID (Open Government Licence v3.0)', attribution: 'Recipe nutrition is calculated from each ingredient’s UK CoFID values and weight, divided by the number of servings. Real portions and brands vary.' },
 }

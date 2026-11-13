@@ -16,10 +16,10 @@ export default function QuickAdd() {
     ['camera-outline', 'Snap your meal', go(() => router.push('/food-photo'))],
     ['search', 'Log food', go(() => router.push('/add-food'))],
     ['water', `+${state.waterPlan.glassMl} ml water`, () => { success(); dispatch({ type: 'water', date: todayKey(), delta: state.waterPlan.glassMl }); router.back() }],
-    ['barbell-outline', 'Log workout', go(() => router.navigate('/train'))],
+    ['barbell-outline', 'Log workout', go(() => router.navigate('/fitness'))],
     ['scale-outline', 'Log weight', go(() => router.push('/weight'))],
-    ['cube-outline', 'Boxed meals', go(() => router.push({ pathname: '/plans', params: { tab: 'boxed' } }))],
-    ['sparkles-outline', 'Ask AI trainer', go(() => router.navigate('/coach'))],
+    ['book-outline', 'Recipes', go(() => router.navigate('/recipes'))],
+    ['sparkles-outline', 'Ask AI trainer', go(() => router.navigate({ pathname: '/fitness', params: { q: 'Build me a workout' } }))],
   ]
   return (
     <Pressable style={{ flex: 1, backgroundColor: 'rgba(20,18,16,.42)', justifyContent: 'flex-end' }} onPress={() => router.back()}>

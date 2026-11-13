@@ -34,7 +34,7 @@ export interface Targets extends Macros {
 }
 
 /** Where nutrition values came from — drives attribution and "estimate" labels */
-export type FoodSource = 'cofid' | 'off' | 'manual' | 'ai' | 'boxed'
+export type FoodSource = 'cofid' | 'off' | 'manual' | 'ai' | 'boxed' | 'recipe'
 
 export interface FoodItem extends Macros {
   id: string

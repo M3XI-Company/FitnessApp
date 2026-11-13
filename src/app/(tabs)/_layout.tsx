@@ -1,18 +1,18 @@
-import { Redirect, router } from 'expo-router'
+import { Redirect } from 'expo-router'
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs'
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useStore } from '../../lib/store'
-import { C, glow, G } from '../../theme'
+import { C } from '../../theme'
 import { tap } from '../../components/ui'
 
 const TABS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = {
-  index: { label: 'Today', icon: 'home-outline', iconOn: 'home' },
+  index: { label: 'Home', icon: 'home-outline', iconOn: 'home' },
   food: { label: 'Food', icon: 'restaurant-outline', iconOn: 'restaurant' },
-  train: { label: 'Train', icon: 'barbell-outline', iconOn: 'barbell' },
-  coach: { label: 'Coach', icon: 'sparkles-outline', iconOn: 'sparkles' },
+  recipes: { label: 'Recipes', icon: 'book-outline', iconOn: 'book' },
+  fitness: { label: 'Fitness', icon: 'barbell-outline', iconOn: 'barbell' },
+  social: { label: 'Social', icon: 'people-outline', iconOn: 'people' },
 }
 
 function FloatingTabBar({ state, navigateToTab }: BottomTabBarProps) {
@@ -32,13 +32,7 @@ function FloatingTabBar({ state, navigateToTab }: BottomTabBarProps) {
   }
   return (
     <View style={[st.bar, { bottom: Math.max(12, insets.bottom) }]}>
-      {item(0)}{item(1)}
-      <Pressable accessibilityLabel="Quick add" onPress={() => { tap(); router.push('/quick-add') }} style={({ pressed }) => [pressed && { transform: [{ scale: 0.94 }] }]}>
-        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.fab, glow]}>
-          <Ionicons name="add" size={32} color={C.goldLight} />
-        </LinearGradient>
-      </Pressable>
-      {item(2)}{item(3)}
+      {state.routes.map((_, i) => item(i))}
     </View>
   )
 }
@@ -51,8 +45,9 @@ export default function TabsLayout() {
     <Tabs tabBar={(p) => <FloatingTabBar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.bg } }}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="food" />
-      <Tabs.Screen name="train" />
-      <Tabs.Screen name="coach" />
+      <Tabs.Screen name="recipes" />
+      <Tabs.Screen name="fitness" />
+      <Tabs.Screen name="social" />
     </Tabs>
   )
 }
@@ -67,7 +62,6 @@ const st = StyleSheet.create({
       default: { boxShadow: '0 10px 40px rgba(59,47,30,.14)' },
     }),
   },
-  tab: { width: 62, alignItems: 'center', gap: 3 },
+  tab: { flex: 1, alignItems: 'center', gap: 3 },
   label: { fontSize: 10.5, fontWeight: '600' },
-  fab: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 })

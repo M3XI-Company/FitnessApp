@@ -7,10 +7,10 @@
  */
 import type { AppState, ChatMessage } from './types'
 import { EXERCISES, exerciseById, type Muscle } from '../data/exercises'
-import { BOXED_MEALS } from '../data/boxedMeals'
+import { allRecipes, fitFor } from './recipes'
 import { dayMacros, exerciseHistory, nextTarget, workoutDates, workoutsThisWeek } from './progress'
 import { todayKey, uid } from './date'
-import { round } from './nutrition'
+import { remainingOf, round } from './nutrition'
 
 const SPLITS: Record<string, Muscle[]> = {
   push: ['Chest', 'Shoulders', 'Arms'],
@@ -79,12 +79,14 @@ export function reply(s: AppState, input: string): ChatMessage {
   if (/calorie|kcal|eat|food|hungry|macro|protein|diet/.test(q)) {
     const left = t.kcal - today.kcal
     const pLeft = Math.max(0, round(t.protein - today.protein))
-    const idea = BOXED_MEALS.filter((m) => m.kcal <= Math.max(left, 250)).sort((a, b) => b.protein / b.kcal - a.protein / a.kcal)[0]
+    const rem = remainingOf(t, today)
+    const best = allRecipes().map((c) => ({ c, f: fitFor(c.perServing, rem) })).sort((a, b) => b.f.score - a.f.score)[0]
+    const idea = best && { emoji: best.c.recipe.emoji, name: best.c.recipe.title, kcal: Math.round(best.c.perServing.kcal), protein: Math.round(best.c.perServing.protein) }
     return msg(
       `Today you're at ${round(today.kcal)} / ${t.kcal} kcal and ${round(today.protein)} / ${t.protein} g protein.` +
       (left > 0 ? ` You have ${round(left)} kcal left` : ` You're ${round(-left)} kcal over — keep dinner light and protein-forward`) +
       (pLeft > 0 ? ` and still need ${pLeft} g protein.` : '. Protein is covered — nice.') +
-      (idea ? `\n\nSuggestion: ${idea.emoji} ${idea.name} (${idea.kcal} kcal, ${idea.protein} g protein). You'll find it under Plans → Boxed meals.` : ''),
+      (idea ? `\n\nSuggestion: ${idea.emoji} ${idea.name} (${idea.kcal} kcal, ${idea.protein} g protein). You'll find it in Recipes, where you can add it to your diary in one tap.` : ''),
     )
   }
 

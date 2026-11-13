@@ -2,27 +2,27 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useStore } from '../lib/store'
-import { BOXED_MEALS, boxedById, type BoxedMeal, type Ingredient } from '../data/boxedMeals'
-import { MEALS } from '../lib/meals'
-import { addDays, todayKey, uid, weekdayShort } from '../lib/date'
-import { sumMacros } from '../lib/nutrition'
+import { allRecipes, recipeById, type ComputedRecipe } from '../lib/recipes'
+import { addDays, todayKey, weekdayShort } from '../lib/date'
+import { fmt, sumMacros } from '../lib/nutrition'
 import { C, T } from '../theme'
-import { Bar, Button, Card, Icon, IconTile, Pill, Segmented, SheetHeader, Stepper, success, tap } from '../components/ui'
+import { Bar, Button, Card, Icon, IconTile, Pill, Segmented, SheetHeader, Stepper, tap } from '../components/ui'
 import { WaterCard } from '../components/WaterCard'
 
-type Tab = 'boxed' | 'ingredients' | 'water'
+type Tab = 'plan' | 'ingredients' | 'water'
 
 export default function Plans() {
   const params = useLocalSearchParams<{ tab?: Tab }>()
-  const [tab, setTab] = useState<Tab>(params.tab ?? 'boxed')
+  // 'boxed' links from older versions open the meal plan
+  const [tab, setTab] = useState<Tab>(params.tab === 'ingredients' || params.tab === 'water' ? params.tab : 'plan')
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Plans" onClose={() => router.back()} />
       <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'boxed', label: 'Boxed meals' }, { value: 'ingredients', label: 'Ingredients' }, { value: 'water', label: 'Water plan' }]} />
+        <Segmented value={tab} onChange={setTab} options={[{ value: 'plan', label: 'Meal plan' }, { value: 'ingredients', label: 'Ingredients' }, { value: 'water', label: 'Water plan' }]} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        {tab === 'boxed' && <Boxed />}
+        {tab === 'plan' && <MealPlan />}
         {tab === 'ingredients' && <Ingredients />}
         {tab === 'water' && <WaterPlan />}
       </ScrollView>
@@ -30,19 +30,13 @@ export default function Plans() {
   )
 }
 
-function Boxed() {
+function MealPlan() {
   const { state, dispatch } = useStore()
   const [day, setDay] = useState(todayKey())
-  const [open, setOpen] = useState<string | null>(null)
-  const planned = (state.boxedPlan[day] ?? []).map(boxedById).filter(Boolean) as BoxedMeal[]
-  const total = sumMacros(planned)
+  const [adding, setAdding] = useState(false)
+  const planned = (state.boxedPlan[day] ?? []).map(recipeById).filter((x): x is ComputedRecipe => !!x)
+  const total = sumMacros(planned.map((c) => c.perServing))
   const t = state.targets
-
-  const log = (b: BoxedMeal) => {
-    dispatch({ type: 'addFood', entry: { id: uid(), date: todayKey(), meal: b.slot, name: b.name, serving: '1 box', qty: 1, emoji: b.emoji, kcal: b.kcal, protein: b.protein, carbs: b.carbs, fat: b.fat, source: 'boxed' } })
-    if (b.waterMl) dispatch({ type: 'water', date: todayKey(), delta: b.waterMl })
-    success()
-  }
 
   return (
     <View style={{ gap: 12 }}>
@@ -51,63 +45,53 @@ function Boxed() {
           <Pressable key={d} onPress={() => { tap(); setDay(d) }} style={{ width: 48, paddingVertical: 10, borderRadius: 16, alignItems: 'center', gap: 4, backgroundColor: d === day ? C.ink : C.card }}>
             <Text style={{ fontSize: 12, fontWeight: '600', color: d === day ? 'rgba(255,255,255,.8)' : C.text3 }}>{weekdayShort(d)}</Text>
             <Text style={{ fontSize: 17, fontWeight: '800', color: d === day ? C.goldLight : C.text }}>{+d.slice(8)}</Text>
-            <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: (state.boxedPlan[d] ?? []).length ? C.gold : 'transparent' }} />
+            <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: (state.boxedPlan[d] ?? []).some((id) => recipeById(id)) ? C.gold : 'transparent' }} />
           </Pressable>
         ))}
       </ScrollView>
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Text style={T.title3}>{planned.length} box{planned.length === 1 ? '' : 'es'} planned</Text>
-          <Text style={[T.sub, T.num]}>{total.kcal} / {t.kcal} kcal</Text>
+          <Text style={T.title3}>{planned.length} recipe{planned.length === 1 ? '' : 's'} planned</Text>
+          <Text style={[T.sub, T.num]}>{fmt.kcal(total.kcal)} / {t.kcal} kcal</Text>
         </View>
         <View style={{ marginTop: 10 }}><Bar pct={total.kcal / t.kcal} /></View>
         <View style={{ flexDirection: 'row', gap: 14, marginTop: 12 }}>
-          {([['Protein', total.protein, t.protein], ['Carbs', total.carbs, t.carbs], ['Fat', total.fat, t.fat]] as const).map(([l, v, m]) => (
-            <Text key={l} style={T.sub}><Text style={{ color: C.text, fontWeight: '700' }}>{v}</Text>/{m}g {l.toLowerCase()}</Text>
+          {([['protein', total.protein, t.protein], ['carbs', total.carbs, t.carbs], ['fat', total.fat, t.fat]] as const).map(([l, v, m]) => (
+            <Text key={l} style={T.sub}><Text style={{ color: C.text, fontWeight: '700' }}>{fmt.g(v)}</Text>/{m} g {l}</Text>
           ))}
         </View>
+        <Text style={[T.caption, { marginTop: 8 }]}>One serving of each planned recipe.</Text>
       </Card>
 
-      {MEALS.map((slot) => (
-        <View key={slot.slot} style={{ gap: 10 }}>
-          <Text style={[T.eyebrow, { marginTop: 10, marginLeft: 4 }]}>{slot.label}</Text>
-          {BOXED_MEALS.filter((b) => b.slot === slot.slot).map((b) => {
-            const inPlan = planned.some((p) => p.id === b.id)
-            const expanded = open === b.id
-            return (
-              <Card key={b.id} style={{ padding: 0, overflow: 'hidden', borderWidth: 2, borderColor: inPlan ? C.accent : 'transparent' }}>
-                <Pressable onPress={() => { tap(); setOpen(expanded ? null : b.id) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
-                  <IconTile emoji={b.emoji} size={52} bg={C.fill} />
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={T.headline} numberOfLines={2}>{b.name}</Text>
-                    <Text style={T.sub}>{b.kcal} kcal · {b.protein}P · {b.carbs}C · {b.fat}F</Text>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>{b.tags.slice(0, 2).map((tg) => <Pill key={tg}>{tg}</Pill>)}<Pill color={C.text2} bg={C.fill}>{`${b.minutes} min`}</Pill></View>
-                  </View>
-                  <Pressable hitSlop={8} onPress={() => { tap(); dispatch({ type: 'toggleBoxed', date: day, mealId: b.id }) }} accessibilityLabel={inPlan ? 'Remove from plan' : 'Add to plan'}>
-                    <Icon name={inPlan ? 'checkmark-circle' : 'add-circle-outline'} size={30} color={C.accent} />
-                  </Pressable>
-                </Pressable>
-                {expanded && (
-                  <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12, borderTopWidth: 1, borderTopColor: C.sep, paddingTop: 14 }}>
-                    <Text style={T.eyebrow}>Ingredients</Text>
-                    {b.ingredients.map((i) => (
-                      <View key={i.name} style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={T.body}>{i.name}</Text><Text style={[T.sub, T.num]}>{i.qty} {i.unit}</Text></View>
-                    ))}
-                    <Text style={[T.eyebrow, { marginTop: 4 }]}>Steps</Text>
-                    {b.steps.map((s, i) => <Text key={i} style={T.body}><Text style={{ color: C.accent, fontWeight: '700' }}>{i + 1}. </Text>{s}</Text>)}
-                    {b.waterMl > 0 && <Text style={T.sub}>💧 Contributes ~{b.waterMl} ml to your water goal</Text>}
-                    <Button title="Log this meal now" icon="checkmark" variant="tinted" onPress={() => log(b)} />
-                  </View>
-                )}
-              </Card>
-            )
-          })}
-        </View>
+      {planned.map((c, i) => (
+        <Card key={`${c.recipe.id}-${i}`} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }} onPress={() => router.push(`/recipe/${c.recipe.id}`)}>
+            <IconTile emoji={c.recipe.emoji} size={44} bg={C.fill} />
+            <View style={{ flex: 1 }}><Text style={T.headline} numberOfLines={1}>{c.recipe.title}</Text><Text style={T.sub}>{fmt.kcal(c.perServing.kcal)} kcal · {fmt.g(c.perServing.protein)} g protein</Text></View>
+          </Pressable>
+          <Pressable hitSlop={8} onPress={() => { tap(); dispatch({ type: 'toggleBoxed', date: day, mealId: c.recipe.id }) }} accessibilityLabel={`Remove ${c.recipe.title}`}><Icon name="remove-circle-outline" size={24} color={C.text3} /></Pressable>
+        </Card>
       ))}
+
+      <Button title={adding ? 'Done' : 'Add recipes to this day'} variant="tinted" icon={adding ? 'checkmark' : 'add'} onPress={() => setAdding(!adding)} />
+      {adding && allRecipes().map((c) => {
+        const on = (state.boxedPlan[day] ?? []).includes(c.recipe.id)
+        return (
+          <Card key={c.recipe.id} tight onPress={() => dispatch({ type: 'toggleBoxed', date: day, mealId: c.recipe.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: on ? C.gold : 'transparent' }}>
+            <IconTile emoji={c.recipe.emoji} size={40} bg={C.fill} />
+            <View style={{ flex: 1 }}><Text style={T.headline} numberOfLines={1}>{c.recipe.title}</Text><Text style={T.caption}>{fmt.kcal(c.perServing.kcal)} kcal · {fmt.g(c.perServing.protein)} g protein · {c.minutes} min</Text></View>
+            <Icon name={on ? 'checkmark-circle' : 'add-circle-outline'} size={26} color={C.accent} />
+          </Card>
+        )
+      })}
     </View>
   )
 }
+
+/** Supermarket section from the CoFID food group (first number of the code) */
+const AISLE_OF: Record<string, string> = { '11': 'Bread, rice & pasta', '12': 'Dairy & eggs', '13': 'Vegetables & pulses', '14': 'Fruit & nuts', '16': 'Fish', '17': 'Cupboard', '18': 'Meat & poultry', '19': 'Other' }
+const AISLE_ICON: Record<string, string> = { 'Bread, rice & pasta': '🥖', 'Dairy & eggs': '🧀', 'Vegetables & pulses': '🥬', 'Fruit & nuts': '🍎', Fish: '🐟', Cupboard: '🫙', 'Meat & poultry': '🥩', Other: '🛒' }
 
 function Ingredients() {
   const { state } = useStore()
@@ -115,48 +99,48 @@ function Ingredients() {
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const groups = useMemo(() => {
     const days = range === 'day' ? [todayKey()] : Array.from({ length: 7 }, (_, i) => addDays(todayKey(), i))
-    const map = new Map<string, Ingredient & { meals: number }>()
+    const map = new Map<string, { key: string; label: string; grams: number; aisle: string }>()
     for (const d of days) for (const id of state.boxedPlan[d] ?? []) {
-      for (const ing of boxedById(id)?.ingredients ?? []) {
-        const key = `${ing.name}|${ing.unit}`
+      const c = recipeById(id)
+      if (!c) continue
+      for (const ing of c.ingredients) {
+        const key = ing.food.id
+        const grams = ing.grams / c.recipe.servings // one serving of each planned recipe
         const cur = map.get(key)
-        map.set(key, cur ? { ...cur, qty: cur.qty + ing.qty, meals: cur.meals + 1 } : { ...ing, meals: 1 })
+        map.set(key, cur ? { ...cur, grams: cur.grams + grams } : { key, label: ing.label, grams, aisle: AISLE_OF[key.split('-')[1]] ?? 'Other' })
       }
     }
-    const byAisle: Record<string, (Ingredient & { meals: number })[]> = {}
+    const byAisle: Record<string, { key: string; label: string; grams: number }[]> = {}
     for (const i of map.values()) (byAisle[i.aisle] ??= []).push(i)
     return Object.entries(byAisle).sort(([a], [b]) => a.localeCompare(b))
   }, [state.boxedPlan, range])
 
   const count = groups.reduce((a, [, l]) => a + l.length, 0)
   const done = Object.values(checked).filter(Boolean).length
-  const AISLE: Record<string, string> = { Produce: '🥬', Protein: '🥩', Dairy: '🧀', Pantry: '🫙', Bakery: '🥖', Frozen: '🧊' }
 
   return (
     <View style={{ gap: 12 }}>
       <Segmented value={range} onChange={setRange} options={[{ value: 'day', label: 'Today' }, { value: 'week', label: 'Next 7 days' }]} />
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <IconTile icon="basket" color="#fff" bg={C.accent} size={44} />
-        <View style={{ flex: 1 }}><Text style={T.title3}>Shopping list</Text><Text style={T.sub}>{count ? `${done} of ${count} items collected` : 'Plan boxed meals to build your list'}</Text></View>
+        <IconTile icon="basket" color={C.goldLight} bg={C.ink} size={44} />
+        <View style={{ flex: 1 }}><Text style={T.title3}>Shopping list</Text><Text style={T.sub}>{count ? `${done} of ${count} items collected` : 'Plan recipes to build your list'}</Text></View>
       </Card>
-      {count === 0 && <Button title="Plan boxed meals" variant="tinted" onPress={() => router.setParams({ tab: 'boxed' })} />}
+      {count === 0 && <Button title="Plan recipes" variant="tinted" onPress={() => router.setParams({ tab: 'plan' })} />}
       {groups.map(([aisle, items]) => (
         <View key={aisle} style={{ gap: 8 }}>
-          <Text style={[T.eyebrow, { marginLeft: 4, marginTop: 6 }]}>{AISLE[aisle]} {aisle}</Text>
+          <Text style={[T.eyebrow, { marginLeft: 4, marginTop: 6 }]}>{AISLE_ICON[aisle]} {aisle}</Text>
           <Card style={{ padding: 0 }}>
-            {items.map((i, idx) => {
-              const k = `${i.name}|${i.unit}`
-              return (
-                <Pressable key={k} onPress={() => { tap(); setChecked({ ...checked, [k]: !checked[k] }) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderTopWidth: idx ? 1 : 0, borderTopColor: C.sep }}>
-                  <Icon name={checked[k] ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={checked[k] ? C.accent : C.text3} />
-                  <Text style={[T.body, { flex: 1, fontWeight: '600' }, checked[k] && { color: C.text3, textDecorationLine: 'line-through' }]}>{i.name}</Text>
-                  <Text style={[T.sub, T.num]}>{+i.qty.toFixed(1)} {i.unit}</Text>
-                </Pressable>
-              )
-            })}
+            {items.map((i, idx) => (
+              <Pressable key={i.key} onPress={() => { tap(); setChecked({ ...checked, [i.key]: !checked[i.key] }) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderTopWidth: idx ? 1 : 0, borderTopColor: C.sep }}>
+                <Icon name={checked[i.key] ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={checked[i.key] ? C.ink : C.text3} />
+                <Text style={[T.body, { flex: 1, fontWeight: '600' }, checked[i.key] && { color: C.text3, textDecorationLine: 'line-through' }]}>{i.label}</Text>
+                <Text style={[T.sub, T.num]}>{fmt.g0(i.grams)} g</Text>
+              </Pressable>
+            ))}
           </Card>
         </View>
       ))}
+      {count > 0 && <Text style={[T.caption, { lineHeight: 16 }]}>Quantities cover one serving of each planned recipe, using the weights in each recipe (raw or cooked as noted there).</Text>}
     </View>
   )
 }
@@ -173,7 +157,6 @@ function WaterPlan() {
   })
   const doneCount = Math.floor(ml / p.glassMl)
   const nowH = new Date().getHours() + new Date().getMinutes() / 60
-  const plannedFood = (state.boxedPlan[todayKey()] ?? []).reduce((a, id) => a + (boxedById(id)?.waterMl ?? 0), 0)
 
   return (
     <View style={{ gap: 12 }}>
@@ -187,7 +170,6 @@ function WaterPlan() {
               onChange={(v) => dispatch({ type: 'waterPlan', plan: { ...p, [k]: k === 'glassMl' ? v : Math.min(23, v) } })} />
           </View>
         ))}
-        {plannedFood > 0 && <Text style={T.sub}>💧 Your boxed meals today add ~{plannedFood} ml of water from food.</Text>}
       </Card>
       <Card style={{ padding: 0 }}>
         {slots.map((time, i) => {
