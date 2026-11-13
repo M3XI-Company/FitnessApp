@@ -1,6 +1,6 @@
 # Breeze — by M3XI
 
-A fitness and wellness app for iOS and Android, built with **Expo (React Native + TypeScript)**. Cream, white, black and champagne gold, with handwritten notebook headings.
+A fitness and wellness app for iOS and Android, built with **Expo (React Native + TypeScript)**. Sky colours (dawn peach, day blue, night navy) on cloud white, with handwritten notebook headings, Lucide line icons, anatomical muscle maps and a 3D trainer figure with visible muscles.
 
 **Food-first:** understand your food → discover your meals → track your progress. Fitness and community support it.
 
@@ -18,10 +18,10 @@ Navigation: **Home · Food · Recipes · Fitness · Social**
 | **Food diary** | Meals by category (add your own categories), every entry editable, copy yesterday, save any meal for reuse, water |
 | **Targets** | Calculated from your details (Mifflin–St Jeor), assumptions shown in plain English, every target editable |
 | **Food logging** | 2,854 UK foods (CoFID 2021, OGL) by grams, UK branded products and barcodes (Open Food Facts), favourites, saved and custom meals, manual entry, AI photo recognition |
-| **Recipes** | 22 launch recipes built from CoFID ingredients: nutrition per serving, allergens and diet labels are calculated, not typed. Need-based filters, best-fit ranking with reasons, servings scaling, method with timers, **Add to food diary** |
+| **Recipes** | 22 launch recipes built from CoFID ingredients: nutrition per serving, allergens and diet labels are calculated, not typed. Need-based filters, best-fit ranking with reasons, servings scaling, method with timers, **Add to food diary**. *What this meal gives you*: share of your daily targets, FSA traffic lights, fibre, and UK-authorised nutrition and health claims only where the conditions are met |
 | **Meal plan** | Plan recipes for the week and get a shopping list grouped by supermarket section |
 | **Ready meals** | *Coming soon* — no provider listings until agreements exist |
-| **Fitness** | 3D trainer for 36 exercises, camera form check (on-device), sets/reps/progression, rest timer, AI trainer |
+| **Fitness** | Anatomical muscle map for every exercise (main and supporting muscles), 3D trainer figure whose worked muscles glow (5 skin tones), 36 exercises, camera form check (on-device), sets/reps/progression, rest timer, AI trainer |
 | **Social** | Gym buddies (18+, safety guidelines, block/report; sample profiles until accounts launch); community features listed as coming soon |
 
 One nutrition engine (`src/lib/nutrition.ts`) does every calculation, so meal, day and recipe totals always agree. Entries store exact values and round only for display.

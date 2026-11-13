@@ -12,6 +12,7 @@ import { C, T } from '../../theme'
 import { Button, Card, Icon, IconButton, Pill, Segmented, Stepper, success, tap } from '../../components/ui'
 import { RecipeCover } from '../../components/RecipeCover'
 import { RestTimer } from '../../components/RestTimer'
+import { MealImpact } from '../../components/MealImpact'
 
 export default function RecipeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -68,6 +69,8 @@ export default function RecipeScreen() {
               {fit.reasons.map((r) => <Text key={r} style={T.sub}>• {r}</Text>)}
             </View>
           </Card>
+
+          <MealImpact c={c.composition} targets={state.targets} />
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {c.tags.map((t) => <Pill key={t} color={C.text2} bg={C.fill}>{TAG_LABEL[t]}</Pill>)}

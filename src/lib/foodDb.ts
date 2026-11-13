@@ -55,3 +55,13 @@ export function matchCofid(query: string, limit = 6): FoodItem[] {
 const BY_ID = new Map(FOODS.map((f) => [f.id, f]))
 /** A CoFID food by id as a per-100 g FoodItem, or undefined */
 export const cofidItem = (id: string): FoodItem | undefined => { const f = BY_ID.get(id); return f ? toItem(f) : undefined }
+
+export interface Extras { fiber: number; sugar: number; satFat: number; salt: number; missing: (keyof Omit<Extras, 'missing'>)[] }
+/** Fibre, sugars, saturates and salt per 100 g for a CoFID food (missing values counted as 0 and listed) */
+export function cofidExtras(id: string): Extras | undefined {
+  const f = BY_ID.get(id)
+  if (!f) return undefined
+  const missing: Extras['missing'] = []
+  const v = (k: 'fiber' | 'sugar' | 'satFat' | 'salt') => { const x = f[k]; if (x === null || x === undefined) { missing.push(k); return 0 } return x }
+  return { fiber: v('fiber'), sugar: v('sugar'), satFat: v('satFat'), salt: v('salt'), missing }
+}

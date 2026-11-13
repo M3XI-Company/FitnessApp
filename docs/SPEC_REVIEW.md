@@ -2,7 +2,7 @@
 
 *Reviews the "AI Fitness Companion — Product Specification" against the current Tide codebase, as section 10 of the spec asks.*
 
-> **Update (Breeze by M3XI):** the decisions in §3 are made — name **Breeze**, cream/white/black/champagne-gold design with handwritten type, UK-first, 16+ app with **18+ buddy discovery and messaging** and no adult–minor matching, community as a core feature (not a dating app). Since this review, the app has gained UK CoFID data and licence compliance, a 3D trainer, on-device camera form feedback, a food photo scanner, and buddy safety tooling (block, report, meeting guidelines). See `docs/SAFETY_AND_PRIVACY.md` and `docs/FOOD_PHOTO.md`. The risks in §4 still apply to launch, chiefly real-world accuracy (R2, R3) and moderation (R4).
+> **Update (Breeze by M3XI):** the decisions in §3 are made — name **Breeze**, sky-colour design (originally cream and gold) with handwritten type, UK-first, 16+ app with **18+ buddy discovery and messaging** and no adult–minor matching, community as a core feature (not a dating app). Since this review, the app has gained UK CoFID data and licence compliance, a 3D trainer, on-device camera form feedback, a food photo scanner, and buddy safety tooling (block, report, meeting guidelines). See `docs/SAFETY_AND_PRIVACY.md` and `docs/FOOD_PHOTO.md`. The risks in §4 still apply to launch, chiefly real-world accuracy (R2, R3) and moderation (R4).
 
 ---
 

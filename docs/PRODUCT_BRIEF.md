@@ -6,7 +6,7 @@
 
 **For:** people who lift and watch what they eat (cutting, maintaining or building muscle) and are tired of switching between a calorie counter, a workout log and a water app.
 
-**Design:** cream, white, black and champagne gold, with handwritten notebook-style headings; Cal AI–style big numbers on an Apple-style layout. No ads, no upsell walls.
+**Design:** sky colours (dawn peach, day blue, night navy) on cloud white, with handwritten notebook-style headings and professional line icons; Cal AI–style big numbers on an Apple-style layout. No ads, no upsell walls.
 
 **Ages:** 16+ for the app; 18+ for gym buddy discovery and messaging, with no adult–minor matching. Breeze is a fitness community, not a dating app.
 

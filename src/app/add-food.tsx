@@ -169,6 +169,7 @@ export default function AddFood() {
               <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{v}{u}</Text><Text style={T.caption}>{l}</Text></View>
             ))}
           </View>
+          <Text style={[T.sub, { textAlign: 'center' }]}>That’s <Text style={{ color: C.text, fontWeight: '700' }}>{Math.round((preview!.kcal / state.targets.kcal) * 100)}%</Text> of your calories and <Text style={{ color: C.text, fontWeight: '700' }}>{Math.round((preview!.protein / state.targets.protein) * 100)}%</Text> of your protein for the day</Text>
           <Button title={`Add to ${mealLabel(meal, meals)}`} onPress={() => add(picked, amount)} />
         </View>
       )}

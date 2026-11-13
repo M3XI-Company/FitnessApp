@@ -2,7 +2,8 @@
  * Recipe engine. Nutrition, allergens and diet labels are DERIVED from the
  * ingredients (each a CoFID food + grams) — never typed in by hand.
  */
-import { cofidItem } from './foodDb'
+import { cofidExtras, cofidItem } from './foodDb'
+import type { Composition, Extra } from './impact'
 import { fmt, nutritionFor, recipeNutrition, scaleMacros } from './nutrition'
 import type { FoodItem, Macros } from './types'
 import { RECIPES, type Recipe } from '../data/recipes'
@@ -57,6 +58,8 @@ export interface ComputedRecipe {
   minutes: number
   /** the recipe as a loggable food (1 serving) */
   asFood: FoodItem
+  /** full composition of one serving, for traffic lights and claims */
+  composition: Composition
 }
 
 const cache = new Map<string, ComputedRecipe>()
@@ -88,8 +91,23 @@ export function computeRecipe(recipe: Recipe): ComputedRecipe {
   if (vegan) tags.push('vegan')
   if (vegetarian) tags.push('vegetarian')
   const gramsPerServing = ingredients.reduce((a, i) => a + i.grams, 0) / recipe.servings
+  let fiber = 0, sugar = 0, satFat = 0, salt = 0
+  const unknown = new Set<Extra>()
+  for (const i of recipe.ingredients) {
+    const x = cofidExtras(i.food)!
+    const f = i.grams / 100 / recipe.servings
+    fiber += x.fiber * f; sugar += x.sugar * f; satFat += x.satFat * f; salt += x.salt * f
+    // CoFID leaves fibre/sugar undetermined for meat, fish and eggs, where they are effectively zero
+    const animal = /^cofid-(16|18)-/.test(i.food) || /\beggs?\b/i.test(cofidItem(i.food)!.name)
+    for (const k of x.missing) {
+      if ((k === 'fiber' || k === 'sugar') && animal) continue
+      // a missing value only matters if the ingredient is a meaningful part of the dish
+      if (i.grams / recipe.servings >= 15) unknown.add(k)
+    }
+  }
+  const composition: Composition = { ...perServing, fiber, sugar, satFat, salt, grams: gramsPerServing, unknown: [...unknown] }
   const out: ComputedRecipe = {
-    recipe, ingredients, total, perServing, gramsPerServing, allergens, tags, minutes,
+    recipe, ingredients, total, perServing, gramsPerServing, allergens, tags, minutes, composition,
     asFood: { id: `recipe-${recipe.id}`, name: recipe.title, emoji: recipe.emoji, source: 'recipe', serving: `1 serving (${fmt.g0(gramsPerServing)} g)`, ...perServing },
   }
   cache.set(recipe.id, out)
