@@ -1,73 +1,75 @@
-# Tide — Fitness & Nutrition
+# Breeze — by M3XI
 
-A native iOS / Android fitness app built with **Expo (React Native + TypeScript)**. Blue theme, with a clean, high-contrast look inspired by Cal AI and Apple's design language: large titles, grouped cards, rings, floating tab bar, native sheets and haptics.
+A fitness and wellness app for iOS and Android, built with **Expo (React Native + TypeScript)**. Cream, white, black and champagne gold, with handwritten notebook headings.
 
-| Today | Food | Exercise | AI Trainer | Product scanner | Boxed meals |
+| Today | Food | 3D trainer | Camera form check | Snap your meal | Gym buddies (18+) |
 |---|---|---|---|---|---|
-| ![](docs/screenshots/03-today.png) | ![](docs/screenshots/05-food.png) | ![](docs/screenshots/07-exercise.png) | ![](docs/screenshots/09-coach.png) | ![](docs/screenshots/12-product.png) | ![](docs/screenshots/20-boxed.png) |
+| ![](docs/screenshots/today.png) | ![](docs/screenshots/food.png) | ![](docs/screenshots/trainer-3d.png) | ![](docs/screenshots/form-check.png) | ![](docs/screenshots/photo-scan.png) | ![](docs/screenshots/buddy-safety.png) |
 
 ## Features
 
-| Area | What it does | Where |
-|---|---|---|
-| **Onboarding** | Builds a daily plan from your sex, age, height, weight, activity level and goal (Mifflin–St Jeor + activity factor). Sets calories, macros and water. | `src/app/onboarding.tsx` |
-| **Calorie tracker** | Big "calories left" hero, protein/carb/fat rings, a 7-day strip | `src/app/(tabs)/index.tsx` |
-| **Food tracker** | Diary by meal, day-by-day navigation, edit/delete, food search, recent foods, manual entry | `src/app/(tabs)/food.tsx`, `src/app/add-food.tsx` |
-| **Barcode scanner** | Native camera scanning (EAN/UPC) → [Open Food Facts](https://world.openfoodfacts.org) lookup → log with a serving stepper | `src/app/scanner.tsx`, `src/lib/products.ts` |
-| **Product scanner** | Health score (0–100), A–E grade, traffic lights for sugar, fat, saturated fat and salt, pros and cons, allergens, and how the item fits your remaining calories | same as above (`analyze()`) |
-| **Exercise list** | 36 exercises, filterable by muscle group and equipment, with search | `src/app/(tabs)/train.tsx`, `src/data/exercises.ts` |
-| **Reps & progression** | Set logger (weight × reps), double-progression "next target", PR detection, estimated 1-rep max (Epley) trend chart, session history, form cues | `src/app/exercise/[id].tsx`, `src/lib/progress.ts` |
-| **Goal / progression system** | XP and levels (Ripple → Tsunami), streaks, custom goals with live progress, achievements | `src/app/profile.tsx`, `src/lib/progress.ts` |
-| **Boxed meals** | Pre-built meal "boxes" with macros, tags, ingredients and steps. Plan them per day for the next 7 days, or log one with a tap | `src/app/plans.tsx`, `src/data/boxedMeals.ts` |
-| **Ingredients plan** | Shopping list built from your planned boxes, combined across days, grouped by aisle, with checkboxes | `src/app/plans.tsx` |
-| **Water tracker / plan** | Glass-based tracker, and a daily schedule (start, finish, glass size) with Done/Due states. Counts water from boxed meals too | `src/components/WaterCard.tsx`, `src/app/plans.tsx` |
-| **AI Trainer** | Chat coach that reads your data: builds push/pull/legs/upper/lower/full/home workouts with weights from your history, gives form tips, checks your macros, reviews your progress, and covers recovery | `src/app/(tabs)/coach.tsx`, `src/lib/coach.ts` |
-| **Filtered Buddy** | Find workout partners filtered by goal, level, time of day and distance, ranked by a match score against your profile | `src/app/(tabs)/coach.tsx`, `src/data/buddies.ts` |
-| **Yazio case study** | Competitive analysis and how Tide differs | [`docs/YAZIO_CASE_STUDY.md`](docs/YAZIO_CASE_STUDY.md) |
+| Area | What it does |
+|---|---|
+| **Onboarding** | Builds a daily calorie, macro and water plan; minimum age 16; health & safety notice must be accepted |
+| **Food tracking** | Diary by meal, calories-left hero, macro rings, every entry editable |
+| **UK nutrition data** | 2,854 generic foods from the UK government's CoFID 2021 dataset (Open Government Licence), logged by grams; salt shown as salt; kJ and kcal |
+| **Barcode & product scanner** | Live UK lookups on Open Food Facts (ODbL), warning when a product isn't listed as sold in the UK, FSA traffic lights, A–E grade, fit to your day |
+| **Snap your meal** | Photo → Claude vision identifies foods and estimates grams on Breeze's server → nutrition from CoFID → you confirm before logging |
+| **3D trainer** | Original 3D mannequin demonstrates all 36 exercises; drag to rotate, front/¾/side, half speed, phase cues |
+| **Camera form check** | On-device pose tracking counts reps and gives cautious, dismissible form cues; nothing recorded |
+| **Reps & progression** | Set logging, next-session targets, PRs, estimated 1-rep-max trends, rest timer |
+| **Goals & progression** | XP and levels (Whisper → Hurricane), streaks, goals, achievements |
+| **Plans** | Boxed meals for the week, shopping list by aisle, water schedule |
+| **AI trainer** | Chat coach that builds workouts and gives advice from your own logs (rule-based, on-device) |
+| **Gym buddies (18+)** | Meeting-safety guidelines, approximate distance only, block and report; no adult–minor matching |
 
-## Run it
+Safety, privacy and age policy: [`docs/SAFETY_AND_PRIVACY.md`](docs/SAFETY_AND_PRIVACY.md) · Data licences: in-app under Profile → Data sources & licences.
+
+## Run it in an emulator
 
 ```bash
+git clone https://github.com/M3XI-Company/FitnessApp && cd FitnessApp
 npm install
 npx expo start
 ```
 
-Then press `i` (iOS simulator), `a` (Android emulator), or scan the QR code with **Expo Go** on your phone. All native modules used here (camera, haptics, linear gradient, SVG, async storage) are included in Expo Go.
+Press `a` for an Android emulator (Android Studio) or `i` for the iOS Simulator (Xcode on a Mac), or scan the QR code with **Expo Go** on a phone. Everything uses modules included in Expo Go.
 
-To build installable apps with EAS:
+Testing notes:
+- **iOS Simulator has no camera.** Barcode scanning and the camera form check need a real iPhone (or an Android emulator with a virtual camera). Use "Choose from photos" and the scanner's sample products in the simulator.
+- **Camera form check** downloads the MediaPipe pose model (~6 MB) the first time; it needs an internet connection.
+- **Snap your meal** needs the server set up once — see [`docs/FOOD_PHOTO.md`](docs/FOOD_PHOTO.md). Until then the screen explains it isn't connected.
 
-```bash
-npx eas-cli@latest build --profile development --platform ios
-```
-
-Checks:
+## Checks
 
 ```bash
 npx tsc --noEmit
 npx expo lint
+npm test            # form-feedback engine unit tests
 ```
 
 ## Project structure
 
 ```
-src/
-  app/                 Expo Router screens
-    (tabs)/            Today · Food · Train · Coach (custom floating tab bar)
-    add-food.tsx       modal
-    scanner.tsx        full-screen camera modal (barcode + product modes)
-    plans.tsx          boxed meals · ingredients · water plan
-    exercise/[id].tsx  set logger + progression
-    profile.tsx        XP, goals, achievements, targets
-    onboarding.tsx, quick-add.tsx, weight.tsx
-  components/          design-system primitives (Card, Ring, Stepper, charts…)
-  data/                exercises, foods, boxed meals, buddies
-  lib/                 store (AsyncStorage), nutrition math, progression, coach engine, product lookup
-  theme.ts             colors, typography, shadows
+src/app/                 screens (Expo Router)
+  (tabs)/                Today · Food · Train · Coach
+  exercise/[id].tsx      3D trainer, set logging, rest timer
+  form-check/[id].tsx    camera form check (consent → setup → live → review)
+  scanner.tsx            barcode / product scanner
+  food-photo.tsx         Snap your meal
+  add-food.tsx, edit-food.tsx, plans.tsx, profile.tsx, licences.tsx, onboarding.tsx …
+src/components/trainer/  3D mannequin, movement library, React Three Fiber view
+src/components/form/     camera + pose runner (WebView on device, iframe on web)
+src/lib/form/            form-feedback engine (pure TypeScript, unit-tested)
+src/lib/                 store, nutrition maths, UK food search, products, age policy, licences
+src/data/cofid.json      UK CoFID 2021 (generated by scripts/import_cofid.py)
+supabase/                food-photo Edge Function + ai_usage migration
+scripts/                 CoFID importer, MediaPipe asset setup
+docs/                    safety & privacy, food photo, spec review, brief, Yazio case study
 ```
 
-## Notes and next steps
+## Licences
 
-- **Data** stays on the device (AsyncStorage). The app ships with two weeks of sample history so every screen has data on first launch. Use *Profile → Reset demo data* to restore it.
-- **AI Trainer** runs a deterministic engine on the device (`src/lib/coach.ts`), so it works offline and needs no API key. To connect an LLM, replace `reply()` with a call to your backend. Keep the API key on the server, not in the app.
-- **Barcode lookups** use the free Open Food Facts API. Four sample barcodes work offline (*Try a sample* in the scanner).
-- **Buddies** are sample profiles. A real version needs a backend (auth, location, messaging, moderation).
+- UK food data: Contains public sector information licensed under the Open Government Licence v3.0 (CoFID 2021, OHID/PHE).
+- Product data: Open Food Facts contributors, Open Database Licence; images CC BY-SA.
+- Pose model and runtime: Google MediaPipe, Apache 2.0.
