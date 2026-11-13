@@ -2,12 +2,12 @@ import { Redirect } from 'expo-router'
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs'
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
+import { Icon, type IconName } from '../../components/icons'
 import { useStore } from '../../lib/store'
 import { C } from '../../theme'
 import { tap } from '../../components/ui'
 
-const TABS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconOn: keyof typeof Ionicons.glyphMap }> = {
+const TABS: Record<string, { label: string; icon: IconName; iconOn: IconName }> = {
   index: { label: 'Home', icon: 'home-outline', iconOn: 'home' },
   food: { label: 'Food', icon: 'restaurant-outline', iconOn: 'restaurant' },
   recipes: { label: 'Recipes', icon: 'book-outline', iconOn: 'book' },
@@ -24,7 +24,7 @@ function FloatingTabBar({ state, navigateToTab }: BottomTabBarProps) {
     return (
       <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={meta.label} style={st.tab}
         onPress={() => { tap(); if (!on) navigateToTab(route.key) }}>
-        <Ionicons name={on ? meta.iconOn : meta.icon} size={24} color={on ? C.accent : C.text3} />
+        <Icon name={on ? meta.iconOn : meta.icon} size={23} color={on ? C.accent : C.text3} strokeWidth={on ? 2.3 : 1.8} />
         <Text style={[st.label, { color: on ? C.accent : C.text3 }]}>{meta.label}</Text>
         <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: on ? C.sky : 'transparent' }} />
       </Pressable>

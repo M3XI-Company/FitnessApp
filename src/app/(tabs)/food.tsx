@@ -8,7 +8,8 @@ import { useMeals } from '../../lib/meals'
 import type { FoodEntry } from '../../lib/types'
 import { WaterCard } from '../../components/WaterCard'
 import { C, T } from '../../theme'
-import { Bar, Button, Card, Field, Icon, IconButton, IconTile, Screen, SectionHeader, success, tap } from '../../components/ui'
+import { Bar, Button, Card, Field, Icon, IconButton, Screen, SectionHeader, success, tap } from '../../components/ui'
+import { FoodIcon, MealIcon } from '../../components/foodIcons'
 
 
 const st = {
@@ -77,7 +78,7 @@ export default function Food() {
           return (
             <Card key={meal.slot} style={{ padding: 0, overflow: 'hidden' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}>
-                <IconTile emoji={meal.emoji} size={44} bg={C.fill} />
+                <MealIcon slot={meal.slot} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.title3}>{meal.label}</Text>
                   <Text style={T.sub}>{fmt.kcal(sum.kcal)}{meal.share ? ` / ${Math.round(t.kcal * meal.share)}` : ''} kcal · {fmt.g(sum.protein)} g protein</Text>
@@ -94,7 +95,7 @@ export default function Food() {
                       <Icon name="remove-circle" size={24} color={C.red} />
                     </Pressable>
                   )}
-                  <Text style={{ fontSize: 22 }}>{f.emoji ?? '🍽️'}</Text>
+                  <FoodIcon name={f.name} size={34} />
                   <View style={{ flex: 1 }}>
                     <Text style={[T.body, { fontWeight: '600' }]} numberOfLines={1}>{f.name}</Text>
                     <Text style={T.caption}>{f.grams ? `${f.grams} g` : `${f.qty !== 1 ? `${f.qty} × ` : ''}${f.serving}`}{f.brand ? ` · ${f.brand}` : ''}{f.isEstimate ? ' · estimate' : ''}</Text>
@@ -132,7 +133,7 @@ export default function Food() {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button small variant="ghost" title="Cancel" style={{ flex: 1 }} onPress={() => setNewCat(null)} />
             <Button small title="Add" style={{ flex: 1 }} disabled={!newCat.trim() || meals.some((x) => x.label.toLowerCase() === newCat.trim().toLowerCase())}
-              onPress={() => { dispatch({ type: 'addCategory', category: { slot: `custom-${uid()}`, label: newCat.trim(), emoji: '🍴' } }); setNewCat(null) }} />
+              onPress={() => { dispatch({ type: 'addCategory', category: { slot: `custom-${uid()}`, label: newCat.trim(), emoji: '' } }); setNewCat(null) }} />
           </View>
         </Card>
       )}

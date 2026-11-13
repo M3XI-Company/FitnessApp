@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useStore } from '../../lib/store'
 import { BUDDIES, type Buddy } from '../../data/buddies'
-import { C, T } from '../../theme'
+import { C, F, T } from '../../theme'
 import { Button, Card, Chips, Icon, IconTile, Pill, Segmented, tap, type IconName } from '../ui'
 import { ADULT_AGE, canDiscoverBuddies, sameAgeBand } from '../../lib/age'
 
@@ -98,7 +98,7 @@ export function BuddyFinder() {
         return (
           <Card key={b.id} style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28 }}>{b.avatar}</Text></View>
+              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: F.hand, fontSize: 28, color: C.accent }}>{b.name[0]}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={T.title3}>{b.name}</Text>
                 <Text style={T.sub}>{b.gym} · about {Math.max(1, Math.round(b.km))} km</Text>
@@ -110,7 +110,7 @@ export function BuddyFinder() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Pill>{b.goal}</Pill><Pill color={C.text2} bg={C.fill}>{b.level}</Pill>
               {b.times.map((t) => <Pill key={t} color={C.text2} bg={C.fill}>{t}</Pill>)}
-              <Pill color={C.accent} bg="#FFEBDD">{`🔥 ${b.streak} days`}</Pill>
+              <Pill color={C.accent} bg="#FFEBDD">{`${b.streak}-day streak`}</Pill>
             </View>
             {menu === b.id && !reporting && (
               <View style={{ flexDirection: 'row', gap: 8 }}>

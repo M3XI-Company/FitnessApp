@@ -69,7 +69,7 @@ export default function ExerciseDetail() {
 
         {prFlag === '1' && (
           <Card tight style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.accentSoft }}>
-            <Text style={{ fontSize: 24 }}>🏆</Text><Text style={[T.headline, { flex: 1 }]}>New personal record!</Text>
+            <Icon name="trophy" size={24} color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>New personal record!</Text>
           </Card>
         )}
 

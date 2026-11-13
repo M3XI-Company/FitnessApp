@@ -8,6 +8,7 @@ import { uid } from '../lib/date'
 import type { Amount, FoodItem, SavedMeal } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Field, Icon, SearchField, SheetHeader, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 type Line = { key: string; item: FoodItem; amount: Amount }
 
@@ -29,7 +30,7 @@ export default function MealBuilder() {
   const setAmount = (key: string, v: number) => setLines((ls) => ls.map((l) => (l.key !== key ? l : { ...l, amount: 'grams' in l.amount ? { grams: v } : { servings: v } })))
   const total = mealNutrition(lines)
   const save = () => {
-    const meal: SavedMeal = { id: existing?.id ?? uid(), name: name.trim(), emoji: lines[0]?.item.emoji ?? '🍽️', kind: fromDiary.length || existing?.kind === 'saved' ? 'saved' : 'custom', items: lines.map(({ item, amount }) => ({ item, amount })), createdAt: existing?.createdAt ?? new Date().toISOString() }
+    const meal: SavedMeal = { id: existing?.id ?? uid(), name: name.trim(), emoji: '', kind: fromDiary.length || existing?.kind === 'saved' ? 'saved' : 'custom', items: lines.map(({ item, amount }) => ({ item, amount })), createdAt: existing?.createdAt ?? new Date().toISOString() }
     dispatch({ type: 'saveMeal', meal })
     success(); router.back()
   }
@@ -51,7 +52,7 @@ export default function MealBuilder() {
             return (
               <View key={l.key} style={{ gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
                 <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 20 }}>{l.item.emoji ?? '🍽️'}</Text>
+                  <FoodIcon name={l.item.name} size={32} />
                   <Text style={[T.body, { flex: 1, fontWeight: '600' }]} numberOfLines={2}>{l.item.name}</Text>
                   <Pressable onPress={() => { tap(); setLines(lines.filter((x) => x.key !== l.key)) }} hitSlop={8} accessibilityLabel={`Remove ${l.item.name}`}><Icon name="remove-circle" color={C.red} size={22} /></Pressable>
                 </View>
@@ -67,7 +68,7 @@ export default function MealBuilder() {
         {q.trim().length <= 1 && state.favourites.length > 0 && <Text style={[T.eyebrow, { marginLeft: 4 }]}>Favourites</Text>}
         {results.map((f) => (
           <Card key={f.id} tight onPress={() => { setLines([...lines, { key: uid(), item: f, amount: f.servingG ? { grams: f.servingG } : { servings: 1 } }]); setQ('') }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ fontSize: 20 }}>{f.emoji ?? '🍽️'}</Text>
+            <FoodIcon name={f.name} size={32} />
             <View style={{ flex: 1 }}><Text style={T.headline} numberOfLines={1}>{f.name}</Text><Text style={T.caption}>{fmt.kcal(f.kcal)} kcal · {f.serving}</Text></View>
             <Icon name="add-circle" color={C.accent} size={24} />
           </Card>

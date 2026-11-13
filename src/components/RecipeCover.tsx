@@ -1,8 +1,12 @@
+import { createElement } from 'react'
 import { Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import type { ComputedRecipe } from '../lib/recipes'
 import { TAG_LABEL } from '../lib/recipes'
 import { C, F, G } from '../theme'
+import { foodIconFor } from './foodIcons'
+
+const FoodGlyph = ({ name, size, color }: { name: string; size: number; color: string }) => createElement(foodIconFor(name), { size, color, strokeWidth: 1.5 })
 
 /**
  * Typographic recipe cover in the Breeze style — used until licensed food
@@ -20,13 +24,13 @@ export function RecipeCover({ c, size = 'card', style }: { c: ComputedRecipe; si
     <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ height: h, borderRadius: size === 'thumb' ? 18 : 22, padding: size === 'thumb' ? 10 : 18, justifyContent: 'space-between', overflow: 'hidden' }, style]}>
       {size === 'thumb' ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 34 }}>{c.recipe.emoji}</Text>
+          <FoodGlyph name={c.recipe.title} size={38} color={dark ? C.skyLight : C.night} />
         </View>
       ) : (
         <>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             {tag ? <Text style={{ color: sub, fontSize: 11, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' }}>{TAG_LABEL[tag]}</Text> : <View />}
-            <Text style={{ fontSize: size === 'hero' ? 40 : 30 }}>{c.recipe.emoji}</Text>
+            <FoodGlyph name={c.recipe.title} size={size === 'hero' ? 44 : 32} color={dark ? C.skyLight : C.night} />
           </View>
           <View>
             <Text style={{ fontFamily: F.hand, fontSize: title, lineHeight: title * 1.08, color: fg }} numberOfLines={2}>{c.recipe.title}</Text>

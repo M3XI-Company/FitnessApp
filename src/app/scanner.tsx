@@ -13,6 +13,7 @@ import { dayMacros } from '../lib/progress'
 import type { MealSlot } from '../lib/types'
 import { C, GRADE_COLOR, T, F } from '../theme'
 import { Bar, Button, Grade, Icon, IconButton, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 type Mode = 'barcode' | 'product'
 const LIGHT = { low: C.green, medium: C.orange, high: C.red }
@@ -102,7 +103,7 @@ export default function Scanner() {
             <Text style={{ color: 'rgba(255,255,255,.5)', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 }}>TRY A SAMPLE</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {SAMPLE_CODES.map((d) => (
-                <Pressable key={d.code} onPress={() => lookup(d.code)} style={st.sample}><Text style={{ color: '#fff', fontWeight: '600' }}>{d.emoji} {d.name}</Text></Pressable>
+                <Pressable key={d.code} onPress={() => lookup(d.code)} style={st.sample}><Text style={{ color: '#fff', fontWeight: '600' }}>{d.name}</Text></Pressable>
               ))}
             </View>
           </View>
@@ -124,7 +125,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: 16 }} contentContainerStyle={{ padding: 18, paddingBottom: bottom + 24, gap: 14 }}>
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-        {product.image ? <Image source={{ uri: product.image }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff' }} /> : <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 34 }}>{product.emoji}</Text></View>}
+        {product.image ? <Image source={{ uri: product.image }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff' }} /> : <FoodIcon name={product.name} size={64} bg="#FFFFFF" />}
         <View style={{ flex: 1 }}>
           <Text style={T.title3} numberOfLines={2}>{product.name}</Text>
           <Text style={T.sub}>{product.brand ?? 'Unknown brand'} · {product.barcode}</Text>

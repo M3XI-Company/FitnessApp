@@ -2,15 +2,14 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Path, Stop } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
+import { Icon, type IconName } from './icons'
 import * as Haptics from 'expo-haptics'
 import { C, GRADE_COLOR, R, T, glow, shadow } from '../theme'
 
 export const tap = () => { Haptics.selectionAsync().catch(() => {}) }
 export const success = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) }
 
-export type IconName = keyof typeof Ionicons.glyphMap
-export const Icon = ({ name, size = 20, color = C.text }: { name: IconName; size?: number; color?: string }) => <Ionicons name={name} size={size} color={color} />
+export { Icon, type IconName }
 
 /** Large-title scroll screen (Apple style) */
 export function Screen({ title, eyebrow, right, children, scroll = true, bottomPad = 130 }: {
@@ -59,7 +58,7 @@ export function Button({ title, onPress, variant = 'primary', icon, style, disab
   return (
     <Pressable disabled={disabled} onPress={() => { tap(); onPress() }}
       style={({ pressed }) => [s.btn, small && s.btnSm, { backgroundColor: bg }, variant === 'primary' && glow, disabled && { opacity: 0.4 }, pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 }, style]}>
-      {icon ? <Ionicons name={icon} size={small ? 16 : 19} color={fg} /> : null}
+      {icon ? <Icon name={icon} size={small ? 16 : 19} color={fg} /> : null}
       <Text style={{ color: fg, fontWeight: '600', fontSize: small ? 14 : 16, letterSpacing: 0.2 }}>{title}</Text>
     </Pressable>
   )
@@ -70,7 +69,7 @@ export function IconButton({ icon, onPress, variant = 'card', size = 38, label }
   return (
     <Pressable accessibilityLabel={label} onPress={() => { tap(); onPress() }} hitSlop={6}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }, variant === 'card' && shadow, variant === 'blue' && glow, pressed && { opacity: 0.7 }]}>
-      <Ionicons name={icon} size={size * 0.5} color={variant === 'blue' ? '#FFFFFF' : C.text} />
+      <Icon name={icon} size={size * 0.5} color={variant === 'blue' ? '#FFFFFF' : C.text} />
     </Pressable>
   )
 }
@@ -136,7 +135,7 @@ export function Grade({ g, size = 30 }: { g?: string; size?: number }) {
 export function IconTile({ icon, emoji, color = C.accent, bg = C.accentSoft, size = 38 }: { icon?: IconName; emoji?: string; color?: string; bg?: string; size?: number }) {
   return (
     <View style={{ width: size, height: size, borderRadius: size * 0.29, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      {emoji ? <Text style={{ fontSize: size * 0.52 }}>{emoji}</Text> : icon ? <Ionicons name={icon} size={size * 0.52} color={color} /> : null}
+      {emoji ? <Text style={{ fontSize: size * 0.52 }}>{emoji}</Text> : icon ? <Icon name={icon} size={size * 0.52} color={color} /> : null}
     </View>
   )
 }
@@ -181,7 +180,7 @@ export function Stepper({ value, onChange, step = 1, min = 0, suffix }: { value:
 export function SearchField({ value, onChangeText, placeholder, autoFocus }: { value: string; onChangeText: (s: string) => void; placeholder: string; autoFocus?: boolean }) {
   return (
     <View style={s.search}>
-      <Ionicons name="search" size={18} color={C.text3} />
+      <Icon name="search" size={18} color={C.text3} />
       <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={C.text3} autoFocus={autoFocus} style={{ flex: 1, fontSize: 16, color: C.text, paddingVertical: 0 }} returnKeyType="search" clearButtonMode="while-editing" />
     </View>
   )

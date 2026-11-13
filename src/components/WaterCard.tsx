@@ -17,7 +17,7 @@ export function WaterCard({ date }: { date: string }) {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
           <Text style={[T.title1, T.num]}>{(ml / 1000).toFixed(2)} <Text style={[T.headline, { color: C.text3 }]}>/ {(target / 1000).toFixed(1)} L</Text></Text>
-          <Text style={T.sub}>{pct >= 1 ? 'Goal reached — great job 💧' : `${Math.ceil((target - ml) / glass)} glasses to go`}</Text>
+          <Text style={T.sub}>{pct >= 1 ? 'Goal reached — great job' : `${Math.ceil((target - ml) / glass)} glasses to go`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <IconButton icon="remove" variant="fill" onPress={() => dispatch({ type: 'water', date, delta: -glass })} label="Remove glass" />

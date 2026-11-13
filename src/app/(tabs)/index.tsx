@@ -10,6 +10,7 @@ import { mealLabel, useMeals } from '../../lib/meals'
 import { C, F, T } from '../../theme'
 import { Bar, Card, FadeIn, Icon, IconTile, Pill, Ring, Screen, SectionHeader, success, tap, type IconName } from '../../components/ui'
 import { RecipeRow } from '../../components/RecipeRow'
+import { FoodIcon } from '../../components/foodIcons'
 
 /** Home: food first — your numbers, quick logging, meals that fit, recent meals; fitness & community after. */
 export default function Home() {
@@ -111,7 +112,7 @@ export default function Home() {
           <View style={{ gap: 10 }}>
             {recent.map((f) => (
               <Card key={f.id} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <IconTile emoji={f.emoji ?? '🍽️'} size={44} bg={C.fill} />
+                <FoodIcon name={f.name} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.headline} numberOfLines={1}>{f.name}</Text>
                   <Text style={T.sub}>{fmt.kcal(f.kcal)} kcal · {fmt.g(f.protein)} g protein · {mealLabel(f.meal, meals)}</Text>
@@ -131,7 +132,7 @@ export default function Home() {
         <Card tight onPress={() => router.navigate('/fitness')} style={{ flex: 1, gap: 4 }}>
           <Icon name="barbell-outline" color={C.accent} />
           <Text style={T.title3}>{workoutsThisWeek(state)} workouts</Text>
-          <Text style={T.caption}>this week · 🔥 {logStreak(state)}-day log streak</Text>
+          <Text style={T.caption}>this week · {logStreak(state)}-day logging streak</Text>
         </Card>
         <Card tight onPress={() => router.navigate('/social')} style={{ flex: 1, gap: 4 }}>
           <Icon name="people-outline" color={C.accent} />

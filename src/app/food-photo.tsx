@@ -13,6 +13,7 @@ import { fmt, makeEntry, nutritionFor } from '../lib/nutrition'
 import type { FoodItem, MealSlot } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Icon, Pill, SheetHeader, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 interface Row { key: string; label: string; grams: number; confidence: 'high' | 'medium' | 'low'; note: string; options: FoodItem[]; pick: number; include: boolean; open: boolean }
 
@@ -120,7 +121,7 @@ export default function FoodPhoto() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {meals.map((m) => (
                 <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.night : C.card }}>
-                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.emoji} {m.label}</Text>
+                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -148,7 +149,7 @@ export default function FoodPhoto() {
                   )}
                   {r.open && r.options.map((o, i) => (
                     <Pressable key={o.id} onPress={() => { tap(); update(r.key, { pick: i, open: false }) }} style={{ flexDirection: 'row', gap: 10, padding: 10, borderRadius: 12, backgroundColor: i === r.pick ? C.accentSoft : C.fill }}>
-                      <Text>{o.emoji}</Text><Text style={[T.body, { flex: 1 }]} numberOfLines={2}>{o.name}</Text><Text style={T.sub}>{o.kcal} kcal/100 g</Text>
+                      <FoodIcon name={o.name} size={28} /><Text style={[T.body, { flex: 1 }]} numberOfLines={2}>{o.name}</Text><Text style={T.sub}>{o.kcal} kcal/100 g</Text>
                     </Pressable>
                   ))}
                 </Card>
