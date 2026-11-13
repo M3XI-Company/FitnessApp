@@ -53,18 +53,13 @@ export default function Onboarding() {
   }
 
   const screens = [
-    <View key="0" style={{ alignItems: 'center', paddingTop: 30 }}>
+    <View key="0" style={{ alignItems: 'center', paddingTop: 110 }}>
       <LinearGradient colors={G.ink} style={[{ width: 104, height: 104, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }, glow]}>
         <Text style={{ fontFamily: F.hand, fontSize: 64, color: C.goldLight, lineHeight: 70, marginTop: 4 }}>B</Text>
       </LinearGradient>
       <Text style={[T.bigNum, { marginTop: 22, textAlign: 'center' }]}>Breeze</Text>
       <Text style={[T.eyebrow, { color: C.accent, marginTop: -2 }]}>by M3XI</Text>
       <Text style={[T.body, { color: C.text2, fontSize: 17, textAlign: 'center', lineHeight: 24, marginTop: 8, maxWidth: 300 }]}>Training, food, water and your community — written down beautifully, in one calm place.</Text>
-      <View style={{ gap: 8, width: '100%', marginTop: 24 }}>
-        {[['barcode-outline', 'Scan barcodes & products'], ['barbell-outline', 'Track reps and progression'], ['cube-outline', 'Boxed meal & water plans'], ['sparkles-outline', 'AI trainer that knows your data']].map(([i, x]) => (
-          <Card key={x} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Icon name={i as 'water'} color={C.accent} size={22} /><Text style={T.headline}>{x}</Text></Card>
-        ))}
-      </View>
     </View>,
     <View key="1" style={{ gap: 14 }}>
       <Text style={T.title1}>What should we call you?</Text>
