@@ -15,6 +15,8 @@ export interface Profile {
   onboarded: boolean
   /** ISO time the user accepted the health & safety notice */
   healthNoticeAt?: string
+  /** ISO time the user agreed to on-device camera form checks */
+  formConsentAt?: string
 }
 
 export interface Macros {

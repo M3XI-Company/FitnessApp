@@ -11,6 +11,7 @@ import { C, T, G, F } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, Stepper, success, tap } from '../../components/ui'
 import { Trainer3D } from '../../components/trainer/Trainer3D'
 import { RestTimer } from '../../components/RestTimer'
+import { supportsForm } from '../../lib/form/engine'
 
 export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
@@ -51,6 +52,9 @@ export default function ExerciseDetail() {
 
         <Trainer3D exerciseId={ex.id} />
         <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
+        {supportsForm(ex.id) && (
+          <Button title="Check my form with the camera" icon="videocam-outline" variant="tinted" onPress={() => router.push(`/form-check/${ex.id}`)} style={{ marginBottom: 14 }} />
+        )}
 
         {/* Progression target */}
         {target && (

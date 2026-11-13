@@ -117,6 +117,16 @@ export default function Profile() {
           <Row left={<IconTile icon="document-text-outline" />} title="Data sources & licences" onPress={() => router.push('/licences')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
         </List>
 
+        <SectionHeader title="Privacy & safety" />
+        <List>
+          <Row first left={<IconTile icon="videocam-outline" />} title="Camera form check"
+            subtitle={p.formConsentAt ? 'Allowed · processed on this phone, never recorded' : 'Not allowed'}
+            right={p.formConsentAt ? <Button small variant="ghost" title="Withdraw" onPress={() => dispatch({ type: 'profile', profile: { ...p, formConsentAt: undefined } })} /> : undefined} />
+          <Row left={<IconTile icon="shield-checkmark-outline" />} title="Gym buddy safety guidelines"
+            subtitle={state.buddySafetyAt ? 'Accepted' : 'Shown before you see buddies'} />
+          <Row left={<IconTile icon="ban-outline" />} title="Blocked people" subtitle={`${state.blocked.length} blocked · ${state.reports.length} reports sent`} />
+        </List>
+
         <Button title="Reset demo data" variant="ghost" icon="refresh" style={{ marginTop: 24 }} onPress={() => dispatch({ type: 'reset' })} />
       </ScrollView>
     </View>

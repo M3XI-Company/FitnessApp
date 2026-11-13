@@ -20,6 +20,7 @@ export default function RootLayout() {
           <Stack.Screen name="add-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="edit-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="licences" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="form-check/[id]" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#141210' } }} />
           <Stack.Screen name="scanner" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#141210' } }} />
           <Stack.Screen name="plans" options={{ presentation: 'modal' }} />
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'modal' }} />
