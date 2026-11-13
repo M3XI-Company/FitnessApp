@@ -9,7 +9,7 @@ import { SOURCES } from '../lib/sources'
 import { BOXED_MEALS } from '../data/boxedMeals'
 import { MEALS, defaultMeal } from '../lib/meals'
 import { todayKey, uid } from '../lib/date'
-import { round } from '../lib/nutrition'
+import { fmt, makeEntry, nutritionFor, type Amount } from '../lib/nutrition'
 import type { FoodItem, MealSlot } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Field, Grade, Icon, IconTile, SearchField, Segmented, SheetHeader, Stepper, success } from '../components/ui'
@@ -28,7 +28,8 @@ export default function AddFood() {
   const [grams, setGrams] = useState(100)
   const [online, setOnline] = useState<FoodItem[] | null>(null)
   const [onlineState, setOnlineState] = useState<'idle' | 'loading' | 'error'>('idle')
-  const factor = picked?.servingG ? grams / picked.servingG : qty
+  const amount: Amount = picked?.servingG ? { grams } : { servings: qty }
+  const preview = picked ? nutritionFor(picked, amount) : null
   const pick = (item: FoodItem) => { setPicked(item); setQty(1); setGrams(item.servingG ?? 100) }
   const searchOnline = async () => {
     setOnlineState('loading')
@@ -41,18 +42,19 @@ export default function AddFood() {
   const recent = useMemo(() => {
     const seen = new Map<string, FoodItem>()
     for (const f of [...state.food].reverse()) {
-      if (!seen.has(f.name)) seen.set(f.name, { id: f.id, name: f.name, brand: f.brand, serving: f.serving, emoji: f.emoji, kcal: f.kcal / f.qty, protein: f.protein / f.qty, carbs: f.carbs / f.qty, fat: f.fat / f.qty })
+      if (seen.has(f.name)) continue
+      // per logged amount: by weight when we know the grams, else per serving
+      const per = f.grams ? 1 : f.qty || 1
+      seen.set(f.name, { id: f.id, name: f.name, brand: f.brand, emoji: f.emoji, source: f.dataSource, serving: f.grams ? `${Math.round(f.grams)} g` : f.serving, servingG: f.grams, kcal: f.kcal / per, protein: f.protein / per, carbs: f.carbs / per, fat: f.fat / per })
     }
     return [...seen.values()].slice(0, 20)
   }, [state.food])
 
-  const add = (item: FoodItem, n: number, source: 'search' | 'boxed' | 'manual' = 'search') => {
-    dispatch({ type: 'addFood', entry: {
+  const add = (item: FoodItem, amt: Amount, source: 'search' | 'boxed' | 'manual' = 'search') => {
+    dispatch({ type: 'addFood', entry: makeEntry(item, amt, {
+      id: uid(), date: todayKey(), meal, source,
       dataSource: item.source ?? (source === 'manual' ? 'manual' : source === 'boxed' ? 'boxed' : undefined),
-      grams: item.servingG ? Math.round(item.servingG * n) : undefined,
-      id: uid(), date: todayKey(), meal, name: item.name, brand: item.brand, serving: item.serving, emoji: item.emoji, qty: n, source,
-      kcal: item.kcal * n, protein: item.protein * n, carbs: item.carbs * n, fat: item.fat * n,
-    } })
+    }) })
     success()
     router.back()
   }
@@ -113,7 +115,7 @@ export default function AddFood() {
       {mode === 'boxed' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60, gap: 10 }}>
           {BOXED_MEALS.filter((b) => b.slot === meal || meal === 'snack').map((b) => (
-            <Card key={b.id} tight onPress={() => add({ id: b.id, name: b.name, serving: '1 box', emoji: b.emoji, kcal: b.kcal, protein: b.protein, carbs: b.carbs, fat: b.fat }, 1, 'boxed')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Card key={b.id} tight onPress={() => add({ id: b.id, name: b.name, serving: '1 box', emoji: b.emoji, kcal: b.kcal, protein: b.protein, carbs: b.carbs, fat: b.fat }, { servings: 1 }, 'boxed')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <IconTile emoji={b.emoji} size={48} bg={C.fill} />
               <View style={{ flex: 1 }}>
                 <Text style={T.headline} numberOfLines={1}>{b.name}</Text>
@@ -136,7 +138,7 @@ export default function AddFood() {
               </View>
             ))}
           </View>
-          <Button title="Add to diary" disabled={!manual.name || !manual.kcal} onPress={() => add({ id: uid(), name: manual.name, serving: '1 serving', emoji: '🍽️', kcal: +manual.kcal || 0, protein: +manual.protein || 0, carbs: +manual.carbs || 0, fat: +manual.fat || 0 }, 1, 'manual')} />
+          <Button title="Add to diary" disabled={!manual.name || !manual.kcal} onPress={() => add({ id: uid(), name: manual.name, serving: '1 serving', emoji: '🍽️', kcal: +manual.kcal || 0, protein: +manual.protein || 0, carbs: +manual.carbs || 0, fat: +manual.fat || 0 }, { servings: 1 }, 'manual')} />
         </ScrollView>
       )}
 
@@ -148,11 +150,11 @@ export default function AddFood() {
             {picked.servingG ? <Stepper value={grams} step={10} min={5} suffix="g" onChange={setGrams} /> : <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />}
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {([['Calories', picked.kcal, ''], ['Protein', picked.protein, 'g'], ['Carbs', picked.carbs, 'g'], ['Fat', picked.fat, 'g']] as const).map(([l, v, u]) => (
-              <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{round(v * factor)}{u}</Text><Text style={T.caption}>{l}</Text></View>
+            {([['Calories', fmt.kcal(preview!.kcal), ''], ['Protein', fmt.g(preview!.protein), 'g'], ['Carbs', fmt.g(preview!.carbs), 'g'], ['Fat', fmt.g(preview!.fat), 'g']] as const).map(([l, v, u]) => (
+              <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{v}{u}</Text><Text style={T.caption}>{l}</Text></View>
             ))}
           </View>
-          <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} onPress={() => add(picked, factor)} />
+          <Button title={`Add to ${MEALS.find((m) => m.slot === meal)!.label}`} onPress={() => add(picked, amount)} />
         </View>
       )}
     </KeyboardAvoidingView>

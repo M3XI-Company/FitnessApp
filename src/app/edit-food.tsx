@@ -4,10 +4,12 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useStore } from '../lib/store'
 import { MEALS } from '../lib/meals'
 import { SOURCES } from '../lib/sources'
-import { round } from '../lib/nutrition'
-import type { MealSlot } from '../lib/types'
+import { fmt, rescaleEntry } from '../lib/nutrition'
+import type { FoodEntry, MealSlot } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Field, Pill, SheetHeader, Stepper, success, tap } from '../components/ui'
+
+type MacroKey = 'kcal' | 'protein' | 'carbs' | 'fat'
 
 /** Edit any logged food: amount, meal, and the nutrition values themselves. */
 export default function EditFood() {
@@ -15,25 +17,25 @@ export default function EditFood() {
   const { state, dispatch } = useStore()
   const entry = state.food.find((f) => f.id === id)
   const [meal, setMeal] = useState<MealSlot>(entry?.meal ?? 'snack')
-  const [amount, setAmount] = useState(entry?.grams ?? entry?.qty ?? 1)
-  const [vals, setVals] = useState(() => ({ kcal: String(round(entry?.kcal ?? 0)), protein: String(round(entry?.protein ?? 0, 1)), carbs: String(round(entry?.carbs ?? 0, 1)), fat: String(round(entry?.fat ?? 0, 1)) }))
-  if (!entry) return <View style={{ flex: 1, backgroundColor: C.bg }}><SheetHeader title="Not found" onClose={() => router.back()} /></View>
+  const [draft, setDraft] = useState<FoodEntry | undefined>(entry)
+  // text the user is typing into a nutrition field (null = show the computed value)
+  const [text, setText] = useState<Partial<Record<MacroKey, string>>>({})
+  const [edited, setEdited] = useState(false)
+  if (!entry || !draft) return <View style={{ flex: 1, backgroundColor: C.bg }}><SheetHeader title="Not found" onClose={() => router.back()} /></View>
 
   const byGrams = !!entry.grams
-  const base = byGrams ? entry.grams! : entry.qty
-  // changing the amount rescales the values proportionally
-  const rescale = (next: number) => {
-    const f = next / (byGrams ? amount : amount || 1)
-    setAmount(next)
-    setVals((v) => ({ kcal: String(round(+v.kcal * f)), protein: String(round(+v.protein * f, 1)), carbs: String(round(+v.carbs * f, 1)), fat: String(round(+v.fat * f, 1)) }))
+  const amount = byGrams ? draft.grams! : draft.qty
+  // changing the amount rescales every value proportionally (via the shared nutrition engine)
+  const rescale = (next: number) => { setDraft(rescaleEntry(draft, byGrams ? { grams: next } : { qty: next })); setText({}) }
+  const shown = (k: MacroKey) => text[k] ?? String(k === 'kcal' ? fmt.kcal(draft[k]) : fmt.g(draft[k]))
+  const type = (k: MacroKey, v: string) => {
+    setText({ ...text, [k]: v }); setEdited(true)
+    const n = parseFloat(v.replace(',', '.'))
+    setDraft({ ...draft, [k]: isNaN(n) ? 0 : n })
   }
   const save = () => {
-    dispatch({ type: 'updateFood', entry: {
-      ...entry, meal, kcal: +vals.kcal || 0, protein: +vals.protein || 0, carbs: +vals.carbs || 0, fat: +vals.fat || 0,
-      ...(byGrams ? { grams: amount } : { qty: amount }),
-      // a person correcting values makes them their own, but keep the estimate flag visible until they change macros
-      isEstimate: entry.isEstimate && vals.kcal === String(round(entry.kcal * (amount / base))),
-    } })
+    // values a person typed in are theirs, not an estimate any more
+    dispatch({ type: 'updateFood', entry: { ...draft, meal, isEstimate: entry.isEstimate && !edited, dataSource: edited ? 'manual' : draft.dataSource } })
     success(); router.back()
   }
 
@@ -69,7 +71,7 @@ export default function EditFood() {
             {(['kcal', 'protein', 'carbs', 'fat'] as const).map((k) => (
               <View key={k} style={{ flex: 1 }}>
                 <Text style={[T.caption, { marginBottom: 4, marginLeft: 4 }]}>{k === 'kcal' ? 'kcal' : `${k[0].toUpperCase()}${k.slice(1)} g`}</Text>
-                <Field keyboardType="decimal-pad" value={vals[k]} onChangeText={(v) => setVals({ ...vals, [k]: v })} style={{ textAlign: 'center', paddingHorizontal: 6 }} />
+                <Field keyboardType="decimal-pad" value={shown(k)} onChangeText={(v) => type(k, v)} style={{ textAlign: 'center', paddingHorizontal: 6 }} />
               </View>
             ))}
           </View>

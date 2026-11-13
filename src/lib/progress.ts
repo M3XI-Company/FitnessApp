@@ -1,9 +1,9 @@
 import type { AppState } from './types'
 import { lastNDays, todayKey } from './date'
-import { e1rm, sumMacros } from './nutrition'
+import { dayTotals, e1rm } from './nutrition'
 import { exerciseById } from '../data/exercises'
 
-export const dayMacros = (s: AppState, date: string) => sumMacros(s.food.filter((f) => f.date === date))
+export const dayMacros = (s: AppState, date: string) => dayTotals(s.food, date).total
 
 export const workoutDates = (s: AppState) => [...new Set(s.sets.map((x) => x.date))].sort()
 

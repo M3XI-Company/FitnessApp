@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../../lib/store'
-import { dayMacros } from '../../lib/progress'
 import { addDays, prettyDate, todayKey } from '../../lib/date'
-import { round, sumMacros } from '../../lib/nutrition'
+import { ZERO, dayTotals, fmt } from '../../lib/nutrition'
 import { MEALS } from '../../lib/meals'
 import { C, T } from '../../theme'
 import { Bar, Card, Icon, IconButton, IconTile, Screen, tap } from '../../components/ui'
@@ -15,7 +14,8 @@ export default function Food() {
   const [date, setDate] = useState(todayKey())
   const [editing, setEditing] = useState(false)
   const t = state.targets
-  const m = dayMacros(state, date)
+  const day = dayTotals(state.food, date)
+  const m = day.total
   const isToday = date === todayKey()
 
   return (
@@ -35,7 +35,7 @@ export default function Food() {
       {/* Summary */}
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <Text style={[T.title1, T.num]}>{round(m.kcal)} <Text style={[T.headline, { color: C.text3 }]}>/ {t.kcal} kcal</Text></Text>
+          <Text style={[T.title1, T.num]}>{fmt.kcal(m.kcal)} <Text style={[T.headline, { color: C.text3 }]}>/ {t.kcal} kcal</Text></Text>
           <Text style={[T.sub, { color: m.kcal > t.kcal ? C.orange : C.accent, fontWeight: '700' }]}>{Math.round((m.kcal / t.kcal) * 100)}%</Text>
         </View>
         <View style={{ marginTop: 10 }}><Bar pct={m.kcal / t.kcal} color={m.kcal > t.kcal ? C.orange : C.accent} height={10} /></View>
@@ -44,7 +44,7 @@ export default function Food() {
             <View key={l} style={{ flex: 1, gap: 6 }}>
               <Text style={T.caption}>{l}</Text>
               <Bar pct={v / max} color={c} height={6} />
-              <Text style={[T.sub, T.num]}><Text style={{ color: C.text, fontWeight: '700' }}>{round(v)}</Text>/{max}g</Text>
+              <Text style={[T.sub, T.num]}><Text style={{ color: C.text, fontWeight: '700' }}>{fmt.g(v)}</Text>/{max}g</Text>
             </View>
           ))}
         </View>
@@ -57,15 +57,15 @@ export default function Food() {
       {/* Meals */}
       <View style={{ gap: 12, marginTop: 8 }}>
         {MEALS.map((meal) => {
-          const items = state.food.filter((f) => f.date === date && f.meal === meal.slot)
-          const sum = sumMacros(items)
+          const items = day.entries.filter((f) => f.meal === meal.slot)
+          const sum = day.byMeal[meal.slot] ?? ZERO
           return (
             <Card key={meal.slot} style={{ padding: 0, overflow: 'hidden' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}>
                 <IconTile emoji={meal.emoji} size={44} bg={C.fill} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.title3}>{meal.label}</Text>
-                  <Text style={T.sub}>{round(sum.kcal)} / {Math.round(t.kcal * meal.share)} kcal</Text>
+                  <Text style={T.sub}>{fmt.kcal(sum.kcal)} / {Math.round(t.kcal * meal.share)} kcal</Text>
                 </View>
                 <IconButton icon="add" variant="fill" size={34} onPress={() => router.push({ pathname: '/add-food', params: { meal: meal.slot } })} label={`Add to ${meal.label}`} />
               </View>
@@ -81,7 +81,7 @@ export default function Food() {
                     <Text style={[T.body, { fontWeight: '600' }]} numberOfLines={1}>{f.name}</Text>
                     <Text style={T.caption}>{f.grams ? `${f.grams} g` : `${f.qty !== 1 ? `${f.qty} × ` : ''}${f.serving}`}{f.brand ? ` · ${f.brand}` : ''}{f.isEstimate ? ' · estimate' : ''}</Text>
                   </View>
-                  <Text style={[T.headline, T.num]}>{Math.round(f.kcal)}</Text>
+                  <Text style={[T.headline, T.num]}>{fmt.kcal(f.kcal)}</Text>
                 </Pressable>
               ))}
             </Card>

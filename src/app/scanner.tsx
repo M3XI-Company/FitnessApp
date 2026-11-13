@@ -8,7 +8,7 @@ import { SAMPLE_CODES, analyze, lookupBarcode, type Product } from '../lib/produ
 import { SOURCES } from '../lib/sources'
 import { MEALS, defaultMeal } from '../lib/meals'
 import { todayKey, uid } from '../lib/date'
-import { round } from '../lib/nutrition'
+import { fmt, kcalToKj, makeEntry, nutritionFor } from '../lib/nutrition'
 import { dayMacros } from '../lib/progress'
 import type { MealSlot } from '../lib/types'
 import { C, GRADE_COLOR, T, F } from '../theme'
@@ -46,10 +46,7 @@ export default function Scanner() {
 
   const add = () => {
     if (!product) return
-    dispatch({ type: 'addFood', entry: {
-      id: uid(), date: todayKey(), meal, name: product.name, brand: product.brand, serving: product.serving, emoji: product.emoji, qty,
-      kcal: product.kcal * qty, protein: product.protein * qty, carbs: product.carbs * qty, fat: product.fat * qty, source: mode === 'barcode' ? 'barcode' : 'scan', dataSource: 'off', grams: product.servingG * qty,
-    } })
+    dispatch({ type: 'addFood', entry: makeEntry(product, { servings: qty }, { id: uid(), date: todayKey(), meal, source: mode === 'barcode' ? 'barcode' : 'scan', dataSource: 'off' }) })
     success()
     router.dismissAll()
     router.navigate('/food')
@@ -121,7 +118,8 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
   product: Product; mode: Mode; qty: number; setQty: (n: number) => void; onAdd: () => void; onRescan: () => void; meal: MealSlot; kcalLeft: number; bottom: number
 }) {
   const a = analyze(product)
-  const kcal = product.kcal * qty
+  const n = nutritionFor(product, { servings: qty })
+  const kcal = n.kcal
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: 16 }} contentContainerStyle={{ padding: 18, paddingBottom: bottom + 24, gap: 14 }}>
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
@@ -177,12 +175,12 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
           <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {([['Calories', kcal, '', C.text], ['Protein', product.protein * qty, 'g', C.protein], ['Carbs', product.carbs * qty, 'g', C.carbs], ['Fat', product.fat * qty, 'g', C.fat]] as const).map(([l, v, u, c]) => (
-            <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title2, T.num, { color: c }]}>{round(v)}{u}</Text><Text style={T.caption}>{l}</Text></View>
+          {([['Calories', fmt.kcal(n.kcal), '', C.text], ['Protein', fmt.g(n.protein), 'g', C.protein], ['Carbs', fmt.g(n.carbs), 'g', C.carbs], ['Fat', fmt.g(n.fat), 'g', C.fat]] as const).map(([l, v, u, c]) => (
+            <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title2, T.num, { color: c }]}>{v}{u}</Text><Text style={T.caption}>{l}</Text></View>
           ))}
         </View>
         <View style={{ gap: 6 }}>
-          <Text style={T.caption}>{Math.round((product.kj ?? product.kcal * 4.184) * qty)} kJ · values per serving from the pack data · traffic lights per 100 g (FSA thresholds)</Text>
+          <Text style={T.caption}>{Math.round(kcalToKj(n.kcal))} kJ · values per serving from the pack data · traffic lights per 100 g (FSA thresholds)</Text>
           <Text style={T.sub}>{kcal <= kcalLeft ? `Fits your day — ${Math.round(kcalLeft - kcal)} kcal left after this` : `${Math.round(kcal - kcalLeft)} kcal over your remaining budget`}</Text>
           <Bar pct={kcalLeft > 0 ? kcal / kcalLeft : 1} color={kcal <= kcalLeft ? C.accent : C.orange} />
         </View>

@@ -9,7 +9,7 @@ import { matchCofid } from '../lib/foodDb'
 import { MEALS, defaultMeal } from '../lib/meals'
 import { SOURCES } from '../lib/sources'
 import { todayKey, uid } from '../lib/date'
-import { round } from '../lib/nutrition'
+import { fmt, makeEntry, nutritionFor } from '../lib/nutrition'
 import type { FoodItem, MealSlot } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Icon, Pill, SheetHeader, Stepper, success, tap } from '../components/ui'
@@ -70,19 +70,14 @@ export default function FoodPhoto() {
   const valueOf = (r: Row) => {
     const f = r.options[r.pick]
     if (!f) return null
-    const k = r.grams / (f.servingG ?? 100)
-    return { kcal: f.kcal * k, protein: f.protein * k, carbs: f.carbs * k, fat: f.fat * k, food: f }
+    return { ...nutritionFor(f, { grams: r.grams }), food: f }
   }
   const chosen = rows.filter((r) => r.include && r.options[r.pick])
   const total = chosen.reduce((a, r) => a + (valueOf(r)?.kcal ?? 0), 0)
 
   const log = () => {
     for (const r of chosen) {
-      const v = valueOf(r)!
-      dispatch({ type: 'addFood', entry: {
-        id: uid(), date: todayKey(), meal, name: v.food.name, emoji: v.food.emoji, serving: `${r.grams} g`, qty: 1, grams: r.grams,
-        kcal: v.kcal, protein: v.protein, carbs: v.carbs, fat: v.fat, source: 'photo', dataSource: 'ai', isEstimate: true,
-      } })
+      dispatch({ type: 'addFood', entry: makeEntry(r.options[r.pick], { grams: r.grams }, { id: uid(), date: todayKey(), meal, source: 'photo', dataSource: 'ai', isEstimate: true }) })
     }
     success()
     router.dismissAll()
@@ -144,7 +139,7 @@ export default function FoodPhoto() {
                   </View>
                   {r.note ? <Text style={[T.sub, { lineHeight: 18 }]}>{r.note}</Text> : null}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={[T.title3]}>{v ? `${Math.round(v.kcal)} kcal` : '—'}</Text>
+                    <Text style={[T.title3]}>{v ? `${fmt.kcal(v.kcal)} kcal` : '—'}</Text>
                     <Stepper value={r.grams} step={10} min={5} suffix="g" onChange={(g) => update(r.key, { grams: g })} />
                   </View>
                   {r.options.length > 1 && (
@@ -159,7 +154,7 @@ export default function FoodPhoto() {
               )
             })}
             <Card style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={T.headline}>Estimated total</Text><Text style={T.title2}>{round(total)} kcal</Text>
+              <Text style={T.headline}>Estimated total</Text><Text style={T.title2}>{fmt.kcal(total)} kcal</Text>
             </Card>
             <Button title={`Log ${chosen.length} item${chosen.length === 1 ? '' : 's'} to ${MEALS.find((m) => m.slot === meal)!.label}`} disabled={!chosen.length} onPress={log} />
             <Button title="Retake" variant="ghost" icon="camera-reverse-outline" onPress={() => { setResult(null); setRows([]); setPhoto(null) }} />
