@@ -39,7 +39,8 @@
           "cameraPermission": "Breeze uses the camera to scan food barcodes and product labels."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "scheme": "breeze",
     "splash": {

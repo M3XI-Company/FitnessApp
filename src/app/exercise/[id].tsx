@@ -9,6 +9,8 @@ import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
 import { C, T, G, F } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, Stepper, success, tap } from '../../components/ui'
+import { Trainer3D } from '../../components/trainer/Trainer3D'
+import { RestTimer } from '../../components/RestTimer'
 
 export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
@@ -17,6 +19,7 @@ export default function ExerciseDetail() {
   const target = ex ? nextTarget(state, ex.id) : null
   const [weight, setWeight] = useState(target?.weight ?? 20)
   const [reps, setReps] = useState(target?.reps ?? 8)
+  const [rest, setRest] = useState<{ endsAt: number; total: number } | null>(null)
   if (!ex) return <View style={{ flex: 1, backgroundColor: C.bg }}><SheetHeader title="Not found" onClose={() => router.back()} /></View>
 
   const all = state.sets.filter((s) => s.exerciseId === ex.id)
@@ -30,6 +33,9 @@ export default function ExerciseDetail() {
     const isPR = !pr || e1rm(weight, reps) > e1rm(pr.weight, pr.reps)
     dispatch({ type: 'addSet', set: { id: uid(), date: todayKey(), exerciseId: ex.id, weight, reps } })
     success()
+    const secs = ex.equipment === 'Barbell' || ex.level === 'Advanced' ? 150 : ex.muscle === 'Core' || ex.muscle === 'Cardio' ? 45 : 90
+    // runs in the Log set press handler, not during render
+    setRest({ endsAt: Date.now() + secs * 1000, total: secs }) // eslint-disable-line react-hooks/purity
     if (isPR && all.length) router.setParams({ pr: '1' })
   }
 
@@ -42,6 +48,9 @@ export default function ExerciseDetail() {
           <Pill color={C.text2} bg={C.fill}>{ex.equipment}</Pill>
           <Pill color={C.text2} bg={C.fill}>{ex.level}</Pill>
         </View>
+
+        <Trainer3D exerciseId={ex.id} />
+        <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
 
         {/* Progression target */}
         {target && (
@@ -74,6 +83,7 @@ export default function ExerciseDetail() {
             <Stepper value={reps} step={isTimed ? 5 : 1} min={1} onChange={setReps} />
           </View>
           <Button title={`Log set ${today.length + 1}`} icon="checkmark" onPress={logSet} />
+          {rest && <RestTimer endsAt={rest.endsAt} total={rest.total} onChange={(endsAt, total) => setRest({ endsAt, total })} onDone={() => setRest(null)} />}
           {today.map((s, i) => (
             <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
               <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.accent, fontWeight: '800' }}>{i + 1}</Text></View>
