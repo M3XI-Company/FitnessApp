@@ -38,7 +38,7 @@ export function BuddyFinder() {
     return (
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 130, gap: 12 }}>
         <Card style={{ alignItems: 'center', gap: 10, paddingVertical: 28 }}>
-          <IconTile icon="lock-closed" size={52} color={C.goldLight} bg={C.ink} />
+          <IconTile icon="lock-closed" size={52} color={C.skyLight} bg={C.night} />
           <Text style={[T.title2, { textAlign: 'center' }]}>Gym buddies are 18+</Text>
           <Text style={[T.sub, { textAlign: 'center', lineHeight: 19 }]}>Finding training partners and messaging unlock when you turn {ADULT_AGE}. You can still use workouts, nutrition and the AI trainer.</Text>
         </Card>
@@ -52,7 +52,7 @@ export function BuddyFinder() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 130, gap: 12 }}>
         <Card style={{ gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <IconTile icon="shield-checkmark" size={46} color={C.goldLight} bg={C.ink} />
+            <IconTile icon="shield-checkmark" size={46} color={C.skyLight} bg={C.night} />
             <View style={{ flex: 1 }}><Text style={T.title2}>Train safely</Text><Text style={T.sub}>Read before meeting anyone from Breeze</Text></View>
           </View>
           {SAFETY_RULES.map(([icon, text]) => (
@@ -81,9 +81,9 @@ export function BuddyFinder() {
 
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 130, gap: 10 }}>
-      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: C.ink, borderRadius: 16, padding: 12 }}>
-        <Icon name="shield-checkmark" size={20} color={C.goldLight} />
-        <Text style={{ color: C.cream, fontSize: 13, flex: 1, lineHeight: 18 }}>Meet in public at the gym and tell a friend. Breeze is for training partners — not dating.</Text>
+      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: C.night, borderRadius: 16, padding: 12 }}>
+        <Icon name="shield-checkmark" size={20} color={C.skyLight} />
+        <Text style={{ color: C.cloud, fontSize: 13, flex: 1, lineHeight: 18 }}>Meet in public at the gym and tell a friend. Breeze is for training partners — not dating.</Text>
       </View>
       {notice && <Card tight style={{ backgroundColor: C.accentSoft }}><Text style={T.sub}>{notice}</Text></Card>}
       <Text style={[T.sub, { marginLeft: 4 }]}>Matched to you: {myGoal} · {myLevel}</Text>
@@ -110,7 +110,7 @@ export function BuddyFinder() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Pill>{b.goal}</Pill><Pill color={C.text2} bg={C.fill}>{b.level}</Pill>
               {b.times.map((t) => <Pill key={t} color={C.text2} bg={C.fill}>{t}</Pill>)}
-              <Pill color={C.accent} bg="#F8EBD8">{`🔥 ${b.streak} days`}</Pill>
+              <Pill color={C.accent} bg="#FFEBDD">{`🔥 ${b.streak} days`}</Pill>
             </View>
             {menu === b.id && !reporting && (
               <View style={{ flexDirection: 'row', gap: 8 }}>

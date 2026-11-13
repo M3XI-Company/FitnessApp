@@ -24,7 +24,7 @@ const ERRORS: Record<PhotoError, string> = {
   busy: 'The service is busy right now — try again in a moment.',
   failed: 'Something went wrong analysing the photo. Try again, or search for the food.',
 }
-const CONF = { high: { label: 'Confident', color: C.green, bg: '#E9F0E6' }, medium: { label: 'Check amount', color: C.accent, bg: C.accentSoft }, low: { label: 'Rough guess', color: C.orange, bg: '#F8EBD8' } }
+const CONF = { high: { label: 'Confident', color: C.green, bg: '#E9F0E6' }, medium: { label: 'Check amount', color: C.accent, bg: C.accentSoft }, low: { label: 'Rough guess', color: C.orange, bg: '#FFEBDD' } }
 
 export default function FoodPhoto() {
   const params = useLocalSearchParams<{ meal?: MealSlot }>()
@@ -104,7 +104,7 @@ export default function FoodPhoto() {
         )}
 
         {photo && <Image source={{ uri: photo }} style={{ width: '100%', height: 220, borderRadius: 22, backgroundColor: C.fill }} resizeMode="cover" />}
-        {busy && <Card style={{ alignItems: 'center', gap: 10 }}><ActivityIndicator color={C.gold} /><Text style={T.headline}>Identifying your food…</Text><Text style={T.caption}>This usually takes a few seconds.</Text></Card>}
+        {busy && <Card style={{ alignItems: 'center', gap: 10 }}><ActivityIndicator color={C.sky} /><Text style={T.headline}>Identifying your food…</Text><Text style={T.caption}>This usually takes a few seconds.</Text></Card>}
         {error && (
           <Card style={{ gap: 10 }}>
             <Text style={[T.body, { lineHeight: 21 }]}>{ERRORS[error]}</Text>
@@ -119,8 +119,8 @@ export default function FoodPhoto() {
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {meals.map((m) => (
-                <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
-                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
+                <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.night : C.card }}>
+                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.emoji} {m.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -130,7 +130,7 @@ export default function FoodPhoto() {
                 <Card key={r.key} style={{ gap: 10, opacity: r.include ? 1 : 0.5 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <Pressable onPress={() => { tap(); update(r.key, { include: !r.include }) }} accessibilityRole="checkbox" accessibilityState={{ checked: r.include }}>
-                      <Icon name={r.include ? 'checkbox' : 'square-outline'} size={24} color={r.include ? C.ink : C.text3} />
+                      <Icon name={r.include ? 'checkbox' : 'square-outline'} size={24} color={r.include ? C.night : C.text3} />
                     </Pressable>
                     <View style={{ flex: 1 }}>
                       <Text style={T.headline}>{r.label}</Text>

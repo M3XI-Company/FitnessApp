@@ -95,7 +95,7 @@ function Progress() {
             <Card key={l.id} onPress={() => router.push(`/exercise/${l.id}`)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <View><Text style={T.headline}>{l.name}</Text><Text style={T.caption}>Estimated 1-rep max</Text></View>
-                <Pill color={gain >= 0 ? C.green : C.red} bg={gain >= 0 ? '#E9F0E6' : '#F6E3DF'}>{`${gain >= 0 ? '+' : ''}${gain} kg`}</Pill>
+                <Pill color={gain >= 0 ? C.green : C.red} bg={gain >= 0 ? '#E9F0E6' : '#FCE4DE'}>{`${gain >= 0 ? '+' : ''}${gain} kg`}</Pill>
               </View>
               <LineChart data={l.h} unit=" kg" height={110} />
             </Card>

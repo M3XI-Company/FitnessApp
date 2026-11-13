@@ -13,7 +13,7 @@ export function WaterCard({ date }: { date: string }) {
   const pct = Math.min(1, ml / target)
   return (
     <Card style={{ overflow: 'hidden' }}>
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: `${pct * 100}%`, backgroundColor: 'rgba(200,169,106,0.12)' }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: `${pct * 100}%`, backgroundColor: 'rgba(91,179,234,0.14)' }} />
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
           <Text style={[T.title1, T.num]}>{(ml / 1000).toFixed(2)} <Text style={[T.headline, { color: C.text3 }]}>/ {(target / 1000).toFixed(1)} L</Text></Text>
@@ -27,7 +27,7 @@ export function WaterCard({ date }: { date: string }) {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
         {Array.from({ length: glasses }, (_, i) => (
           <View key={i} style={{ width: 28, height: 36, borderRadius: 8, borderBottomLeftRadius: 11, borderBottomRightRadius: 11, backgroundColor: C.fill, overflow: 'hidden', justifyContent: 'flex-end' }}>
-            {i < filled && <View style={{ height: '78%', backgroundColor: i === filled - 1 ? C.accent : C.goldLight }} />}
+            {i < filled && <View style={{ height: '78%', backgroundColor: i === filled - 1 ? C.accent : C.skyLight }} />}
           </View>
         ))}
       </View>

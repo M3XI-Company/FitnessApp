@@ -6,7 +6,7 @@ import { sample, type Pattern } from './poses'
 const D = Math.PI / 180
 const BODY = '#EFE6D3'
 const JOINT = '#C8A96A'
-const METAL = '#2A2520'
+const METAL = '#1C3557'
 
 type G = THREE.Group | null
 interface Rig {

@@ -58,9 +58,9 @@ export default function ExerciseDetail() {
 
         {/* Progression target */}
         {target && (
-          <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
-            <Text style={{ color: C.goldLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
-            <Text style={{ color: C.cream, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
+          <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
+            <Text style={{ color: C.skyLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
+            <Text style={{ color: C.cloud, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
               {target.weight ? `${target.weight} kg × ` : ''}{target.reps}{isTimed ? ' s' : ' reps'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,.9)', fontSize: 14, marginTop: 4 }}>{target.note}</Text>
@@ -112,7 +112,7 @@ export default function ExerciseDetail() {
         <Card style={{ gap: 10 }}>
           {ex.cues.map((c, i) => (
             <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.goldLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.skyLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
               <Text style={[T.body, { flex: 1 }]}>{c}</Text>
             </View>
           ))}

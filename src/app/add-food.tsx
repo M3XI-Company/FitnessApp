@@ -90,7 +90,7 @@ export default function AddFood() {
           ))}
         </ScrollView>
         <Card tight onPress={() => router.push({ pathname: '/food-photo', params: { meal } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <IconTile icon="camera" size={34} color={C.goldLight} bg={C.ink} /><View style={{ flex: 1 }}><Text style={T.headline}>Snap your meal</Text><Text style={T.caption}>AI identifies it · UK nutrition data</Text></View><Icon name="chevron-forward" color={C.text3} />
+          <IconTile icon="camera" size={34} color={C.skyLight} bg={C.night} /><View style={{ flex: 1 }}><Text style={T.headline}>Snap your meal</Text><Text style={T.caption}>AI identifies it · UK nutrition data</Text></View><Icon name="chevron-forward" color={C.text3} />
         </Card>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {([['barcode-outline', 'Scan barcode', 'barcode'], ['scan-outline', 'Product scan', 'product']] as const).map(([icon, label, m]) => (
@@ -158,7 +158,7 @@ export default function AddFood() {
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 18 + insets.bottom, gap: 14, boxShadow: '0 -10px 40px rgba(15,30,60,.12)' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable onPress={() => { tap(); dispatch({ type: 'toggleFavourite', item: picked }) }} hitSlop={8} accessibilityLabel={isFav(picked) ? 'Remove from favourites' : 'Add to favourites'}>
-              <Icon name={isFav(picked) ? 'star' : 'star-outline'} size={26} color={C.gold} />
+              <Icon name={isFav(picked) ? 'star' : 'star-outline'} size={26} color={C.sky} />
             </Pressable>
             <View style={{ flex: 1 }}><Text style={T.title3} numberOfLines={1}>{picked.name}</Text><Text style={T.sub}>{picked.servingG ? `${picked.serving} = ${Math.round(picked.kcal)} kcal` : picked.serving}</Text></View>
             {picked.servingG ? <Stepper value={grams} step={10} min={5} suffix="g" onChange={setGrams} /> : <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />}

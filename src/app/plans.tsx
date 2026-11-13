@@ -42,10 +42,10 @@ function MealPlan() {
     <View style={{ gap: 12 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {Array.from({ length: 7 }, (_, i) => addDays(todayKey(), i)).map((d) => (
-          <Pressable key={d} onPress={() => { tap(); setDay(d) }} style={{ width: 48, paddingVertical: 10, borderRadius: 16, alignItems: 'center', gap: 4, backgroundColor: d === day ? C.ink : C.card }}>
+          <Pressable key={d} onPress={() => { tap(); setDay(d) }} style={{ width: 48, paddingVertical: 10, borderRadius: 16, alignItems: 'center', gap: 4, backgroundColor: d === day ? C.night : C.card }}>
             <Text style={{ fontSize: 12, fontWeight: '600', color: d === day ? 'rgba(255,255,255,.8)' : C.text3 }}>{weekdayShort(d)}</Text>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: d === day ? C.goldLight : C.text }}>{+d.slice(8)}</Text>
-            <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: (state.boxedPlan[d] ?? []).some((id) => recipeById(id)) ? C.gold : 'transparent' }} />
+            <Text style={{ fontSize: 17, fontWeight: '800', color: d === day ? C.skyLight : C.text }}>{+d.slice(8)}</Text>
+            <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: (state.boxedPlan[d] ?? []).some((id) => recipeById(id)) ? C.sky : 'transparent' }} />
           </Pressable>
         ))}
       </ScrollView>
@@ -78,7 +78,7 @@ function MealPlan() {
       {adding && allRecipes().map((c) => {
         const on = (state.boxedPlan[day] ?? []).includes(c.recipe.id)
         return (
-          <Card key={c.recipe.id} tight onPress={() => dispatch({ type: 'toggleBoxed', date: day, mealId: c.recipe.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: on ? C.gold : 'transparent' }}>
+          <Card key={c.recipe.id} tight onPress={() => dispatch({ type: 'toggleBoxed', date: day, mealId: c.recipe.id })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: on ? C.sky : 'transparent' }}>
             <IconTile emoji={c.recipe.emoji} size={40} bg={C.fill} />
             <View style={{ flex: 1 }}><Text style={T.headline} numberOfLines={1}>{c.recipe.title}</Text><Text style={T.caption}>{fmt.kcal(c.perServing.kcal)} kcal · {fmt.g(c.perServing.protein)} g protein · {c.minutes} min</Text></View>
             <Icon name={on ? 'checkmark-circle' : 'add-circle-outline'} size={26} color={C.accent} />
@@ -122,7 +122,7 @@ function Ingredients() {
     <View style={{ gap: 12 }}>
       <Segmented value={range} onChange={setRange} options={[{ value: 'day', label: 'Today' }, { value: 'week', label: 'Next 7 days' }]} />
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <IconTile icon="basket" color={C.goldLight} bg={C.ink} size={44} />
+        <IconTile icon="basket" color={C.skyLight} bg={C.night} size={44} />
         <View style={{ flex: 1 }}><Text style={T.title3}>Shopping list</Text><Text style={T.sub}>{count ? `${done} of ${count} items collected` : 'Plan recipes to build your list'}</Text></View>
       </Card>
       {count === 0 && <Button title="Plan recipes" variant="tinted" onPress={() => router.setParams({ tab: 'plan' })} />}
@@ -132,7 +132,7 @@ function Ingredients() {
           <Card style={{ padding: 0 }}>
             {items.map((i, idx) => (
               <Pressable key={i.key} onPress={() => { tap(); setChecked({ ...checked, [i.key]: !checked[i.key] }) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderTopWidth: idx ? 1 : 0, borderTopColor: C.sep }}>
-                <Icon name={checked[i.key] ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={checked[i.key] ? C.ink : C.text3} />
+                <Icon name={checked[i.key] ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={checked[i.key] ? C.night : C.text3} />
                 <Text style={[T.body, { flex: 1, fontWeight: '600' }, checked[i.key] && { color: C.text3, textDecorationLine: 'line-through' }]}>{i.label}</Text>
                 <Text style={[T.sub, T.num]}>{fmt.g0(i.grams)} g</Text>
               </Pressable>
@@ -181,7 +181,7 @@ function WaterPlan() {
               <Icon name={done ? 'water' : 'water-outline'} size={22} color={done ? C.accent : due ? C.orange : C.text3} />
               <Text style={[T.headline, T.num, { width: 56 }]}>{time}</Text>
               <Text style={[T.sub, { flex: 1 }]}>Glass {i + 1} · {p.glassMl} ml</Text>
-              {done ? <Pill>Done</Pill> : due ? <Pill color={C.orange} bg="#F8EBD8">Due</Pill> : null}
+              {done ? <Pill>Done</Pill> : due ? <Pill color={C.orange} bg="#FFEBDD">Due</Pill> : null}
             </View>
           )
         })}

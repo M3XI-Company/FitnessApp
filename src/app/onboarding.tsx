@@ -7,7 +7,7 @@ import { useStore } from '../lib/store'
 import { computeTargets } from '../lib/nutrition'
 import type { Activity, GoalType, Profile } from '../lib/types'
 import { MIN_AGE } from '../lib/age'
-import { C, T, glow, shadow, G, F } from '../theme'
+import { C, T, glow, shadow, F } from '../theme'
 import { Bar, Button, Card, FadeIn, Icon, IconButton, Pill, Ring, Stepper, success, tap } from '../components/ui'
 
 const ACTIVITIES: { v: Activity; t: string; d: string }[] = [
@@ -54,8 +54,8 @@ export default function Onboarding() {
 
   const screens = [
     <View key="0" style={{ alignItems: 'center', paddingTop: 110 }}>
-      <LinearGradient colors={G.ink} style={[{ width: 104, height: 104, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }, glow]}>
-        <Text style={{ fontFamily: F.hand, fontSize: 64, color: C.goldLight, lineHeight: 70, marginTop: 4 }}>B</Text>
+      <LinearGradient colors={['#BDE4FB', '#7CC6F2', '#3E8FD6']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[{ width: 104, height: 104, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }, glow]}>
+        <Text style={{ fontFamily: F.hand, fontSize: 64, color: '#FFFFFF', lineHeight: 70, marginTop: 4 }}>B</Text>
       </LinearGradient>
       <Text style={[T.bigNum, { marginTop: 22, textAlign: 'center' }]}>Breeze</Text>
       <Text style={[T.eyebrow, { color: C.accent, marginTop: -2 }]}>by M3XI</Text>
@@ -113,7 +113,7 @@ export default function Onboarding() {
         </Text>
       )}
       <Pressable onPress={() => { tap(); setAccepted(!accepted) }} style={[{ flexDirection: 'row', gap: 12, padding: 16, borderRadius: 18, backgroundColor: '#fff', marginTop: 18, width: '100%' }, shadow]} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}>
-        <Icon name={accepted ? 'checkbox' : 'square-outline'} size={24} color={accepted ? C.ink : C.text3} />
+        <Icon name={accepted ? 'checkbox' : 'square-outline'} size={24} color={accepted ? C.night : C.text3} />
         <Text style={[T.sub, { flex: 1, lineHeight: 19 }]}>
           <Text style={{ fontWeight: '700', color: C.text }}>Health & safety. </Text>
           {"Breeze gives general fitness and nutrition guidance and estimates. It is not medical advice and doesn't replace a qualified trainer, dietitian or doctor. Stop exercising if you feel pain, and check with a professional if you have a health condition."}

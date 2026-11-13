@@ -24,9 +24,9 @@ function FloatingTabBar({ state, navigateToTab }: BottomTabBarProps) {
     return (
       <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={meta.label} style={st.tab}
         onPress={() => { tap(); if (!on) navigateToTab(route.key) }}>
-        <Ionicons name={on ? meta.iconOn : meta.icon} size={24} color={on ? C.ink : C.text3} />
-        <Text style={[st.label, { color: on ? C.ink : C.text3 }]}>{meta.label}</Text>
-        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: on ? C.gold : 'transparent' }} />
+        <Ionicons name={on ? meta.iconOn : meta.icon} size={24} color={on ? C.accent : C.text3} />
+        <Text style={[st.label, { color: on ? C.accent : C.text3 }]}>{meta.label}</Text>
+        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: on ? C.sky : 'transparent' }} />
       </Pressable>
     )
   }
@@ -39,7 +39,7 @@ function FloatingTabBar({ state, navigateToTab }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   const { state, ready } = useStore()
-  if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}><ActivityIndicator color={C.gold} /></View>
+  if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}><ActivityIndicator color={C.sky} /></View>
   if (!state.profile.onboarded) return <Redirect href="/onboarding" />
   return (
     <Tabs tabBar={(p) => <FloatingTabBar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.bg } }}>
@@ -55,11 +55,11 @@ export default function TabsLayout() {
 const st = StyleSheet.create({
   bar: {
     position: 'absolute', left: 12, right: 12, height: 70, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(20,18,16,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(15,36,64,0.06)',
     ...Platform.select({
       ios: { shadowColor: '#3B2F1E', shadowOpacity: 0.14, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
       android: { elevation: 12 },
-      default: { boxShadow: '0 10px 40px rgba(59,47,30,.14)' },
+      default: { boxShadow: '0 10px 40px rgba(15,36,64,.14)' },
     }),
   },
   tab: { flex: 1, alignItems: 'center', gap: 3 },

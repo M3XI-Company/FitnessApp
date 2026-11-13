@@ -50,14 +50,14 @@ export default function EditFood() {
             <Text style={T.title3} numberOfLines={2}>{entry.name}</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {entry.dataSource && <Pill color={C.text2} bg={C.fill}>{SOURCES[entry.dataSource].short}</Pill>}
-              {entry.isEstimate && <Pill color={C.orange} bg="#F8EBD8">Estimate</Pill>}
+              {entry.isEstimate && <Pill color={C.orange} bg="#FFEBDD">Estimate</Pill>}
             </View>
           </View>
         </Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {meals.map((m) => (
-            <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
-              <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
+            <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.night : C.card }}>
+              <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.emoji} {m.label}</Text>
             </Pressable>
           ))}
         </View>

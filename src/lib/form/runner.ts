@@ -52,7 +52,7 @@ try {
       if (pts) {
         ctx.lineWidth = Math.max(3, c.width / 160); ctx.lineCap = 'round';
         for (const [i, j] of BONES) { const p = pts[i], q = pts[j]; if ((p.visibility ?? 1) < 0.5 || (q.visibility ?? 1) < 0.5) continue; ctx.strokeStyle = 'rgba(227,203,151,0.95)'; ctx.beginPath(); ctx.moveTo(p.x * c.width, p.y * c.height); ctx.lineTo(q.x * c.width, q.y * c.height); ctx.stroke() }
-        ctx.fillStyle = '#F5EFE4'; for (const k of [11,12,13,14,15,16,23,24,25,26,27,28]) { const p = pts[k]; if ((p.visibility ?? 1) < 0.5) continue; ctx.beginPath(); ctx.arc(p.x * c.width, p.y * c.height, Math.max(4, c.width / 110), 0, 7); ctx.fill() }
+        ctx.fillStyle = '#EEF6FC'; for (const k of [11,12,13,14,15,16,23,24,25,26,27,28]) { const p = pts[k]; if ((p.visibility ?? 1) < 0.5) continue; ctx.beginPath(); ctx.arc(p.x * c.width, p.y * c.height, Math.max(4, c.width / 110), 0, 7); ctx.fill() }
       }
       if (t - lastSent > 33) { lastSent = t; send({ type: 'pose', t, lm: pts ? pts.map((p) => [Math.round(p.x * 1e4) / 1e4, Math.round(p.y * 1e4) / 1e4, Math.round((p.visibility ?? 0) * 1e3) / 1e3]) : null }) }
     }

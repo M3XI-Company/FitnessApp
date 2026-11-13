@@ -72,7 +72,7 @@ export default function RecipeScreen() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {c.tags.map((t) => <Pill key={t} color={C.text2} bg={C.fill}>{TAG_LABEL[t]}</Pill>)}
           </View>
-          <Card tight style={{ gap: 4, backgroundColor: c.allergens.length ? '#F8EBD8' : C.card }}>
+          <Card tight style={{ gap: 4, backgroundColor: c.allergens.length ? '#FFEBDD' : C.card }}>
             <Text style={T.headline}>{c.allergens.length ? `Contains: ${c.allergens.join(', ')}` : 'No major allergens in the ingredients'}</Text>
             <Text style={[T.caption, { lineHeight: 16 }]}>Worked out from the ingredient list. Always check product labels for allergens and “may contain” warnings.</Text>
           </Card>
@@ -87,7 +87,7 @@ export default function RecipeScreen() {
               </View>
               {scaledGrams(c, cookServings).map((i, idx) => (
                 <Pressable key={idx} onPress={() => { tap(); setChecked({ ...checked, [idx]: !checked[idx] }) }} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
-                  <Icon name={checked[idx] ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={checked[idx] ? C.ink : C.text3} />
+                  <Icon name={checked[idx] ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={checked[idx] ? C.night : C.text3} />
                   <View style={{ flex: 1 }}>
                     <Text style={[T.body, { fontWeight: '600' }, checked[idx] && { color: C.text3, textDecorationLine: 'line-through' }]}>{i.label}</Text>
                     {i.note ? <Text style={T.caption}>{i.note}</Text> : null}
@@ -125,8 +125,8 @@ export default function RecipeScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {meals.map((m) => (
-                <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
-                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
+                <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.night : C.card }}>
+                  <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.emoji} {m.label}</Text>
                 </Pressable>
               ))}
             </ScrollView>

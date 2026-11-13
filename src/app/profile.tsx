@@ -40,15 +40,15 @@ export default function Profile() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Profile & Goals" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
-        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
+        <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 24 }}>{p.name[0]?.toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: C.cream, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
+              <Text style={{ color: C.cloud, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,.8)', fontWeight: '600' }}>Level {lv.level} · {levelName(lv.level)} · {lv.total} XP</Text>
             </View>
           </View>
-          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color={C.gold} track="rgba(255,255,255,.14)" /></View>
+          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color={C.sky} track="rgba(255,255,255,.14)" /></View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>{lv.span - lv.into} XP to level {lv.level + 1}</Text>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>Next rank: {LEVEL_NAMES[Math.min(LEVEL_NAMES.length - 1, Math.floor(lv.level / 2))]}</Text>

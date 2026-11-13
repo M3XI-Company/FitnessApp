@@ -9,10 +9,10 @@ import { C, F, G } from '../theme'
  * photography is available (swap for <Image> when recipe.photo exists).
  */
 export function RecipeCover({ c, size = 'card', style }: { c: ComputedRecipe; size?: 'thumb' | 'card' | 'hero'; style?: StyleProp<ViewStyle> }) {
-  const dark = c.recipe.cover === 'ink'
-  const colors = dark ? G.ink : c.recipe.cover === 'gold' ? (['#EAD6A8', '#D2B57A'] as const) : (['#FBF6EC', '#EFE6D3'] as const)
-  const fg = dark ? C.cream : C.ink
-  const sub = dark ? C.goldLight : C.accent
+  const dark = c.recipe.cover === 'night'
+  const colors = dark ? G.night : c.recipe.cover === 'dawn' ? G.dawn : G.day
+  const fg = dark ? C.cloud : C.night
+  const sub = dark ? C.skyLight : C.night
   const h = size === 'thumb' ? 84 : size === 'card' ? 170 : 230
   const title = size === 'thumb' ? 0 : size === 'card' ? 30 : 40
   const tag = c.tags.find((t) => t !== 'vegetarian' && t !== 'quick') ?? c.tags[0]
@@ -30,7 +30,7 @@ export function RecipeCover({ c, size = 'card', style }: { c: ComputedRecipe; si
           </View>
           <View>
             <Text style={{ fontFamily: F.hand, fontSize: title, lineHeight: title * 1.08, color: fg }} numberOfLines={2}>{c.recipe.title}</Text>
-            <View style={{ width: 40, height: 3, borderRadius: 2, backgroundColor: dark ? C.gold : C.ink, opacity: 0.8, marginTop: 6, transform: [{ rotate: '-2deg' }] }} />
+            <View style={{ width: 40, height: 3, borderRadius: 2, backgroundColor: dark ? C.sky : C.night, opacity: 0.8, marginTop: 6, transform: [{ rotate: '-2deg' }] }} />
           </View>
         </>
       )}

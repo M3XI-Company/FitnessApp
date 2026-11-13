@@ -48,7 +48,7 @@ function Cook() {
         <Segmented style={{ flex: 1 }} value={sort} onChange={setSort} options={[{ value: 'fit', label: 'Best fit' }, { value: 'protein', label: 'Protein' }, { value: 'kcal', label: 'Lightest' }, { value: 'time', label: 'Quickest' }]} />
       </View>
       <Pressable onPress={() => { tap(); setFitsOnly(!fitsOnly) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 4 }} accessibilityRole="checkbox" accessibilityState={{ checked: fitsOnly }}>
-        <Icon name={fitsOnly ? 'checkbox' : 'square-outline'} size={20} color={fitsOnly ? C.ink : C.text3} />
+        <Icon name={fitsOnly ? 'checkbox' : 'square-outline'} size={20} color={fitsOnly ? C.night : C.text3} />
         <Text style={T.sub}>Only show what fits my {fmt.kcal(Math.max(0, remaining.kcal))} kcal left today</Text>
       </Pressable>
       <Text style={[T.sub, { marginLeft: 4 }]}>{list.length} recipe{list.length === 1 ? '' : 's'}</Text>
