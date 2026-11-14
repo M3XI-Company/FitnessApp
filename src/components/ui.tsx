@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Path, Stop } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { router, type Href } from 'expo-router'
 import { Icon, type IconName } from './icons'
 import * as Haptics from 'expo-haptics'
 import { C, GRADE_COLOR, R, T, glow, shadow } from '../theme'
@@ -243,13 +244,21 @@ export function FadeIn({ children, delay = 0 }: { children: ReactNode; delay?: n
 }
 
 /** Header used by modal screens */
-export function SheetHeader({ title, onClose, right }: { title: string; onClose: () => void; right?: ReactNode }) {
+export function SheetHeader({ title, onClose, right, fallback = '/' }: {
+  title: string; onClose: () => void; right?: ReactNode
+  /** where Close goes when the sheet was opened directly (deep link), so there is nothing to go back to */
+  fallback?: Href
+}) {
+  const insets = useSafeAreaInsets()
+  // a sheet opened from a link is the only screen in the stack: going "back" would do nothing
+  const close = () => { if (router.canGoBack()) onClose(); else router.replace(fallback) }
   return (
-    <View style={s.sheetHead}>
-      <Text style={T.title2}>{title}</Text>
+    // full-screen sheets (Android) start under the status bar, so keep the title and Close button clear of it
+    <View style={[s.sheetHead, { paddingTop: Math.max(20, insets.top + 10) }]}>
+      <Text style={[T.title2, { flex: 1 }]} numberOfLines={1}>{title}</Text>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
         {right}
-        <IconButton icon="close" variant="fill" size={32} onPress={onClose} label="Close" />
+        <IconButton icon="close" variant="fill" size={36} onPress={close} label="Close" />
       </View>
     </View>
   )

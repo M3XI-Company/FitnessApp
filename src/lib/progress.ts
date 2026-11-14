@@ -1,11 +1,21 @@
 import type { AppState } from './types'
-import { lastNDays, todayKey } from './date'
+import { lastNDays, todayKey, addDays } from './date'
 import { dayTotals, e1rm } from './nutrition'
 import { exerciseById } from '../data/exercises'
 
 export const dayMacros = (s: AppState, date: string) => dayTotals(s.food, date).total
 
 export const workoutDates = (s: AppState) => [...new Set(s.sets.map((x) => x.date))].sort()
+
+/** Days in a row with a workout. Today not being done yet does not break the run. */
+export const workoutStreak = (s: AppState) => {
+  const done = new Set(workoutDates(s))
+  let day = todayKey()
+  if (!done.has(day)) day = addDays(day, -1)
+  let streak = 0
+  for (; done.has(day); day = addDays(day, -1)) streak++
+  return streak
+}
 
 export const workoutsThisWeek = (s: AppState) => {
   const days = new Set(lastNDays(7))
@@ -44,12 +54,42 @@ export const exerciseHistory = (s: AppState, exerciseId: string) => {
   return [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value }))
 }
 
+/**
+ * Conservative first-session load as a fraction of body weight (total load;
+ * per hand for dumbbells and kettlebells). The user never types a weight:
+ * it starts here, from the body weight given in onboarding, and then moves
+ * only by the progression rules in nextTarget.
+ */
+const START: Record<string, number> = {
+  bench: 0.45, 'incline-db': 0.14, 'cable-fly': 0.1, deadlift: 0.6, row: 0.4, 'lat-pulldown': 0.4, 'seated-row': 0.4, 'db-row': 0.18,
+  squat: 0.5, 'front-squat': 0.4, 'leg-press': 0.8, lunge: 0.1, 'leg-curl': 0.25, 'leg-ext': 0.3, calf: 0.4, rdl: 0.45, 'hip-thrust': 0.5,
+  ohp: 0.28, 'db-shoulder': 0.1, lateral: 0.04, 'face-pull': 0.15, curl: 0.2, hammer: 0.08, pushdown: 0.2, skull: 0.15,
+  'cable-crunch': 0.25, 'kb-swing': 0.15, goblet: 0.15,
+}
+const START_BY_EQUIPMENT: Record<string, number> = { Barbell: 0.35, Dumbbell: 0.1, Machine: 0.35, Cable: 0.2, Kettlebell: 0.15 }
+
+/** Advised starting weight (kg) for someone who has never logged this exercise; 0 for bodyweight moves */
+export const startingWeight = (s: AppState, exerciseId: string) => {
+  const ex = exerciseById(exerciseId)
+  if (!ex || ex.step === 0) return 0
+  const p = s.profile
+  const fraction = START[ex.id] ?? START_BY_EQUIPMENT[ex.equipment] ?? 0.2
+  const scale = (p.sex === 'female' ? 0.65 : 1) * (p.age >= 55 ? 0.85 : 1)
+  const raw = (p.weightKg || 70) * fraction * scale
+  // an empty Olympic bar is the least a barbell lift can weigh
+  const floor = ex.equipment === 'Barbell' ? 20 : ex.step
+  return Math.max(floor, Math.round(raw / ex.step) * ex.step)
+}
+
 /** Double-progression recommendation for next session */
 export const nextTarget = (s: AppState, exerciseId: string) => {
   const ex = exerciseById(exerciseId)
   if (!ex) return null
   const sets = s.sets.filter((x) => x.exerciseId === exerciseId)
-  if (!sets.length) return { weight: 0, reps: ex.reps[0], note: 'First session — pick a weight you could lift for ~3 more reps.' }
+  if (!sets.length) {
+    const weight = startingWeight(s, exerciseId)
+    return { weight, reps: ex.reps[0], note: weight ? 'First session: a light starting weight set from your body weight. It should feel like you could do 3 more reps.' : 'First session: bodyweight only. Stop 2 to 3 reps before you could do no more.' }
+  }
   const lastDate = sets.map((x) => x.date).sort().at(-1)!
   const last = sets.filter((x) => x.date === lastDate)
   const top = Math.max(...last.map((x) => x.weight))

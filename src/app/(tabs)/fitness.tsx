@@ -3,13 +3,14 @@ import { Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AITrainer } from '../../components/coach/AITrainer'
 import { useStore } from '../../lib/store'
-import { EQUIPMENT, EXERCISES, MUSCLES, MUSCLE_NAME, worksFor, type Equipment, type Muscle } from '../../data/exercises'
+import { EXERCISES, MUSCLE_NAME, worksFor } from '../../data/exercises'
 import { MuscleMap } from '../../components/MuscleMap'
-import { exerciseHistory, workoutDates, workoutsThisWeek } from '../../lib/progress'
+import { exerciseHistory, workoutDates, workoutStreak, workoutsThisWeek } from '../../lib/progress'
+import { quickFind } from '../../lib/search'
 import { lastNDays, weekdayShort } from '../../lib/date'
 import { round } from '../../lib/nutrition'
 import { C, T } from '../../theme'
-import { Bars, Button, Card, Chips, Icon, IconButton, LineChart, List, Pill, Row, Screen, SearchField, SectionHeader, Segmented } from '../../components/ui'
+import { Bars, Button, Card, Icon, IconButton, LineChart, List, Pill, Row, Screen, SearchField, SectionHeader, Segmented } from '../../components/ui'
 
 type Tab = 'library' | 'progress' | 'coach'
 
@@ -28,26 +29,36 @@ export default function Fitness() {
     )
   }
   return (
-    <Screen title="Fitness" right={<IconButton icon="sparkles" variant="blue" onPress={() => router.setParams({ q: 'Build me a workout' })} label="AI workout" />}>
+    <Screen title="Fitness" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Streak /><IconButton icon="sparkles" variant="blue" onPress={() => router.setParams({ q: 'Build me a workout' })} label="AI workout" /></View>}>
       {seg}
       {tab === 'library' ? <Library /> : <Progress />}
     </Screen>
   )
 }
 
+/** Consistency: a flame with the number of days in a row the user has trained */
+function Streak() {
+  const { state } = useStore()
+  const days = workoutStreak(state)
+  const lit = days > 0
+  return (
+    <View accessibilityLabel={`Workout streak: ${days} day${days === 1 ? '' : 's'}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 38, borderRadius: 19, backgroundColor: lit ? '#FFE9D6' : C.fill }}>
+      <Icon name="flame" size={20} color={lit ? '#F2622E' : C.text3} />
+      <Text style={[T.headline, T.num, { color: lit ? '#C2410C' : C.text3 }]}>{days}</Text>
+    </View>
+  )
+}
+
 function Library() {
   const { state } = useStore()
   const [q, setQ] = useState('')
-  const [muscle, setMuscle] = useState<Muscle | 'All'>('All')
-  const [equip, setEquip] = useState<Equipment | 'Any'>('Any')
-  const list = EXERCISES.filter((e) => (muscle === 'All' || e.muscle === muscle) && (equip === 'Any' || e.equipment === equip) && e.name.toLowerCase().includes(q.toLowerCase()))
+  // quick find: matches the name first, then the muscles worked, body area, equipment and level
+  const list = quickFind(q, EXERCISES, (e) => [e.name, worksFor(e.id).primary.map((m) => MUSCLE_NAME[m]).join(' '), e.muscle, e.equipment, e.level, worksFor(e.id).secondary.map((m) => MUSCLE_NAME[m]).join(' ')])
 
   return (
     <View style={{ gap: 12 }}>
-      <SearchField value={q} onChangeText={setQ} placeholder={`Search ${EXERCISES.length} exercises`} />
-      <Chips value={muscle} onChange={setMuscle} items={[{ value: 'All', label: 'All' }, ...MUSCLES.map((m) => ({ value: m, label: m }))]} />
-      <Chips value={equip} onChange={setEquip} items={[{ value: 'Any', label: 'Any equipment' }, ...EQUIPMENT.map((m) => ({ value: m, label: m }))]} />
-      <Text style={[T.sub, { marginLeft: 4 }]}>{list.length} exercises</Text>
+      <SearchField value={q} onChangeText={setQ} placeholder="Find an exercise, muscle or equipment" />
+      <Text style={[T.sub, { marginLeft: 4 }]}>{q.trim() ? (list.length ? `Best matches for \u201C${q.trim()}\u201D` : 'Nothing matches that yet. Try a muscle or a piece of equipment.') : `${list.length} exercises`}</Text>
       <List>
         {list.map((e, i) => {
           const sets = state.sets.filter((x) => x.exerciseId === e.id)

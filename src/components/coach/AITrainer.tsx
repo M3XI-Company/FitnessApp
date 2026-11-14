@@ -4,8 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../../lib/store'
-import { SUGGESTIONS, reply } from '../../lib/coach'
-import { uid } from '../../lib/date'
+import { reply } from '../../lib/coach'
+import { todayKey, uid } from '../../lib/date'
 import { exerciseById } from '../../data/exercises'
 import type { ChatMessage } from '../../lib/types'
 import { C, T, shadow, G, F } from '../../theme'
@@ -59,28 +59,23 @@ export function AITrainer() {
                 <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Icon name="barbell" color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>{m.workout.title}</Text><Pill>{`${m.workout.items.length} exercises`}</Pill>
                 </View>
-                {m.workout.items.map((it) => (
-                  <Pressable key={it.exerciseId} onPress={() => router.push(`/exercise/${it.exerciseId}`)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.sep }, pressed && { backgroundColor: C.fill }]}>
-                    <View style={{ flex: 1 }}><Text style={[T.body, { fontWeight: '600' }]}>{exerciseById(it.exerciseId)?.name}</Text><Text style={T.caption}>{it.sets} sets × {it.reps}</Text></View>
+                {m.workout.items.map((it) => {
+                  // checklist: an exercise is ticked once today's logged sets reach the advised number
+                  const doneSets = state.sets.filter((x) => x.exerciseId === it.exerciseId && x.date === todayKey()).length
+                  const done = doneSets >= it.sets
+                  return (
+                  <Pressable key={it.exerciseId} accessibilityLabel={`${exerciseById(it.exerciseId)?.name}, ${done ? 'done' : `${doneSets} of ${it.sets} sets done`}`} onPress={() => router.push(`/exercise/${it.exerciseId}`)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.sep }, pressed && { backgroundColor: C.fill }]}>
+                    <Icon name={done ? 'checkbox' : 'square-outline'} size={22} color={done ? C.accent : C.text3} />
+                    <View style={{ flex: 1 }}><Text style={[T.body, { fontWeight: '600', color: done ? C.text3 : C.text, textDecorationLine: done ? 'line-through' : 'none' }]}>{exerciseById(it.exerciseId)?.name}</Text><Text style={T.caption}>{it.sets} sets × {it.reps}{doneSets ? ` · ${Math.min(doneSets, it.sets)} of ${it.sets} done` : ''}</Text></View>
                     <Icon name="chevron-forward" size={16} color={C.text3} />
                   </Pressable>
-                ))}
+                  )
+                })}
               </Card>
             )}
           </View>
         ))}
         {typing && <View style={{ alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, ...shadow }}><Text style={{ color: C.text3, fontWeight: '800', letterSpacing: 2 }}>•••</Text></View>}
-
-        {state.chat.length === 0 && (
-          <View style={{ gap: 8, marginTop: 4 }}>
-            <Text style={[T.eyebrow, { marginLeft: 4 }]}>Try asking</Text>
-            {SUGGESTIONS.map((s) => (
-              <Pressable key={s} onPress={() => send(s)} style={({ pressed }) => [{ backgroundColor: '#fff', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', ...shadow }, pressed && { opacity: 0.8 }]}>
-                <Text style={[T.body, { flex: 1, fontWeight: '600' }]}>{s}</Text><Icon name="arrow-up-circle" size={22} color={C.accent} />
-              </Pressable>
-            ))}
-          </View>
-        )}
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 12, marginBottom: Math.max(12, insets.bottom) + 82, padding: 6, backgroundColor: '#fff', borderRadius: 24, ...shadow }}>
         <TextInput value={text} onChangeText={setText} placeholder="Ask your trainer…" placeholderTextColor={C.text3} onSubmitEditing={() => send(text)} returnKeyType="send" style={{ flex: 1, fontSize: 16, paddingHorizontal: 12, color: C.text }} />

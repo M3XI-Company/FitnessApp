@@ -173,11 +173,13 @@ function paint(body: Body, works: Works) {
  * are applied to the skeleton every frame; the body is then grounded on the
  * floor, a bench, a seat or a bar depending on the movement.
  */
-export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { primary: [], secondary: [] }, female = false }: {
+export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { primary: [], secondary: [] }, female = false, at }: {
   works?: Works
   /** kept for callers; the anatomical figure does not use a skin tone */
   tone?: string
   female?: boolean
+  /** freeze the figure at this time in the movement (a still picture) instead of animating */
+  at?: number
   pattern: Pattern
   speedRef: MutableRefObject<number>
   playingRef: MutableRefObject<boolean>
@@ -193,6 +195,7 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { pr
   const set = (k: keyof Rig) => (g: THREE.Group | null) => { r[k] = g }
   const time = useRef(0)
   const lastPhase = useRef(-1)
+  const still = useRef(0)
   const centerZ = useRef<number | null>(null)
   const v = useMemo(() => ({
     a: new THREE.Vector3(), b: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), q: new THREE.Quaternion(),
@@ -203,7 +206,12 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { pr
 
   useFrame((_, delta) => {
     if (!r.root) return
-    if (playingRef.current) time.current += Math.min(delta, 0.05) * speedRef.current
+    if (at != null) {
+      // a still picture only needs posing once (a few frames, so grounding settles)
+      if (still.current > 3) return
+      still.current++
+      time.current = at
+    } else if (playingRef.current) time.current += Math.min(delta, 0.05) * speedRef.current
     const { pose, label, phase } = sample(pattern, time.current)
     if (phase !== lastPhase.current) { lastPhase.current = phase; onPhase?.(label, phase) }
 

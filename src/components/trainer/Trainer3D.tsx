@@ -10,7 +10,7 @@ import { patternFor } from './poses'
 import { C, F, G } from '../../theme'
 import { Icon, tap } from '../ui'
 
-class GLBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class GLBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
   render() {
