@@ -16,11 +16,11 @@ export function RestTimer({ endsAt, total, onChange, onDone }: { endsAt: number;
   }, [left]) // eslint-disable-line react-hooks/exhaustive-deps
   const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0')
   return (
-    <Card style={{ gap: 10, backgroundColor: C.ink }}>
+    <Card style={{ gap: 10, backgroundColor: C.night }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
-          <Text style={[T.eyebrow, { color: C.goldLight }]}>Rest</Text>
-          <Text style={{ fontFamily: F.hand, fontSize: 52, color: C.cream, lineHeight: 56 }}>{left === 0 ? 'Go!' : `${mm}:${ss}`}</Text>
+          <Text style={[T.eyebrow, { color: C.skyLight }]}>Rest</Text>
+          <Text style={{ fontFamily: F.hand, fontSize: 52, color: C.cloud, lineHeight: 56 }}>{left === 0 ? 'Go!' : `${mm}:${ss}`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button small variant="tinted" title="−15s" onPress={() => onChange(endsAt - 15000, Math.max(15, total - 15))} />
@@ -28,7 +28,7 @@ export function RestTimer({ endsAt, total, onChange, onDone }: { endsAt: number;
           <Button small variant="tinted" title="Skip" onPress={onDone} />
         </View>
       </View>
-      <Bar pct={1 - left / total} color={C.gold} track="rgba(255,255,255,.14)" />
+      <Bar pct={1 - left / total} color={C.sky} track="rgba(255,255,255,.14)" />
     </Card>
   )
 }

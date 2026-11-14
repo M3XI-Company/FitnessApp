@@ -20,7 +20,7 @@ export function PoseCamera({ facing, onMessage }: { facing: 'user' | 'environmen
     <View style={{ flex: 1 }}>
       {createElement('iframe', {
         key: facing, srcDoc: html, allow: 'camera', sandbox: 'allow-scripts allow-same-origin',
-        title: 'Camera form check', style: { border: 0, width: '100%', height: '100%', background: '#141210' },
+        title: 'Camera form check', style: { border: 0, width: '100%', height: '100%', background: '#0F2440' },
       })}
     </View>
   )

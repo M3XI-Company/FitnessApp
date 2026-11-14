@@ -8,6 +8,7 @@ import { fmt, rescaleEntry } from '../lib/nutrition'
 import type { FoodEntry, MealSlot } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Field, Pill, SheetHeader, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 type MacroKey = 'kcal' | 'protein' | 'carbs' | 'fat'
 
@@ -45,19 +46,19 @@ export default function EditFood() {
       <SheetHeader title="Edit entry" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={{ fontSize: 30 }}>{entry.emoji ?? '🍽️'}</Text>
+          <FoodIcon name={entry.name} size={48} />
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={T.title3} numberOfLines={2}>{entry.name}</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {entry.dataSource && <Pill color={C.text2} bg={C.fill}>{SOURCES[entry.dataSource].short}</Pill>}
-              {entry.isEstimate && <Pill color={C.orange} bg="#F8EBD8">Estimate</Pill>}
+              {entry.isEstimate && <Pill color={C.orange} bg="#FFEBDD">Estimate</Pill>}
             </View>
           </View>
         </Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {meals.map((m) => (
-            <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.ink : C.card }}>
-              <Text style={{ fontWeight: '600', color: meal === m.slot ? C.goldLight : C.text2 }}>{m.emoji} {m.label}</Text>
+            <Pressable key={m.slot} onPress={() => { tap(); setMeal(m.slot) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.night : C.card }}>
+              <Text style={{ fontWeight: '600', color: meal === m.slot ? C.skyLight : C.text2 }}>{m.label}</Text>
             </Pressable>
           ))}
         </View>

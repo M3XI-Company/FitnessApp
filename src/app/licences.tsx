@@ -31,6 +31,10 @@ export default function Licences() {
             </Card>
           )
         })}
+        <Card style={{ gap: 6 }}>
+          <Text style={T.title3}>Software and artwork</Text>
+          <Text style={[T.body, { lineHeight: 21 }]}>Icons: Lucide (ISC licence). Muscle maps: react-native-body-highlighter (MIT). Pose detection: Google MediaPipe (Apache 2.0). Handwritten font: Caveat (SIL Open Font Licence). 3D: three.js and React Three Fiber (MIT).</Text>
+        </Card>
         <Card style={{ gap: 6, backgroundColor: C.accentSoft }}>
           <Text style={T.headline}>Nutrition values are estimates</Text>
           <Text style={[T.body, { lineHeight: 21 }]}>Food composition varies between brands, batches and recipes. Always check the pack label, and correct any entry by tapping it in your diary.</Text>

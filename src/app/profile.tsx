@@ -7,7 +7,7 @@ import { exerciseHistory, goalProgress, levelName, LEVEL_NAMES, logStreak, water
 import { todayKey, uid } from '../lib/date'
 import type { UserGoal } from '../lib/types'
 import { C, T, glow, G, F } from '../theme'
-import { Bar, Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap } from '../components/ui'
+import { Bar, Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap, type IconName } from '../components/ui'
 
 const PRESETS: Omit<UserGoal, 'id' | 'createdAt'>[] = [
   { title: 'Train 3× this week', metric: 'workouts_week', target: 3 },
@@ -25,30 +25,30 @@ export default function Profile() {
   const t = state.targets
 
   const benchBest = Math.max(0, ...exerciseHistory(state, 'bench').map((h) => h.value))
-  const achievements = [
-    { e: '🔥', t: 'On fire', d: '7-day log streak', ok: logStreak(state) >= 7 },
-    { e: '🏋️', t: 'Regular', d: '10 workouts', ok: workoutDates(state).length >= 10 },
-    { e: '💧', t: 'Hydrated', d: 'Water goal 3 days', ok: waterDaysStreak(state) >= 3 },
-    { e: '📸', t: 'Scanner', d: 'Scan a barcode', ok: state.food.some((f) => f.source === 'barcode' || f.source === 'scan') },
-    { e: '🍱', t: 'Meal prepper', d: 'Log a boxed meal', ok: state.food.some((f) => f.source === 'boxed') },
-    { e: '🦍', t: 'Bench 100', d: '100 kg e1RM bench', ok: benchBest >= 100 },
-    { e: '🤝', t: 'Teammate', d: 'Connect a buddy', ok: state.buddies.length > 0 },
-    { e: '⭐', t: 'Level 5', d: 'Reach level 5', ok: lv.level >= 5 },
+  const achievements: { e: IconName; t: string; d: string; ok: boolean }[] = [
+    { e: 'flame', t: 'On fire', d: '7-day log streak', ok: logStreak(state) >= 7 },
+    { e: 'barbell', t: 'Regular', d: '10 workouts', ok: workoutDates(state).length >= 10 },
+    { e: 'water', t: 'Hydrated', d: 'Water goal 3 days', ok: waterDaysStreak(state) >= 3 },
+    { e: 'barcode-outline', t: 'Scanner', d: 'Scan a barcode', ok: state.food.some((f) => f.source === 'barcode' || f.source === 'scan') },
+    { e: 'book', t: 'Home cook', d: 'Log a Breeze recipe', ok: state.food.some((f) => f.dataSource === 'recipe') },
+    { e: 'muscle', t: 'Bench 100', d: '100 kg e1RM bench', ok: benchBest >= 100 },
+    { e: 'people', t: 'Teammate', d: 'Connect a buddy', ok: state.buddies.length > 0 },
+    { e: 'award', t: 'Level 5', d: 'Reach level 5', ok: lv.level >= 5 },
   ]
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Profile & Goals" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
-        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
+        <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 24 }}>{p.name[0]?.toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: C.cream, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
+              <Text style={{ color: C.cloud, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,.8)', fontWeight: '600' }}>Level {lv.level} · {levelName(lv.level)} · {lv.total} XP</Text>
             </View>
           </View>
-          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color={C.gold} track="rgba(255,255,255,.14)" /></View>
+          <View style={{ marginTop: 16 }}><Bar pct={lv.into / lv.span} color={C.sky} track="rgba(255,255,255,.14)" /></View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>{lv.span - lv.into} XP to level {lv.level + 1}</Text>
             <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 12, fontWeight: '600' }}>Next rank: {LEVEL_NAMES[Math.min(LEVEL_NAMES.length - 1, Math.floor(lv.level / 2))]}</Text>
@@ -92,7 +92,7 @@ export default function Profile() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {achievements.map((a) => (
             <View key={a.t} style={{ width: '23%', alignItems: 'center', gap: 4, opacity: a.ok ? 1 : 0.35 }}>
-              <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: a.ok ? C.accentSoft : C.fill2, alignItems: 'center', justifyContent: 'center', borderWidth: a.ok ? 2 : 0, borderColor: C.accent }}><Text style={{ fontSize: 28 }}>{a.e}</Text></View>
+              <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: a.ok ? C.accentSoft : C.fill2, alignItems: 'center', justifyContent: 'center', borderWidth: a.ok ? 2 : 0, borderColor: C.accent }}><Icon name={a.e} size={28} color={a.ok ? C.accent : C.text3} /></View>
               <Text style={[T.caption, { color: C.text, fontWeight: '700', textAlign: 'center' }]} numberOfLines={1}>{a.t}</Text>
               <Text style={[T.caption, { fontSize: 10, textAlign: 'center' }]} numberOfLines={2}>{a.d}</Text>
             </View>

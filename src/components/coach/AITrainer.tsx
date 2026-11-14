@@ -41,18 +41,18 @@ export function AITrainer() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView ref={scroll} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
-        <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18, flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-          <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={26} color={C.goldLight} /></View>
+        <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18, flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={26} color={C.skyLight} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: C.cream, fontSize: 28, fontFamily: F.hand, lineHeight: 30 }}>Your AI Trainer</Text>
+            <Text style={{ color: C.cloud, fontSize: 28, fontFamily: F.hand, lineHeight: 30 }}>Your AI Trainer</Text>
             <Text style={{ color: 'rgba(255,255,255,.85)', fontSize: 13 }}>Knows your meals, lifts and goals. Ask for workouts, form tips or what to eat.</Text>
           </View>
         </LinearGradient>
 
         {state.chat.map((m) => (
           <View key={m.id} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%', gap: 8 }}>
-            <View style={[{ paddingVertical: 11, paddingHorizontal: 15, borderRadius: 20 }, m.role === 'user' ? { backgroundColor: C.ink, borderBottomRightRadius: 6 } : { backgroundColor: '#fff', borderBottomLeftRadius: 6, ...shadow }]}>
-              <Text style={{ fontSize: 15, lineHeight: 21, color: m.role === 'user' ? C.cream : C.text }}>{m.text}</Text>
+            <View style={[{ paddingVertical: 11, paddingHorizontal: 15, borderRadius: 20 }, m.role === 'user' ? { backgroundColor: C.night, borderBottomRightRadius: 6 } : { backgroundColor: '#fff', borderBottomLeftRadius: 6, ...shadow }]}>
+              <Text style={{ fontSize: 15, lineHeight: 21, color: m.role === 'user' ? C.cloud : C.text }}>{m.text}</Text>
             </View>
             {m.workout && (
               <Card style={{ padding: 0, overflow: 'hidden' }}>
@@ -84,8 +84,8 @@ export function AITrainer() {
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 12, marginBottom: Math.max(12, insets.bottom) + 82, padding: 6, backgroundColor: '#fff', borderRadius: 24, ...shadow }}>
         <TextInput value={text} onChangeText={setText} placeholder="Ask your trainer…" placeholderTextColor={C.text3} onSubmitEditing={() => send(text)} returnKeyType="send" style={{ flex: 1, fontSize: 16, paddingHorizontal: 12, color: C.text }} />
-        <Pressable onPress={() => send(text)} disabled={!text.trim()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: text.trim() ? C.ink : C.fill2, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Send">
-          <Icon name="arrow-up" size={20} color={C.goldLight} />
+        <Pressable onPress={() => send(text)} disabled={!text.trim()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: text.trim() ? C.night : C.fill2, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Send">
+          <Icon name="arrow-up" size={20} color={C.skyLight} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>

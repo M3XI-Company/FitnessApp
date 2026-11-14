@@ -2,15 +2,14 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Path, Stop } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
+import { Icon, type IconName } from './icons'
 import * as Haptics from 'expo-haptics'
 import { C, GRADE_COLOR, R, T, glow, shadow } from '../theme'
 
 export const tap = () => { Haptics.selectionAsync().catch(() => {}) }
 export const success = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) }
 
-export type IconName = keyof typeof Ionicons.glyphMap
-export const Icon = ({ name, size = 20, color = C.text }: { name: IconName; size?: number; color?: string }) => <Ionicons name={name} size={size} color={color} />
+export { Icon, type IconName }
 
 /** Large-title scroll screen (Apple style) */
 export function Screen({ title, eyebrow, right, children, scroll = true, bottomPad = 130 }: {
@@ -54,28 +53,28 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
 export function Button({ title, onPress, variant = 'primary', icon, style, disabled, small }: {
   title: string; onPress: () => void; variant?: 'primary' | 'dark' | 'tinted' | 'ghost'; icon?: IconName; style?: StyleProp<ViewStyle>; disabled?: boolean; small?: boolean
 }) {
-  const bg = { primary: C.ink, dark: C.ink, tinted: C.accentSoft, ghost: C.fill }[variant]
-  const fg = variant === 'primary' ? C.goldLight : variant === 'dark' ? C.cream : variant === 'tinted' ? C.accent : C.text
+  const bg = { primary: C.accent, dark: C.night, tinted: C.accentSoft, ghost: C.fill }[variant]
+  const fg = variant === 'primary' || variant === 'dark' ? '#FFFFFF' : variant === 'tinted' ? C.accent : C.text
   return (
     <Pressable disabled={disabled} onPress={() => { tap(); onPress() }}
       style={({ pressed }) => [s.btn, small && s.btnSm, { backgroundColor: bg }, variant === 'primary' && glow, disabled && { opacity: 0.4 }, pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 }, style]}>
-      {icon ? <Ionicons name={icon} size={small ? 16 : 19} color={fg} /> : null}
+      {icon ? <Icon name={icon} size={small ? 16 : 19} color={fg} /> : null}
       <Text style={{ color: fg, fontWeight: '600', fontSize: small ? 14 : 16, letterSpacing: 0.2 }}>{title}</Text>
     </Pressable>
   )
 }
 
 export function IconButton({ icon, onPress, variant = 'card', size = 38, label }: { icon: IconName; onPress: () => void; variant?: 'card' | 'blue' | 'fill'; size?: number; label?: string }) {
-  const bg = variant === 'blue' ? C.ink : variant === 'fill' ? C.fill2 : C.card
+  const bg = variant === 'blue' ? C.accent : variant === 'fill' ? C.fill2 : C.card
   return (
     <Pressable accessibilityLabel={label} onPress={() => { tap(); onPress() }} hitSlop={6}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }, variant === 'card' && shadow, variant === 'blue' && glow, pressed && { opacity: 0.7 }]}>
-      <Ionicons name={icon} size={size * 0.5} color={variant === 'blue' ? C.goldLight : C.text} />
+      <Icon name={icon} size={size * 0.5} color={variant === 'blue' ? '#FFFFFF' : C.text} />
     </Pressable>
   )
 }
 
-export function Ring({ value, max, size = 120, stroke = 12, color = C.gold, track = C.fill, children }: {
+export function Ring({ value, max, size = 120, stroke = 12, color = C.sky, track = C.fill, children }: {
   value: number; max: number; size?: number; stroke?: number; color?: string; track?: string; children?: ReactNode
 }) {
   const r = (size - stroke) / 2
@@ -92,7 +91,7 @@ export function Ring({ value, max, size = 120, stroke = 12, color = C.gold, trac
   )
 }
 
-export function Bar({ pct, color = C.gold, track = C.fill, height = 8 }: { pct: number; color?: string; track?: string; height?: number }) {
+export function Bar({ pct, color = C.sky, track = C.fill, height = 8 }: { pct: number; color?: string; track?: string; height?: number }) {
   return (
     <View style={{ height, borderRadius: height, backgroundColor: track, overflow: 'hidden' }}>
       <View style={{ height, width: `${Math.min(100, Math.max(0, pct * 100))}%`, backgroundColor: color, borderRadius: height }} />
@@ -116,8 +115,8 @@ export function Chips<V extends string>({ items, value, onChange }: { items: { v
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16, flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 4 }}>
       {items.map((i) => (
-        <Pressable key={i.value} onPress={() => { tap(); onChange(i.value) }} style={[s.chip, value === i.value && { backgroundColor: C.ink }]}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: value === i.value ? C.goldLight : C.text2 }}>{i.label}</Text>
+        <Pressable key={i.value} onPress={() => { tap(); onChange(i.value) }} style={[s.chip, value === i.value && { backgroundColor: C.night }]}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: value === i.value ? C.skyLight : C.text2 }}>{i.label}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -136,7 +135,7 @@ export function Grade({ g, size = 30 }: { g?: string; size?: number }) {
 export function IconTile({ icon, emoji, color = C.accent, bg = C.accentSoft, size = 38 }: { icon?: IconName; emoji?: string; color?: string; bg?: string; size?: number }) {
   return (
     <View style={{ width: size, height: size, borderRadius: size * 0.29, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      {emoji ? <Text style={{ fontSize: size * 0.52 }}>{emoji}</Text> : icon ? <Ionicons name={icon} size={size * 0.52} color={color} /> : null}
+      {emoji ? <Text style={{ fontSize: size * 0.52 }}>{emoji}</Text> : icon ? <Icon name={icon} size={size * 0.52} color={color} /> : null}
     </View>
   )
 }
@@ -181,7 +180,7 @@ export function Stepper({ value, onChange, step = 1, min = 0, suffix }: { value:
 export function SearchField({ value, onChangeText, placeholder, autoFocus }: { value: string; onChangeText: (s: string) => void; placeholder: string; autoFocus?: boolean }) {
   return (
     <View style={s.search}>
-      <Ionicons name="search" size={18} color={C.text3} />
+      <Icon name="search" size={18} color={C.text3} />
       <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={C.text3} autoFocus={autoFocus} style={{ flex: 1, fontSize: 16, color: C.text, paddingVertical: 0 }} returnKeyType="search" clearButtonMode="while-editing" />
     </View>
   )
@@ -220,7 +219,7 @@ export function LineChart({ data, height = 130, color = C.accent, unit = '', wid
   )
 }
 
-export function Bars({ data, target, color = C.gold, height = 110 }: { data: { label: string; value: number }[]; target?: number; color?: string; height?: number }) {
+export function Bars({ data, target, color = C.sky, height = 110 }: { data: { label: string; value: number }[]; target?: number; color?: string; height?: number }) {
   const max = Math.max(target ?? 0, ...data.map((d) => d.value)) || 1
   const inner = height - 22
   return (
@@ -258,7 +257,7 @@ export function SheetHeader({ title, onClose, right }: { title: string; onClose:
 
 export const s = StyleSheet.create({
   nav: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: 12, paddingBottom: 14, paddingHorizontal: 4, gap: 12 },
-  penStroke: { width: 46, height: 3, borderRadius: 2, backgroundColor: C.gold, marginTop: 2, transform: [{ rotate: '-2deg' }] },
+  penStroke: { width: 46, height: 3, borderRadius: 2, backgroundColor: C.sky, marginTop: 2, transform: [{ rotate: '-2deg' }] },
   card: { backgroundColor: C.card, borderRadius: R.lg, padding: 18, ...shadow },
   sectionH: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, marginBottom: 10, marginHorizontal: 4 },
   btn: { height: 52, borderRadius: R.md, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
@@ -269,7 +268,7 @@ export const s = StyleSheet.create({
   chip: { height: 34, paddingHorizontal: 14, borderRadius: 99, backgroundColor: C.card, justifyContent: 'center', ...shadow },
   list: { backgroundColor: C.card, borderRadius: R.lg, overflow: 'hidden', ...shadow },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
-  rowSep: { position: 'absolute', top: 0, left: 66, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(20,18,16,0.12)' },
+  rowSep: { position: 'absolute', top: 0, left: 66, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(15,36,64,0.12)' },
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.fill, borderRadius: 14, padding: 4 },
   stepBtn: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: 12, backgroundColor: C.fill2, paddingHorizontal: 12 },

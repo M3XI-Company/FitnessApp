@@ -24,7 +24,7 @@ export interface Recipe {
   /** allergens a name-match can't see (e.g. celery in stock) */
   alsoContains?: Allergen[]
   /** cover colour for the typographic card */
-  cover: 'ink' | 'gold' | 'cream'
+  cover: 'night' | 'dawn' | 'day'
   reviewed: false
 }
 
@@ -44,7 +44,7 @@ const RUMP = 'cofid-18-043', QUINOA = 'cofid-14-843', EDAMAME = 'cofid-13-667', 
 
 export const RECIPES: Recipe[] = [
   {
-    id: 'protein-overnight-oats', title: 'Protein overnight oats', emoji: '🫐', cover: 'cream', reviewed: false,
+    id: 'protein-overnight-oats', title: 'Protein overnight oats', emoji: '🫐', cover: 'day', reviewed: false,
     description: 'Creamy oats made the night before with quark and Greek yoghurt for a protein boost, topped with blueberries.',
     servings: 1, prepMin: 5, cookMin: 0, editorial: ['pre-workout', 'budget'],
     ingredients: [
@@ -62,7 +62,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'eggs-spinach-toast', title: 'Scrambled eggs, spinach & wholemeal toast', emoji: '🍳', cover: 'gold', reviewed: false,
+    id: 'eggs-spinach-toast', title: 'Scrambled eggs, spinach & wholemeal toast', emoji: '🍳', cover: 'dawn', reviewed: false,
     description: 'Three soft-scrambled eggs with wilted spinach on two slices of wholemeal toast.',
     servings: 1, prepMin: 2, cookMin: 6, editorial: ['budget', 'post-workout'],
     ingredients: [
@@ -78,7 +78,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'lemon-chicken-rice', title: 'Lemon garlic chicken, rice & broccoli', emoji: '🍗', cover: 'ink', reviewed: false,
+    id: 'lemon-chicken-rice', title: 'Lemon garlic chicken, rice & broccoli', emoji: '🍗', cover: 'night', reviewed: false,
     description: 'The classic gym bowl, done properly: juicy lemon-garlic chicken breast with basmati rice and broccoli. Doubles as meal prep.',
     servings: 2, prepMin: 10, cookMin: 20, editorial: ['post-workout'],
     ingredients: [
@@ -98,7 +98,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'lean-beef-chilli', title: 'Lean beef chilli with rice', emoji: '🌶️', cover: 'ink', reviewed: false,
+    id: 'lean-beef-chilli', title: 'Lean beef chilli with rice', emoji: '🌶️', cover: 'night', reviewed: false,
     description: 'A big batch of smoky extra-lean beef and kidney bean chilli. Freezes well.',
     servings: 4, prepMin: 15, cookMin: 35, editorial: ['budget', 'post-workout'],
     ingredients: [
@@ -120,7 +120,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'salmon-sweet-potato', title: 'Roast salmon, sweet potato & green beans', emoji: '🐟', cover: 'gold', reviewed: false,
+    id: 'salmon-sweet-potato', title: 'Roast salmon, sweet potato & green beans', emoji: '🐟', cover: 'dawn', reviewed: false,
     description: 'Oven-roasted salmon with sweet potato wedges and green beans. Rich in omega-3.',
     servings: 2, prepMin: 5, cookMin: 25, editorial: ['post-workout'],
     ingredients: [
@@ -137,7 +137,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'tuna-sweetcorn-pasta', title: 'Tuna & sweetcorn pasta salad', emoji: '🍝', cover: 'cream', reviewed: false,
+    id: 'tuna-sweetcorn-pasta', title: 'Tuna & sweetcorn pasta salad', emoji: '🍝', cover: 'day', reviewed: false,
     description: 'A lunchbox favourite with tuna, sweetcorn and crunchy veg in a light mayo dressing.',
     servings: 2, prepMin: 10, cookMin: 10, editorial: ['budget', 'post-workout'],
     ingredients: [
@@ -155,7 +155,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'red-lentil-dal', title: 'Red lentil & spinach dal', emoji: '🍛', cover: 'gold', reviewed: false,
+    id: 'red-lentil-dal', title: 'Red lentil & spinach dal', emoji: '🍛', cover: 'dawn', reviewed: false,
     description: 'Comforting, cheap and plant-based: spiced red lentils with spinach and light coconut milk.',
     servings: 4, prepMin: 10, cookMin: 30, editorial: ['budget'],
     ingredients: [
@@ -178,7 +178,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'tofu-noodle-stir-fry', title: 'Ginger tofu noodle stir-fry', emoji: '🥢', cover: 'ink', reviewed: false,
+    id: 'tofu-noodle-stir-fry', title: 'Ginger tofu noodle stir-fry', emoji: '🥢', cover: 'night', reviewed: false,
     description: 'Crisp tofu, pak choi and peppers tossed with rice noodles in a ginger-soy sauce.',
     servings: 2, prepMin: 10, cookMin: 10, editorial: ['post-workout'],
     ingredients: [
@@ -200,7 +200,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'quark-berry-bowl', title: 'Quark & berry protein bowl', emoji: '🍓', cover: 'cream', reviewed: false,
+    id: 'quark-berry-bowl', title: 'Quark & berry protein bowl', emoji: '🍓', cover: 'day', reviewed: false,
     description: 'A high-protein snack or light breakfast: quark and Greek yoghurt with berries and a little honey.',
     servings: 1, prepMin: 3, cookMin: 0, editorial: ['pre-workout'],
     ingredients: [
@@ -216,7 +216,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'banana-pb-toast', title: 'Banana & peanut butter toast', emoji: '🍌', cover: 'gold', reviewed: false,
+    id: 'banana-pb-toast', title: 'Banana & peanut butter toast', emoji: '🍌', cover: 'dawn', reviewed: false,
     description: 'Quick carbs with a little protein. A classic 60–90 minutes before training.',
     servings: 1, prepMin: 3, cookMin: 2, editorial: ['pre-workout', 'budget'],
     ingredients: [
@@ -231,7 +231,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'cottage-pineapple', title: 'Cottage cheese & pineapple pot', emoji: '🍍', cover: 'cream', reviewed: false,
+    id: 'cottage-pineapple', title: 'Cottage cheese & pineapple pot', emoji: '🍍', cover: 'day', reviewed: false,
     description: 'A two-minute, high-protein snack that tastes like a treat.',
     servings: 1, prepMin: 2, cookMin: 0, editorial: ['budget'],
     ingredients: [
@@ -241,7 +241,7 @@ export const RECIPES: Recipe[] = [
     steps: [{ text: 'Spoon the cottage cheese into a bowl or pot and top with chopped pineapple.' }],
   },
   {
-    id: 'beef-burrito-bowl', title: 'Lean beef burrito bowl', emoji: '🌯', cover: 'ink', reviewed: false,
+    id: 'beef-burrito-bowl', title: 'Lean beef burrito bowl', emoji: '🌯', cover: 'night', reviewed: false,
     description: 'Spiced lean mince with brown rice, beans, sweetcorn, salsa, avocado and a little cheese.',
     servings: 2, prepMin: 10, cookMin: 15, editorial: ['post-workout'],
     ingredients: [
@@ -262,7 +262,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'garlic-prawn-noodles', title: 'Garlic king prawn noodles', emoji: '🍤', cover: 'gold', reviewed: false,
+    id: 'garlic-prawn-noodles', title: 'Garlic king prawn noodles', emoji: '🍤', cover: 'dawn', reviewed: false,
     description: 'Fast, light egg noodles with king prawns, peppers and spring onions.',
     servings: 2, prepMin: 8, cookMin: 7, editorial: [],
     ingredients: [
@@ -283,7 +283,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'lemon-cod-potatoes', title: 'Lemon cod with new potatoes & peas', emoji: '🍋', cover: 'cream', reviewed: false,
+    id: 'lemon-cod-potatoes', title: 'Lemon cod with new potatoes & peas', emoji: '🍋', cover: 'day', reviewed: false,
     description: 'Light, bright and filling: baked cod with lemon, new potatoes and peas.',
     servings: 2, prepMin: 5, cookMin: 20, editorial: [],
     ingredients: [
@@ -300,7 +300,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'chicken-veg-soup', title: 'Chicken & vegetable soup', emoji: '🍲', cover: 'gold', reviewed: false,
+    id: 'chicken-veg-soup', title: 'Chicken & vegetable soup', emoji: '🍲', cover: 'dawn', reviewed: false,
     description: 'A warming, high-volume soup that’s low in calories but still high in protein.',
     servings: 4, prepMin: 15, cookMin: 30, editorial: ['budget'], alsoContains: ['Celery'],
     ingredients: [
@@ -321,7 +321,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'egg-white-omelette', title: 'Spinach, mushroom & feta omelette', emoji: '🥚', cover: 'cream', reviewed: false,
+    id: 'egg-white-omelette', title: 'Spinach, mushroom & feta omelette', emoji: '🥚', cover: 'day', reviewed: false,
     description: 'Mostly egg whites with one whole egg for flavour, with mushrooms, spinach and a little feta.',
     servings: 1, prepMin: 4, cookMin: 6, editorial: [],
     ingredients: [
@@ -340,7 +340,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'banana-porridge', title: 'Banana & honey porridge', emoji: '🥣', cover: 'gold', reviewed: false,
+    id: 'banana-porridge', title: 'Banana & honey porridge', emoji: '🥣', cover: 'dawn', reviewed: false,
     description: 'Slow-release carbs made with milk. Simple fuel before a morning session.',
     servings: 1, prepMin: 2, cookMin: 5, editorial: ['pre-workout', 'budget'],
     ingredients: [
@@ -355,7 +355,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'jacket-potato-beans', title: 'Jacket potato, beans & cheese', emoji: '🥔', cover: 'cream', reviewed: false,
+    id: 'jacket-potato-beans', title: 'Jacket potato, beans & cheese', emoji: '🥔', cover: 'day', reviewed: false,
     description: 'The British classic, made lighter with reduced-sugar beans and reduced-fat Cheddar.',
     servings: 1, prepMin: 2, cookMin: 12, editorial: ['budget'],
     ingredients: [
@@ -369,7 +369,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'recovery-smoothie', title: 'Banana oat recovery smoothie', emoji: '🥤', cover: 'gold', reviewed: false,
+    id: 'recovery-smoothie', title: 'Banana oat recovery smoothie', emoji: '🥤', cover: 'dawn', reviewed: false,
     description: 'Milk, banana, oats, quark and peanut butter. Protein and carbs in one glass after training.',
     servings: 1, prepMin: 4, cookMin: 0, editorial: ['post-workout'],
     ingredients: [
@@ -382,7 +382,7 @@ export const RECIPES: Recipe[] = [
     steps: [{ text: 'Blend everything until smooth. Add ice if you like it cold.' }],
   },
   {
-    id: 'chicken-houmous-wrap', title: 'Chicken & houmous wrap', emoji: '🌯', cover: 'ink', reviewed: false,
+    id: 'chicken-houmous-wrap', title: 'Chicken & houmous wrap', emoji: '🌯', cover: 'night', reviewed: false,
     description: 'A packed-lunch wrap using leftover cooked chicken, houmous and crunchy salad.',
     servings: 1, prepMin: 5, cookMin: 0, editorial: [],
     ingredients: [
@@ -399,7 +399,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'steak-sweet-potato', title: 'Rump steak, sweet potato & broccoli', emoji: '🥩', cover: 'ink', reviewed: false,
+    id: 'steak-sweet-potato', title: 'Rump steak, sweet potato & broccoli', emoji: '🥩', cover: 'night', reviewed: false,
     description: 'Lean rump steak with baked sweet potato and broccoli. A high-protein dinner.',
     servings: 2, prepMin: 5, cookMin: 25, editorial: ['post-workout'],
     ingredients: [
@@ -415,7 +415,7 @@ export const RECIPES: Recipe[] = [
     ],
   },
   {
-    id: 'edamame-quinoa-salad', title: 'Edamame & quinoa crunch salad', emoji: '🥗', cover: 'cream', reviewed: false,
+    id: 'edamame-quinoa-salad', title: 'Edamame & quinoa crunch salad', emoji: '🥗', cover: 'day', reviewed: false,
     description: 'Plant protein from edamame and quinoa with crunchy veg and a lime-soy dressing.',
     servings: 2, prepMin: 10, cookMin: 15, editorial: [],
     ingredients: [

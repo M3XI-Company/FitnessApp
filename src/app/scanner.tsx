@@ -13,6 +13,7 @@ import { dayMacros } from '../lib/progress'
 import type { MealSlot } from '../lib/types'
 import { C, GRADE_COLOR, T, F } from '../theme'
 import { Bar, Button, Grade, Icon, IconButton, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 type Mode = 'barcode' | 'product'
 const LIGHT = { low: C.green, medium: C.orange, high: C.red }
@@ -55,7 +56,7 @@ export default function Scanner() {
   const cameraReady = permission?.granted && Platform.OS !== 'web'
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#141210' }}>
+    <View style={{ flex: 1, backgroundColor: '#0F2440' }}>
       {cameraReady && !product && (
         <CameraView style={StyleSheet.absoluteFill} facing="back" enableTorch={torch} onBarcodeScanned={loading ? undefined : onScan}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'] }} />
@@ -102,7 +103,7 @@ export default function Scanner() {
             <Text style={{ color: 'rgba(255,255,255,.5)', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 }}>TRY A SAMPLE</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {SAMPLE_CODES.map((d) => (
-                <Pressable key={d.code} onPress={() => lookup(d.code)} style={st.sample}><Text style={{ color: '#fff', fontWeight: '600' }}>{d.emoji} {d.name}</Text></Pressable>
+                <Pressable key={d.code} onPress={() => lookup(d.code)} style={st.sample}><Text style={{ color: '#fff', fontWeight: '600' }}>{d.name}</Text></Pressable>
               ))}
             </View>
           </View>
@@ -124,14 +125,14 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: 16 }} contentContainerStyle={{ padding: 18, paddingBottom: bottom + 24, gap: 14 }}>
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-        {product.image ? <Image source={{ uri: product.image }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff' }} /> : <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 34 }}>{product.emoji}</Text></View>}
+        {product.image ? <Image source={{ uri: product.image }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#fff' }} /> : <FoodIcon name={product.name} size={64} bg="#FFFFFF" />}
         <View style={{ flex: 1 }}>
           <Text style={T.title3} numberOfLines={2}>{product.name}</Text>
           <Text style={T.sub}>{product.brand ?? 'Unknown brand'} · {product.barcode}</Text>
         </View>
       </View>
       {!product.ukListed && (
-        <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#F8EBD8' }}>
+        <View style={{ flexDirection: 'row', gap: 10, padding: 12, borderRadius: 14, backgroundColor: '#FFEBDD' }}>
           <Icon name="information-circle" color={C.orange} />
           <Text style={[T.sub, { flex: 1, color: C.text }]}>Not listed as sold in the UK. UK recipes can differ — check the pack label matches.</Text>
         </View>
@@ -207,6 +208,6 @@ const st = StyleSheet.create({
   hint: { color: '#fff', fontWeight: '600', fontSize: 15, marginTop: 22, textAlign: 'center' },
   notice: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.1)' },
   manual: { flexDirection: 'row', alignItems: 'center', height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.12)', paddingLeft: 16, paddingRight: 6 },
-  go: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  go: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.sky, alignItems: 'center', justifyContent: 'center' },
   sample: { paddingHorizontal: 14, height: 38, borderRadius: 99, justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.12)' },
 })

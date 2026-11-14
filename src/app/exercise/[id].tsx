@@ -3,7 +3,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../../lib/store'
-import { MUSCLE_COLOR, exerciseById } from '../../data/exercises'
+import { MUSCLE_COLOR, exerciseById, worksFor } from '../../data/exercises'
+import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
@@ -52,15 +53,19 @@ export default function ExerciseDetail() {
 
         <Trainer3D exerciseId={ex.id} />
         <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
+        <Card style={{ marginBottom: 14, gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
+          <MuscleMap primary={worksFor(ex.id).primary} secondary={worksFor(ex.id).secondary} gender={state.profile.sex} />
+        </Card>
         {supportsForm(ex.id) && (
           <Button title="Check my form with the camera" icon="videocam-outline" variant="tinted" onPress={() => router.push(`/form-check/${ex.id}`)} style={{ marginBottom: 14 }} />
         )}
 
         {/* Progression target */}
         {target && (
-          <LinearGradient colors={G.ink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
-            <Text style={{ color: C.goldLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
-            <Text style={{ color: C.cream, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
+          <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
+            <Text style={{ color: C.skyLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
+            <Text style={{ color: C.cloud, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
               {target.weight ? `${target.weight} kg × ` : ''}{target.reps}{isTimed ? ' s' : ' reps'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,.9)', fontSize: 14, marginTop: 4 }}>{target.note}</Text>
@@ -69,7 +74,7 @@ export default function ExerciseDetail() {
 
         {prFlag === '1' && (
           <Card tight style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.accentSoft }}>
-            <Text style={{ fontSize: 24 }}>🏆</Text><Text style={[T.headline, { flex: 1 }]}>New personal record!</Text>
+            <Icon name="trophy" size={24} color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>New personal record!</Text>
           </Card>
         )}
 
@@ -112,7 +117,7 @@ export default function ExerciseDetail() {
         <Card style={{ gap: 10 }}>
           {ex.cues.map((c, i) => (
             <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.goldLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.skyLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
               <Text style={[T.body, { flex: 1 }]}>{c}</Text>
             </View>
           ))}

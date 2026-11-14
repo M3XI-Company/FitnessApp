@@ -42,7 +42,7 @@ export default function TargetsScreen() {
           ))}
         </Card>
         {Math.abs(macroKcal - t.kcal) > t.kcal * 0.05 && (
-          <Card tight style={{ backgroundColor: '#F8EBD8' }}>
+          <Card tight style={{ backgroundColor: '#FFEBDD' }}>
             <Text style={[T.sub, { color: C.text, lineHeight: 19 }]}>Your macros add up to {Math.round(macroKcal)} kcal (protein and carbs 4 kcal/g, fat 9 kcal/g), which differs from your {t.kcal} kcal target. That’s allowed, but the rings may not finish together.</Text>
           </Card>
         )}

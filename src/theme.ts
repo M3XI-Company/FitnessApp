@@ -1,40 +1,43 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native'
 
-/** Breeze by M3XI — cream, white, black and champagne gold */
+/** Breeze by M3XI — the colours of the sky: cloud white, clear blue, twilight navy and a dawn glow */
 export const C = {
   // brand
-  accent: '#9A7535', // deep champagne — text, icons, active states (AA on white)
-  gold: '#C8A96A', // champagne — rings, fills, highlights
-  goldLight: '#E3CB97',
-  accentSoft: '#F4ECDC', // tinted tiles
-  accentLine: '#E8D9BA',
-  ink: '#141210', // black — primary buttons, headings
-  cream: '#F5EFE4',
+  accent: '#1F6FB2', // deep sky — text links, icons, active states (AA on white)
+  sky: '#5BB3EA', // clear sky — rings, fills, highlights
+  skyLight: '#BFE3FA', // pale sky — text/icons on twilight surfaces
+  accentSoft: '#E8F4FD', // tinted tiles
+  accentLine: '#CDE7F8',
+  night: '#0F2440', // twilight navy — dark buttons, headings, dark cards
+  cloud: '#F7FBFF',
+  dawn: '#FFB38A', // sunrise peach — warm accent
+  coral: '#F2765A', // sunrise coral — worked muscles, emphasis
   // surfaces
-  bg: '#F5EFE4',
+  bg: '#EEF6FC',
   card: '#FFFFFF',
-  fill: '#EFE8DA',
-  fill2: '#E7DFCF',
-  sep: 'rgba(20,18,16,0.08)',
+  fill: '#E4EFF8',
+  fill2: '#D6E7F4',
+  sep: 'rgba(15,36,64,0.08)',
   // text
-  text: '#141210',
-  text2: '#6B6358',
-  text3: '#A39A8C',
-  // status (muted to sit with the palette)
-  green: '#5E8C61',
-  orange: '#C98A3C',
-  red: '#B5483B',
+  text: '#0F2440',
+  text2: '#4E6380',
+  text3: '#8DA0B8',
+  // status
+  green: '#3F9A6E',
+  orange: '#E08A3C',
+  red: '#D2503F',
   // macros
-  protein: '#141210',
-  carbs: '#C8A96A',
-  fat: '#9C8B74',
-  water: '#B9A27A',
+  protein: '#1F6FB2',
+  carbs: '#7CC6F2',
+  fat: '#FFB38A',
+  water: '#5BB3EA',
 }
 
 /** Gradients */
 export const G = {
-  ink: ['#2A2520', '#141210'] as const,
-  gold: ['#E8D3A4', '#C8A96A', '#A88544'] as const,
+  night: ['#244B80', '#0F2440'] as const, // twilight sky
+  day: ['#9BD4F7', '#4FA6E3'] as const, // clear day sky
+  dawn: ['#FFE3CC', '#FFB38A', '#F2906B'] as const, // sunrise
 }
 
 export const GRADE_COLOR: Record<string, string> = { A: '#4F7D52', B: '#8DA65A', C: '#D2B04C', D: '#C98A3C', E: '#B5483B' }
@@ -48,15 +51,15 @@ export const F = {
 }
 
 export const shadow: ViewStyle = Platform.select({
-  ios: { shadowColor: '#3B2F1E', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+  ios: { shadowColor: '#0F2440', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   android: { elevation: 2 },
-  default: { boxShadow: '0 1px 2px rgba(59,47,30,.05), 0 8px 24px rgba(59,47,30,.07)' } as ViewStyle,
+  default: { boxShadow: '0 1px 2px rgba(15,36,64,.05), 0 8px 24px rgba(15,36,64,.07)' } as ViewStyle,
 })!
 
 export const glow: ViewStyle = Platform.select({
-  ios: { shadowColor: '#7A5C25', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
+  ios: { shadowColor: '#1F6FB2', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
   android: { elevation: 8 },
-  default: { boxShadow: '0 14px 34px rgba(122,92,37,.28)' } as ViewStyle,
+  default: { boxShadow: '0 14px 34px rgba(31,111,178,.28)' } as ViewStyle,
 })!
 
 const t = (fontSize: number, fontWeight: TextStyle['fontWeight'], letterSpacing = 0, color = C.text): TextStyle =>

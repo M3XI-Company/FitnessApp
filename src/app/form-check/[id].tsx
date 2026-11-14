@@ -110,8 +110,8 @@ export default function FormCheck() {
             <Text style={T.headline}>Camera</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['user', 'environment'] as const).map((f) => (
-                <Pressable key={f} onPress={() => { tap(); setFacing(f) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: facing === f ? C.ink : C.fill }}>
-                  <Text style={{ fontWeight: '600', color: facing === f ? C.goldLight : C.text2 }}>{f === 'user' ? 'Front' : 'Back'}</Text>
+                <Pressable key={f} onPress={() => { tap(); setFacing(f) }} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: facing === f ? C.night : C.fill }}>
+                  <Text style={{ fontWeight: '600', color: facing === f ? C.skyLight : C.text2 }}>{f === 'user' ? 'Front' : 'Back'}</Text>
                 </Pressable>
               ))}
             </View>
@@ -150,13 +150,13 @@ export default function FormCheck() {
   const tracking = update?.status === 'tracking'
   const isHold = update?.holdSeconds !== undefined
   return (
-    <View style={{ flex: 1, backgroundColor: C.ink }}>
+    <View style={{ flex: 1, backgroundColor: C.night }}>
       {camState !== 'error' && <PoseCamera facing={facing} onMessage={onMessage} />}
       <View style={[StyleSheet.absoluteFill, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
         <View style={st.top} pointerEvents="box-none">
           <IconButton icon="close" onPress={() => router.back()} label="Close" />
-          <View style={[st.pill, { backgroundColor: tracking ? 'rgba(94,140,97,.9)' : 'rgba(20,18,16,.75)' }]}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tracking ? '#CFE8CF' : C.gold }} />
+          <View style={[st.pill, { backgroundColor: tracking ? 'rgba(94,140,97,.9)' : 'rgba(15,36,64,.75)' }]}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tracking ? '#CFE8CF' : C.sky }} />
             <Text style={st.pillText}>{camState === 'starting' ? 'Starting camera…' : camState === 'camera' ? 'Loading tracker…' : tracking ? 'Tracking' : 'Looking for you'}</Text>
           </View>
           <IconButton icon="camera-reverse-outline" onPress={() => setFacing(facing === 'user' ? 'environment' : 'user')} label="Switch camera" />
@@ -176,13 +176,13 @@ export default function FormCheck() {
             </View>
             <View style={{ flex: 1 }} pointerEvents="none" />
             {update && update.status === 'low_confidence' && camState === 'ready' && (
-              <View style={st.hint} pointerEvents="none"><Icon name="scan-outline" color={C.goldLight} /><Text style={st.hintText}>{update.hint}</Text></View>
+              <View style={st.hint} pointerEvents="none"><Icon name="scan-outline" color={C.skyLight} /><Text style={st.hintText}>{update.hint}</Text></View>
             )}
             {update?.cue && (
               <View style={[st.cue, update.cue.severity === 'caution' && { borderColor: C.orange }]}>
-                <Icon name={update.cue.severity === 'caution' ? 'alert-circle' : 'bulb-outline'} color={update.cue.severity === 'caution' ? C.orange : C.goldLight} />
+                <Icon name={update.cue.severity === 'caution' ? 'alert-circle' : 'bulb-outline'} color={update.cue.severity === 'caution' ? C.orange : C.skyLight} />
                 <Text style={st.cueText}>{update.cue.text}</Text>
-                <Pressable hitSlop={10} onPress={() => { tap(); session.current?.dismiss(update.cue!.id); setUpdate({ ...update, cue: null }) }} accessibilityLabel="Dismiss cue"><Text style={{ color: C.goldLight, fontWeight: '700' }}>Dismiss</Text></Pressable>
+                <Pressable hitSlop={10} onPress={() => { tap(); session.current?.dismiss(update.cue!.id); setUpdate({ ...update, cue: null }) }} accessibilityLabel="Dismiss cue"><Text style={{ color: C.skyLight, fontWeight: '700' }}>Dismiss</Text></Pressable>
               </View>
             )}
             <View style={st.bottom}>
@@ -202,13 +202,13 @@ const st = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, height: 32, borderRadius: 99 },
-  pillText: { color: C.cream, fontWeight: '700', fontSize: 13 },
-  count: { fontFamily: F.hand, fontSize: 96, lineHeight: 100, color: C.cream, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 12 },
-  countLabel: { color: C.goldLight, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase', fontSize: 12, marginTop: -6 },
-  hint: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 10, padding: 12, borderRadius: 16, backgroundColor: 'rgba(20,18,16,.8)' },
-  hintText: { color: C.cream, flex: 1, fontSize: 14, lineHeight: 19 },
-  cue: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 10, padding: 14, borderRadius: 18, backgroundColor: 'rgba(20,18,16,.88)', borderWidth: 1.5, borderColor: C.gold },
-  cueText: { color: C.cream, flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  pillText: { color: C.cloud, fontWeight: '700', fontSize: 13 },
+  count: { fontFamily: F.hand, fontSize: 96, lineHeight: 100, color: C.cloud, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 12 },
+  countLabel: { color: C.skyLight, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase', fontSize: 12, marginTop: -6 },
+  hint: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 10, padding: 12, borderRadius: 16, backgroundColor: 'rgba(15,36,64,.8)' },
+  hintText: { color: C.cloud, flex: 1, fontSize: 14, lineHeight: 19 },
+  cue: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 10, padding: 14, borderRadius: 18, backgroundColor: 'rgba(15,36,64,.88)', borderWidth: 1.5, borderColor: C.sky },
+  cueText: { color: C.cloud, flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
   bottom: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 16 },
-  footer: { color: 'rgba(245,239,228,.6)', fontSize: 11, textAlign: 'center', marginTop: 8 },
+  footer: { color: 'rgba(247,251,255,.6)', fontSize: 11, textAlign: 'center', marginTop: 8 },
 })

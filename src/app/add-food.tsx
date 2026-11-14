@@ -12,6 +12,7 @@ import { fmt, makeEntry, mealNutrition, nutritionFor, type Amount } from '../lib
 import type { FoodItem, MealSlot, SavedMeal } from '../lib/types'
 import { C, T } from '../theme'
 import { Button, Card, Field, Grade, Icon, IconTile, SearchField, Segmented, SheetHeader, Stepper, success, tap } from '../components/ui'
+import { FoodIcon } from '../components/foodIcons'
 
 type Mode = 'search' | 'recent' | 'favourites' | 'meals' | 'manual'
 
@@ -68,7 +69,7 @@ export default function AddFood() {
   const list = mode === 'search' ? [...searchCofid(q), ...(online ?? [])] : mode === 'favourites' ? state.favourites : recent
   const row = (item: FoodItem) => (
     <Pressable key={item.id} onPress={() => pick(item)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: picked?.id === item.id ? C.accentSoft : C.card, borderRadius: 16, marginBottom: 8 }, pressed && { opacity: 0.8 }]}>
-      <Text style={{ fontSize: 26 }}>{item.emoji ?? '🍽️'}</Text>
+      <FoodIcon name={item.name} size={40} />
       <View style={{ flex: 1 }}>
         <Text style={T.headline} numberOfLines={1}>{item.name}</Text>
         <Text style={T.sub} numberOfLines={1}>{Math.round(item.kcal)} kcal · {item.serving}{item.brand ? ` · ${item.brand}` : ''} · {item.source ? SOURCES[item.source].short : 'Recent'}</Text>
@@ -85,12 +86,12 @@ export default function AddFood() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ flexGrow: 0 }}>
           {meals.map((m) => (
             <Pressable key={m.slot} onPress={() => setMeal(m.slot)} style={{ paddingHorizontal: 14, height: 34, borderRadius: 99, justifyContent: 'center', backgroundColor: meal === m.slot ? C.text : C.card }}>
-              <Text style={{ fontWeight: '600', color: meal === m.slot ? '#fff' : C.text2 }}>{m.emoji} {m.label}</Text>
+              <Text style={{ fontWeight: '600', color: meal === m.slot ? '#fff' : C.text2 }}>{m.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
         <Card tight onPress={() => router.push({ pathname: '/food-photo', params: { meal } })} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <IconTile icon="camera" size={34} color={C.goldLight} bg={C.ink} /><View style={{ flex: 1 }}><Text style={T.headline}>Snap your meal</Text><Text style={T.caption}>AI identifies it · UK nutrition data</Text></View><Icon name="chevron-forward" color={C.text3} />
+          <IconTile icon="camera" size={34} color={C.skyLight} bg={C.night} /><View style={{ flex: 1 }}><Text style={T.headline}>Snap your meal</Text><Text style={T.caption}>AI identifies it · UK nutrition data</Text></View><Icon name="chevron-forward" color={C.text3} />
         </Card>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {([['barcode-outline', 'Scan barcode', 'barcode'], ['scan-outline', 'Product scan', 'product']] as const).map(([icon, label, m]) => (
@@ -99,7 +100,7 @@ export default function AddFood() {
             </Card>
           ))}
         </View>
-        <Segmented value={mode} onChange={(v) => { setMode(v); setPicked(null) }} options={[{ value: 'search', label: 'Search' }, { value: 'recent', label: 'Recent' }, { value: 'favourites', label: '★' }, { value: 'meals', label: 'Meals' }, { value: 'manual', label: 'Manual' }]} />
+        <Segmented value={mode} onChange={(v) => { setMode(v); setPicked(null) }} options={[{ value: 'search', label: 'Search' }, { value: 'recent', label: 'Recent' }, { value: 'favourites', label: 'Starred' }, { value: 'meals', label: 'Meals' }, { value: 'manual', label: 'Manual' }]} />
         {mode === 'search' && <SearchField value={q} onChangeText={(v) => { setQ(v); setOnline(null); setOnlineState('idle') }} placeholder="Search 2,800+ UK foods" />}
       </View>
 
@@ -115,7 +116,7 @@ export default function AddFood() {
               <Text style={[T.caption, { lineHeight: 16 }]}>Generic foods: {SOURCES.cofid.attribution}{online ? ` Branded products: ${SOURCES.off.attribution}` : ''}</Text>
             </View>
           ) : undefined}
-          ListEmptyComponent={<Text style={[T.sub, { textAlign: 'center', marginTop: 30 }]}>{mode === 'recent' ? 'Nothing logged yet.' : mode === 'favourites' ? 'Tap ☆ on any food to keep it here.' : `No results for “${q}”. Try scanning the barcode or add it manually.`}</Text>} />
+          ListEmptyComponent={<Text style={[T.sub, { textAlign: 'center', marginTop: 30 }]}>{mode === 'recent' ? 'Nothing logged yet.' : mode === 'favourites' ? 'Tap the star on any food to keep it here.' : `No results for “${q}”. Try scanning the barcode or add it manually.`}</Text>} />
       )}
 
       {mode === 'meals' && (
@@ -126,7 +127,7 @@ export default function AddFood() {
             const n = mealNutrition(sm.items)
             return (
               <Card key={sm.id} tight onPress={() => logMeal(sm)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <IconTile emoji={sm.emoji} size={48} bg={C.fill} />
+                <FoodIcon name={sm.items[0]?.item.name ?? sm.name} size={48} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.headline} numberOfLines={1}>{sm.name}</Text>
                   <Text style={T.sub}>{fmt.kcal(n.kcal)} kcal · {fmt.g(n.protein)} g protein · {sm.items.length} item{sm.items.length === 1 ? '' : 's'}</Text>
@@ -158,7 +159,7 @@ export default function AddFood() {
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingBottom: 18 + insets.bottom, gap: 14, boxShadow: '0 -10px 40px rgba(15,30,60,.12)' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable onPress={() => { tap(); dispatch({ type: 'toggleFavourite', item: picked }) }} hitSlop={8} accessibilityLabel={isFav(picked) ? 'Remove from favourites' : 'Add to favourites'}>
-              <Icon name={isFav(picked) ? 'star' : 'star-outline'} size={26} color={C.gold} />
+              <Icon name={isFav(picked) ? 'star' : 'star-outline'} size={26} color={C.sky} />
             </Pressable>
             <View style={{ flex: 1 }}><Text style={T.title3} numberOfLines={1}>{picked.name}</Text><Text style={T.sub}>{picked.servingG ? `${picked.serving} = ${Math.round(picked.kcal)} kcal` : picked.serving}</Text></View>
             {picked.servingG ? <Stepper value={grams} step={10} min={5} suffix="g" onChange={setGrams} /> : <Stepper value={qty} step={0.5} min={0.5} onChange={setQty} />}
@@ -168,6 +169,7 @@ export default function AddFood() {
               <View key={l} style={{ alignItems: 'center' }}><Text style={[T.title3, T.num]}>{v}{u}</Text><Text style={T.caption}>{l}</Text></View>
             ))}
           </View>
+          <Text style={[T.sub, { textAlign: 'center' }]}>That’s <Text style={{ color: C.text, fontWeight: '700' }}>{Math.round((preview!.kcal / state.targets.kcal) * 100)}%</Text> of your calories and <Text style={{ color: C.text, fontWeight: '700' }}>{Math.round((preview!.protein / state.targets.protein) * 100)}%</Text> of your protein for the day</Text>
           <Button title={`Add to ${mealLabel(meal, meals)}`} onPress={() => add(picked, amount)} />
         </View>
       )}

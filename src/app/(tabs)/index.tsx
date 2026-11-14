@@ -10,6 +10,7 @@ import { mealLabel, useMeals } from '../../lib/meals'
 import { C, F, T } from '../../theme'
 import { Bar, Card, FadeIn, Icon, IconTile, Pill, Ring, Screen, SectionHeader, success, tap, type IconName } from '../../components/ui'
 import { RecipeRow } from '../../components/RecipeRow'
+import { FoodIcon } from '../../components/foodIcons'
 
 /** Home: food first — your numbers, quick logging, meals that fit, recent meals; fitness & community after. */
 export default function Home() {
@@ -40,7 +41,7 @@ export default function Home() {
     <Screen
       eyebrow={`${greet} · ${prettyDate(date)}`}
       title={isToday ? 'Today' : prettyDate(date).split(',')[0]}
-      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Profile"><Text style={{ color: C.goldLight, fontFamily: F.hand, fontSize: 24 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
+      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Profile"><Text style={{ color: C.skyLight, fontFamily: F.hand, fontSize: 24 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
     >
       {state.demo && <View style={{ marginTop: -6, marginBottom: 10 }}><Pill color={C.accent} bg={C.accentSoft}>Demo data — remove in Profile</Pill></View>}
 
@@ -52,8 +53,8 @@ export default function Home() {
           return (
             <Pressable key={d} onPress={() => { tap(); setDate(d) }} style={{ alignItems: 'center', gap: 6, width: 42, paddingVertical: 8, borderRadius: 14, backgroundColor: on ? C.card : 'transparent' }}>
               <Text style={[T.caption, on && { color: C.text }]}>{weekdayShort(d)}</Text>
-              <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: logged ? 'solid' : 'dashed', borderColor: on ? C.ink : logged ? C.gold : C.accentLine, backgroundColor: on ? C.ink : 'transparent' }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: on ? C.goldLight : C.text }}>{+d.slice(8)}</Text>
+              <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: logged ? 'solid' : 'dashed', borderColor: on ? C.night : logged ? C.sky : C.accentLine, backgroundColor: on ? C.night : 'transparent' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: on ? C.skyLight : C.text }}>{+d.slice(8)}</Text>
               </View>
             </Pressable>
           )
@@ -69,7 +70,7 @@ export default function Home() {
               <Text style={[T.headline, { color: C.text2 }]}>{left.kcal >= 0 ? 'calories remaining' : 'calories over'}</Text>
               <Text style={[T.caption, { marginTop: 6 }]}>{fmt.kcal(m.kcal)} eaten of {t.kcal.toLocaleString()} kcal</Text>
             </View>
-            <Ring value={m.kcal} max={t.kcal} size={108} stroke={10} color={left.kcal < 0 ? C.orange : C.gold}>
+            <Ring value={m.kcal} max={t.kcal} size={108} stroke={10} color={left.kcal < 0 ? C.orange : C.sky}>
               <Icon name="flame" size={26} color={C.accent} />
             </Ring>
           </View>
@@ -90,7 +91,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
           {LOG.map(([icon, label, fn]) => (
             <Card key={label} tight onPress={fn} style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14 }}>
-              <IconTile icon={icon} size={36} color={C.goldLight} bg={C.ink} />
+              <IconTile icon={icon} size={36} color={C.skyLight} bg={C.night} />
               <Text style={[T.caption, { color: C.text, fontWeight: '600' }]}>{label}</Text>
             </Card>
           ))}
@@ -111,7 +112,7 @@ export default function Home() {
           <View style={{ gap: 10 }}>
             {recent.map((f) => (
               <Card key={f.id} tight style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <IconTile emoji={f.emoji ?? '🍽️'} size={44} bg={C.fill} />
+                <FoodIcon name={f.name} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={T.headline} numberOfLines={1}>{f.name}</Text>
                   <Text style={T.sub}>{fmt.kcal(f.kcal)} kcal · {fmt.g(f.protein)} g protein · {mealLabel(f.meal, meals)}</Text>
@@ -131,7 +132,7 @@ export default function Home() {
         <Card tight onPress={() => router.navigate('/fitness')} style={{ flex: 1, gap: 4 }}>
           <Icon name="barbell-outline" color={C.accent} />
           <Text style={T.title3}>{workoutsThisWeek(state)} workouts</Text>
-          <Text style={T.caption}>this week · 🔥 {logStreak(state)}-day log streak</Text>
+          <Text style={T.caption}>this week · {logStreak(state)}-day logging streak</Text>
         </Card>
         <Card tight onPress={() => router.navigate('/social')} style={{ flex: 1, gap: 4 }}>
           <Icon name="people-outline" color={C.accent} />

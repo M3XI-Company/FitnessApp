@@ -19,7 +19,7 @@ export function PoseCamera({ facing, onMessage }: { facing: 'user' | 'environmen
       mediaPlaybackRequiresUserAction={false}
       mediaCapturePermissionGrantType="grant"
       onMessage={(e) => { try { onMessage(JSON.parse(e.nativeEvent.data)) } catch { /* ignore */ } }}
-      style={{ flex: 1, backgroundColor: '#141210' }}
+      style={{ flex: 1, backgroundColor: '#0F2440' }}
       setSupportMultipleWindows={false}
       allowFileAccess={false}
       incognito
