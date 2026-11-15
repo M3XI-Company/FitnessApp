@@ -5,10 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../../lib/store'
 import { reply } from '../../lib/coach'
+import { askCoach, coachConfigured } from '../../lib/coachApi'
+import { buildRoutine } from '../../lib/routine'
+import { MealPlanCard, RoutineCard } from './PlanCard'
 import { todayKey, uid } from '../../lib/date'
 import { exerciseById } from '../../data/exercises'
 import type { ChatMessage } from '../../lib/types'
-import { C, T, shadow, G, F } from '../../theme'
+import { C, T, shadow, G } from '../../theme'
 import { Card, Icon, Pill, tap } from '../ui'
 
 /** On-device AI trainer chat (rule-based; reads the user's own logs) */
@@ -28,7 +31,21 @@ export function AITrainer() {
     dispatch({ type: 'chat', messages: [user] })
     setText('')
     setTyping(true)
-    setTimeout(() => { dispatch({ type: 'chat', messages: [reply(state, m)] }); setTyping(false) }, 650)
+    const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false) }
+    // on-device coach: rule-based, used when the connected coach is not set up or cannot be reached
+    const local = (notice?: string) => {
+      const wantsPlan = /\b(routine|plan|programme|program|schedule|week)\b/.test(m.toLowerCase()) && !/\b(meal|food|eat|diet)\b/.test(m.toLowerCase())
+      const message: ChatMessage = wantsPlan
+        ? { id: uid(), role: 'coach', text: 'Here is a weekly routine built from your goal and activity level. Weights are set for you from your own sessions and go up gradually.', routine: buildRoutine(state.profile) }
+        : reply(state, m)
+      answer(notice ? { ...message, text: `${notice}\n\n${message.text}` } : message)
+    }
+    if (!coachConfigured()) { setTimeout(() => local(), 650); return }
+    askCoach(state, [...state.chat, user]).then((res) => {
+      if (res.ok) return answer(res.message)
+      if (res.error === 'declined') return answer({ id: uid(), role: 'coach', text: 'I can\u2019t help with that one. If it is about your health, your GP is the right person to ask.' })
+      local(res.error === 'monthly_limit' ? 'You have used this month\u2019s AI coach messages, so this answer comes from the built-in coach.' : 'I couldn\u2019t reach the AI coach just now, so this answer comes from the built-in coach.')
+    })
   }
 
   useEffect(() => {
@@ -44,8 +61,8 @@ export function AITrainer() {
         <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18, flexDirection: 'row', gap: 14, alignItems: 'center' }}>
           <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={26} color={C.skyLight} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: C.cloud, fontSize: 28, fontFamily: F.hand, lineHeight: 30 }}>Your AI Trainer</Text>
-            <Text style={{ color: 'rgba(255,255,255,.85)', fontSize: 13 }}>Knows your meals, lifts and goals. Ask for workouts, form tips or what to eat.</Text>
+            <Text style={{ color: C.cloud, fontSize: 20, fontWeight: '800', lineHeight: 23 }}>Your AI Trainer</Text>
+            <Text style={{ color: 'rgba(255,255,255,.85)', fontSize: 13 }}>{coachConfigured() ? 'Knows your goal, routine and targets. Ask it to build or change your weekly routine and meal plan.' : 'Built-in coach. Ask for a routine, a workout, form tips or what to eat.'}</Text>
           </View>
         </LinearGradient>
 
@@ -73,6 +90,8 @@ export function AITrainer() {
                 })}
               </Card>
             )}
+            {m.routine && <RoutineCard routine={m.routine} />}
+            {m.meals && <MealPlanCard meals={m.meals} />}
           </View>
         ))}
         {typing && <View style={{ alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, ...shadow }}><Text style={{ color: C.text3, fontWeight: '800', letterSpacing: 2 }}>•••</Text></View>}

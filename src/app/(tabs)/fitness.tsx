@@ -2,24 +2,28 @@ import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AITrainer } from '../../components/coach/AITrainer'
+import { Today } from '../../components/fitness/Today'
 import { useStore } from '../../lib/store'
 import { EXERCISES, MUSCLE_NAME, worksFor } from '../../data/exercises'
 import { MuscleMap } from '../../components/MuscleMap'
-import { exerciseHistory, workoutDates, workoutStreak, workoutsThisWeek } from '../../lib/progress'
+import { exerciseHistory, workoutDates, workoutsThisWeek } from '../../lib/progress'
+import { routineStreak } from '../../lib/routine'
 import { quickFind } from '../../lib/search'
 import { lastNDays, weekdayShort } from '../../lib/date'
 import { round } from '../../lib/nutrition'
 import { C, T } from '../../theme'
 import { Bars, Button, Card, Icon, IconButton, LineChart, List, Pill, Row, Screen, SearchField, SectionHeader, Segmented } from '../../components/ui'
 
-type Tab = 'library' | 'progress' | 'coach'
+type Tab = 'today' | 'library' | 'progress' | 'coach'
 
 export default function Fitness() {
   const { q } = useLocalSearchParams<{ q?: string }>()
-  const [picked, setTab] = useState<Tab>('library')
+  const [picked, setTab] = useState<Tab>('today')
   // a question sent from elsewhere (e.g. Home) opens the AI trainer
   const tab: Tab = q ? 'coach' : picked
-  const seg = <Segmented value={tab} onChange={setTab} options={[{ value: 'library', label: 'Exercises' }, { value: 'progress', label: 'Progress' }, { value: 'coach', label: 'AI trainer' }]} style={{ marginBottom: tab === 'coach' ? 8 : 14 }} />
+  // open the coach with a question, and stay on the coach once the question has been sent
+  const askCoach = (question: string) => { setTab('coach'); router.setParams({ q: question }) }
+  const seg = <Segmented value={tab} onChange={setTab} options={[{ value: 'today', label: 'Today' }, { value: 'library', label: 'Exercises' }, { value: 'progress', label: 'Progress' }, { value: 'coach', label: 'Coach' }]} style={{ marginBottom: tab === 'coach' ? 8 : 14 }} />
   if (tab === 'coach') {
     return (
       <Screen title="Fitness" scroll={false}>
@@ -29,9 +33,9 @@ export default function Fitness() {
     )
   }
   return (
-    <Screen title="Fitness" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Streak /><IconButton icon="sparkles" variant="blue" onPress={() => router.setParams({ q: 'Build me a workout' })} label="AI workout" /></View>}>
+    <Screen title="Fitness" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Streak /><IconButton icon="sparkles" variant="blue" onPress={() => askCoach('Build me a workout')} label="AI workout" /></View>}>
       {seg}
-      {tab === 'library' ? <Library /> : <Progress />}
+      {tab === 'today' ? <Today onAskCoach={askCoach} /> : tab === 'library' ? <Library /> : <Progress />}
     </Screen>
   )
 }
@@ -39,7 +43,7 @@ export default function Fitness() {
 /** Consistency: a flame with the number of days in a row the user has trained */
 function Streak() {
   const { state } = useStore()
-  const days = workoutStreak(state)
+  const days = routineStreak(state)
   const lit = days > 0
   return (
     <View accessibilityLabel={`Workout streak: ${days} day${days === 1 ? '' : 's'}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 38, borderRadius: 19, backgroundColor: lit ? '#FFE9D6' : C.fill }}>

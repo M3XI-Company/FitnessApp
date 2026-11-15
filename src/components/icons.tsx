@@ -10,7 +10,7 @@ import {
   Flashlight, FlashlightOff, Footprints, Hand, House, Images, Info, Leaf, Lightbulb, Lock, MessageCircleMore, MessagesSquare, Minus, Pause, PencilLine,
   PersonStanding, Play, Plus, RefreshCw, Rotate3d, Scale, ScanBarcode, ScanLine, Search, ShieldCheck, ShoppingBag, ShoppingBasket, ShoppingCart,
   Smartphone, Sparkles, Square, SquareCheck, Star, SwitchCamera, Timer, Trash, TrendingDown, Trophy, User, UserPlus, Users, UtensilsCrossed, Video,
-  Droplet, X, Zap, Target, Award, Medal, Activity, Sunrise, Sun, Moon, CloudSun, Wind, Wheat, type LucideProps,
+  Droplet, X, Zap, Settings, Target, Award, Medal, Activity, Sunrise, Sun, Moon, CloudSun, Wind, Wheat, type LucideProps,
 } from 'lucide-react-native'
 
 type L = ComponentType<LucideProps>
@@ -37,7 +37,7 @@ export const ICONS = {
   search: I(Search), 'shield-checkmark': I(ShieldCheck), 'shield-checkmark-outline': I(ShieldCheck), sparkles: I(Sparkles), 'sparkles-outline': I(Sparkles),
   star: I(Star, true), 'star-outline': I(Star), 'sync-outline': I(Rotate3d), 'time-outline': I(Clock), 'timer-outline': I(Timer),
   'trash-outline': I(Trash), 'trending-down': I(TrendingDown), trophy: I(Trophy), 'trophy-outline': I(Trophy), water: I(Droplet), 'water-outline': I(Droplet),
-  energy: I(Zap), target: I(Target), award: I(Award), medal: I(Medal), activity: I(Activity),
+  'settings-outline': I(Settings), energy: I(Zap), target: I(Target), award: I(Award), medal: I(Medal), activity: I(Activity),
   sunrise: I(Sunrise), sun: I(Sun), moon: I(Moon), 'cloud-sun': I(CloudSun), breeze: I(Wind),
 } satisfies Record<string, { Comp: L; filled: boolean }>
 

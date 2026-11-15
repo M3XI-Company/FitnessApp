@@ -7,7 +7,7 @@ import { Mannequin } from './Mannequin'
 import { useStore } from '../../lib/store'
 import { worksFor } from '../../data/exercises'
 import { patternFor } from './poses'
-import { C, F, G } from '../../theme'
+import { C, G } from '../../theme'
 import { Icon, tap } from '../ui'
 
 export class GLBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -158,6 +158,6 @@ const st = StyleSheet.create({
   chip: { paddingHorizontal: 11, height: 30, borderRadius: 99, justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.1)' },
   chipText: { color: C.cloud, fontSize: 13, fontWeight: '700' },
   bottom: { position: 'absolute', left: 14, right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  phase: { flex: 1, color: C.cloud, fontFamily: F.hand, fontSize: 26 },
+  phase: { flex: 1, color: C.cloud, fontWeight: '800', fontSize: 19 },
   play: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.skyLight, alignItems: 'center', justifyContent: 'center' },
 })

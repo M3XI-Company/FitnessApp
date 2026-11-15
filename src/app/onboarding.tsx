@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../lib/store'
 import { computeTargets } from '../lib/nutrition'
 import type { Activity, GoalType, Profile } from '../lib/types'
 import { MIN_AGE } from '../lib/age'
-import { C, T, glow, shadow, F } from '../theme'
+import { BodyScanStep } from '../components/onboarding/BodyScanStep'
+import { CoachIntro } from '../components/onboarding/CoachIntro'
+import { C, T, glow, shadow } from '../theme'
 import { Bar, Button, Card, FadeIn, Icon, IconButton, Pill, Ring, Stepper, success, tap, type IconName } from '../components/ui'
 
 const ACTIVITIES: { v: Activity; t: string; d: string }[] = [
@@ -40,11 +42,16 @@ export default function Onboarding() {
   const { state, dispatch } = useStore()
   const insets = useSafeAreaInsets()
   const [p, setP] = useState<Profile>(state.profile)
-  const [step, setStep] = useState(0)
+  // Settings can open one step directly, e.g. to redo the body scan
+  const { step: open } = useLocalSearchParams<{ step?: string }>()
+  const [step, setStep] = useState(open === 'scan' ? 5 : open === 'coach' ? 6 : 0)
   const [accepted, setAccepted] = useState(!!state.profile.healthNoticeAt)
   const set = (patch: Partial<Profile>) => setP((x) => ({ ...x, ...patch }))
   const targets = computeTargets(p)
-  const total = 6
+  const total = 8
+  const SCAN = 5, COACH = 6
+  // what the coach is told during onboarding: the profile as entered so far, not yet saved
+  const draft = { ...state, profile: p, targets }
 
   const finish = () => {
     dispatch({ type: 'profile', profile: { ...p, age: Math.max(MIN_AGE, p.age), onboarded: true, healthNoticeAt: p.healthNoticeAt ?? new Date().toISOString() } })
@@ -55,11 +62,11 @@ export default function Onboarding() {
   const screens = [
     <View key="0" style={{ alignItems: 'center', paddingTop: 110 }}>
       <LinearGradient colors={['#BDE4FB', '#7CC6F2', '#3E8FD6']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[{ width: 104, height: 104, borderRadius: 28, alignItems: 'center', justifyContent: 'center' }, glow]}>
-        <Text style={{ fontFamily: F.hand, fontSize: 64, color: '#FFFFFF', lineHeight: 70, marginTop: 4 }}>B</Text>
+        <Text style={{ fontWeight: '800', fontSize: 46, color: '#FFFFFF', lineHeight: 55, marginTop: 4 }}>B</Text>
       </LinearGradient>
       <Text style={[T.bigNum, { marginTop: 22, textAlign: 'center' }]}>Breeze</Text>
       <Text style={[T.eyebrow, { color: C.accent, marginTop: -2 }]}>by M3XI</Text>
-      <Text style={[T.body, { color: C.text2, fontSize: 17, textAlign: 'center', lineHeight: 24, marginTop: 8, maxWidth: 300 }]}>Training, food, water and your community — written down beautifully, in one calm place.</Text>
+      <Text style={[T.body, { color: C.text2, fontSize: 17, textAlign: 'center', lineHeight: 24, marginTop: 8, maxWidth: 300 }]}>Your training, food and water in one place, with a coach that builds the plan around you.</Text>
     </View>,
     <View key="1" style={{ gap: 14 }}>
       <Text style={T.title1}>What should we call you?</Text>
@@ -87,10 +94,12 @@ export default function Onboarding() {
         <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}><Text style={T.headline}>Target weight</Text><Stepper value={p.targetWeightKg} step={0.5} suffix="kg" onChange={(v) => set({ targetWeightKg: v })} /></Card>
       )}
     </View>,
-    <View key="5" style={{ alignItems: 'center' }}>
-      <Pill>✓ Your plan is ready</Pill>
+    <BodyScanStep key="5" age={p.age} />,
+    <CoachIntro key="6" draft={draft} />,
+    <View key="7" style={{ alignItems: 'center' }}>
+      <Pill>Your plan is ready</Pill>
       <Text style={[T.title1, { marginTop: 12, textAlign: 'center' }]}>Daily recommendation</Text>
-      <Text style={[T.sub, { textAlign: 'center' }]}>You can edit this anytime in your profile.</Text>
+      <Text style={[T.sub, { textAlign: 'center' }]}>You can change this any time in Settings.</Text>
       <Card style={{ width: '100%', alignItems: 'center', marginTop: 18 }}>
         <Ring value={1} max={1} size={170} stroke={14}>
           <Text style={T.bigNum}>{targets.kcal}</Text>
@@ -131,7 +140,7 @@ export default function Onboarding() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 16, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         <FadeIn key={step}>{screens[step]}</FadeIn>
       </ScrollView>
-      <Button variant="dark" title={step === 0 ? 'Get started' : step === total - 1 ? "Let's go" : 'Continue'} disabled={(step === 1 && !p.name.trim()) || (step === total - 1 && !accepted)}
+      <Button variant="dark" title={step === 0 ? 'Get started' : step === total - 1 ? "Let's go" : (step === SCAN && !state.bodyScan) || (step === COACH && !state.routine) ? 'Skip' : 'Continue'} disabled={(step === 1 && !p.name.trim()) || (step === total - 1 && !accepted)}
         onPress={() => (step < total - 1 ? setStep(step + 1) : finish())} />
     </View>
   )

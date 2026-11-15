@@ -8,7 +8,7 @@ import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
-import { C, T, G, F } from '../../theme'
+import { C, T, G } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
 import { Trainer3D } from '../../components/trainer/Trainer3D'
 import { FormSteps } from '../../components/trainer/FormSteps'
@@ -86,7 +86,7 @@ export default function ExerciseDetail() {
         {target && (
           <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
             <Text style={{ color: C.skyLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>TODAY&apos;S TARGET</Text>
-            <Text style={{ color: C.cloud, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
+            <Text style={{ color: C.cloud, fontSize: 29, fontWeight: '800', lineHeight: 34, marginTop: 2 }}>
               {target.weight ? `${target.weight} kg × ` : ''}{target.reps}{isTimed ? ' s' : ' reps'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,.9)', fontSize: 14, marginTop: 4 }}>{target.note}</Text>

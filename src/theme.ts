@@ -44,12 +44,6 @@ export const GRADE_COLOR: Record<string, string> = { A: '#4F7D52', B: '#8DA65A',
 
 export const R = { lg: 22, md: 16, sm: 12 }
 
-/** Font families (loaded in app/_layout.tsx) */
-export const F = {
-  hand: 'Caveat_700Bold',
-  handSemi: 'Caveat_600SemiBold',
-}
-
 export const shadow: ViewStyle = Platform.select({
   ios: { shadowColor: '#0F2440', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   android: { elevation: 2 },
@@ -64,15 +58,16 @@ export const glow: ViewStyle = Platform.select({
 
 const t = (fontSize: number, fontWeight: TextStyle['fontWeight'], letterSpacing = 0, color = C.text): TextStyle =>
   ({ fontSize, fontWeight, letterSpacing, color })
-/** Handwritten display style — no fontWeight so Android picks the right face */
-const h = (fontSize: number, family = F.hand, color = C.text): TextStyle => ({ fontSize, fontFamily: family, color, lineHeight: Math.round(fontSize * 1.15) })
+/** Display style: heavy system sans with tight tracking */
+const h = (fontSize: number, fontWeight: TextStyle['fontWeight'] = '800', color = C.text): TextStyle =>
+  ({ fontSize, fontWeight, color, letterSpacing: -fontSize * 0.022, lineHeight: Math.round(fontSize * 1.18) })
 
 export const T = {
-  largeTitle: h(46),
-  title1: h(38),
-  title2: h(30),
-  title3: h(25),
-  bigNum: h(64),
+  largeTitle: h(32),
+  title1: h(27),
+  title2: h(22, '700'),
+  title3: h(18, '700'),
+  bigNum: h(46),
   headline: t(16, '600', -0.2),
   body: t(15, '400', -0.1),
   sub: t(13, '500', 0, C.text2),

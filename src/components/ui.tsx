@@ -22,7 +22,6 @@ export function Screen({ title, eyebrow, right, children, scroll = true, bottomP
       <View style={{ flex: 1 }}>
         {eyebrow ? <Text style={T.eyebrow}>{eyebrow}</Text> : null}
         <Text style={T.largeTitle}>{title}</Text>
-        <View style={s.penStroke} />
       </View>
       {right}
     </View>
@@ -265,8 +264,7 @@ export function SheetHeader({ title, onClose, right, fallback = '/' }: {
 }
 
 export const s = StyleSheet.create({
-  nav: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: 12, paddingBottom: 14, paddingHorizontal: 4, gap: 12 },
-  penStroke: { width: 46, height: 3, borderRadius: 2, backgroundColor: C.sky, marginTop: 2, transform: [{ rotate: '-2deg' }] },
+  nav: { flexDirection: 'row', alignItems: 'center', paddingTop: 12, paddingBottom: 14, paddingHorizontal: 4, gap: 12 },
   card: { backgroundColor: C.card, borderRadius: R.lg, padding: 18, ...shadow },
   sectionH: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, marginBottom: 10, marginHorizontal: 4 },
   btn: { height: 52, borderRadius: R.md, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
