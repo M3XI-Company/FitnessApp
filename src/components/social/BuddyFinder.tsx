@@ -79,7 +79,7 @@ export function BuddyFinder() {
         <Text style={{ color: C.cloud, fontSize: 13, flex: 1, lineHeight: 18 }}>Meet in public at the gym and tell a friend. Breeze is for training partners, not dating.</Text>
       </View>
       {notice && <Card tight style={{ backgroundColor: C.accentSoft }}><Text style={T.sub}>{notice}</Text></Card>}
-      <Card tight onPress={() => router.push('/settings')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Card tight onPress={() => router.push('/gym')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <IconTile icon="business-outline" />
         <View style={{ flex: 1 }}>
           <Text style={T.headline} numberOfLines={1}>{gym ?? 'Set your home gym'}</Text>

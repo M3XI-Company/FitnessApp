@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState as PhoneState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { localAnswer, localIntent } from '../../lib/chat'
+import { checkinMessage, localAnswer, localIntent, needsCheckin, thinkingLine } from '../../lib/chat'
 import { reply } from '../../lib/coach'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { todayKey, uid } from '../../lib/date'
@@ -15,6 +15,7 @@ import { C, T, shadow } from '../../theme'
 import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
+import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
 import { WorkoutGuide } from './WorkoutGuide'
 
@@ -35,6 +36,8 @@ export function Chat() {
   const insets = useSafeAreaInsets()
   const [text, setText] = useState('')
   const [typing, setTyping] = useState(false)
+  // what the coach is working out, shown while it works
+  const [thought, setThought] = useState('')
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null)
   const today = todayKey()
   const workout = dayProgress(state, today)
@@ -47,7 +50,9 @@ export function Chat() {
     const sub = PhoneState.addEventListener('change', (status) => { if (status === 'active') syncReminders(latest.current) })
     return () => sub.remove()
   }, [])
-  useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing])
+  // once the guided workout is finished, ask how it went (the answer is how the coach learns what to change)
+  useEffect(() => { if (needsCheckin(state, today)) dispatch({ type: 'chat', messages: [checkinMessage(today)] }) }, [state, today, dispatch])
+  useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing, thought])
 
   const send = (msg: string) => {
     const m = msg.trim()
@@ -58,7 +63,7 @@ export function Chat() {
     const intent = localIntent(m)
     if (intent) { dispatch({ type: 'chat', messages: [user, intent === 'reminders' ? remindersMessage(state) : localAnswer(state, intent, today)] }); return }
     dispatch({ type: 'chat', messages: [user] })
-    setTyping(true)
+    setTyping(true); setThought('')
     const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false) }
     // built-in coach: rule-based, used when the AI coach is not set up or cannot be reached
     const local = (notice?: string) => {
@@ -70,8 +75,13 @@ export function Chat() {
       answer(notice ? { ...message, text: `${notice}\n\n${message.text}` } : message)
     }
     if (!coachConfigured()) { setTimeout(() => local(), 500); return }
-    askCoach(state, [...state.chat, user]).then((res) => {
-      if (res.ok) return answer(res.message)
+    askCoach(state, [...state.chat, user], (thinking) => setThought(thinkingLine(thinking))).then((res) => {
+      if (res.ok) {
+        // the coach's memory is updated straight away; what it noted is shown under the reply
+        if (res.memory.forget.length) dispatch({ type: 'forget', ids: res.memory.forget })
+        if (res.memory.remember.length) dispatch({ type: 'remember', texts: res.memory.remember })
+        return answer(res.message)
+      }
       if (res.error === 'declined') return answer({ id: uid(), role: 'coach', text: 'I can’t help with that one. If it is about your health, your GP is the right person to ask.' })
       local(res.error === 'monthly_limit' ? 'You have used this month’s AI coach messages, so this answer comes from the built-in coach.' : 'I couldn’t reach the AI coach just now, so this answer comes from the built-in coach.')
     })
@@ -105,7 +115,7 @@ export function Chat() {
         )}
         {shown.map((m) => {
           const mine = m.role === 'user'
-          const wide = !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders)
+          const wide = !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders || m.details)
           return (
             <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : wide ? 'stretch' : 'flex-start', maxWidth: wide ? '100%' : '86%', gap: 8 }}>
               {!!m.text && (
@@ -113,6 +123,13 @@ export function Chat() {
                   <Text selectable style={{ fontSize: 15, lineHeight: 21, color: mine ? C.cloud : C.text }}>{m.text}</Text>
                 </View>
               )}
+              {!!m.noted?.length && (
+                <Pressable onPress={() => { tap(); router.push('/memory') }} accessibilityLabel={`Noted: ${m.noted.join('. ')}. Open what Breeze remembers.`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 6, maxWidth: '86%' }}>
+                  <Icon name="bookmark-outline" size={14} color={C.text3} />
+                  <Text style={[T.caption, { flex: 1, lineHeight: 17 }]}>Noted: {m.noted.join(' ')}</Text>
+                </Pressable>
+              )}
+              {m.details && <DetailsCard change={m.details} />}
               {m.day && <DayCard date={m.day} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />}
               {m.guide && <WorkoutGuide date={m.guide} active={m.id === liveGuide} />}
               {m.workout && <WorkoutCard workout={m.workout} />}
@@ -122,7 +139,16 @@ export function Chat() {
             </View>
           )
         })}
-        {typing && <View style={{ alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, ...shadow }}><Text style={{ color: C.text3, fontWeight: '800', letterSpacing: 2 }}>•••</Text></View>}
+        {typing && (
+          <View accessibilityLabel={thought ? `Breeze is thinking: ${thought}` : 'Breeze is thinking'} style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 11, paddingHorizontal: 15, gap: 4, ...shadow }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="sparkles" size={13} color={C.accent} />
+              <Text style={{ color: C.accent, fontWeight: '700', fontSize: 12, letterSpacing: 0.6 }}>THINKING</Text>
+              <Text style={{ color: C.text3, fontWeight: '800', letterSpacing: 2 }}>•••</Text>
+            </View>
+            {!!thought && <Text style={{ fontSize: 14, lineHeight: 19, color: C.text2, fontStyle: 'italic' }}>{thought}</Text>}
+          </View>
+        )}
       </ScrollView>
 
       <View style={{ paddingBottom: Math.max(10, insets.bottom + 6), gap: 8 }}>

@@ -8,6 +8,6 @@ import { C } from '../theme'
 export default function Home() {
   const { state, ready } = useStore()
   if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}><ActivityIndicator color={C.sky} /></View>
-  if (!state.profile.onboarded) return <Redirect href="/onboarding" />
+  if (!state.profile.onboarded) return <Redirect href="/welcome" />
   return <Chat />
 }

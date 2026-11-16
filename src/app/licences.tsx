@@ -32,6 +32,15 @@ export default function Licences() {
           )
         })}
         <Card style={{ gap: 6 }}>
+          <Text style={T.title3}>Exercise guidance</Text>
+          <Text style={T.headline}>NHS Live Well: Exercise</Text>
+          <Text style={T.sub}>Licence: Open Government Licence v3.0</Text>
+          <Text style={[T.body, { lineHeight: 21 }]}>The coach&apos;s advice on how much activity to do, how hard, warming up and when to see a GP follows the NHS physical activity guidelines for England, summarised in our own words. Breeze is not run or endorsed by the NHS.</Text>
+          <Pressable onPress={() => Linking.openURL('https://www.nhs.uk/live-well/exercise/')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Icon name="open-outline" size={16} color={C.accent} /><Text style={{ color: C.accent, fontWeight: '600' }}>View source</Text>
+          </Pressable>
+        </Card>
+        <Card style={{ gap: 6 }}>
           <Text style={T.title3}>Software and artwork</Text>
           <Text style={[T.body, { lineHeight: 21 }]}>Icons: Lucide (ISC licence). Muscle maps: react-native-body-highlighter (MIT). Pose detection: Google MediaPipe (Apache 2.0). 3D: three.js and React Three Fiber (MIT).</Text>
         </Card>

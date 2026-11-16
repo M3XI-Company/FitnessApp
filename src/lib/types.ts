@@ -22,6 +22,10 @@ export interface Profile {
   formConsentAt?: string
   /** the gym the user trains at; gym buddies are limited to it */
   gym?: string
+  /** where that gym is, when it was picked from search (an OpenStreetMap id and its position) */
+  gymPlace?: { id: string; lat: number; lon: number }
+  /** notes from a conversation that is still being reviewed; saved into AppState.memory when it is confirmed */
+  notes?: string
   /** index into the 3D figure's skin tones */
   figureTone?: number
 }
@@ -125,7 +129,19 @@ export interface ChatMessage {
   guide?: string
   /** reminder times the coach suggests; nothing is scheduled until the user turns them on */
   reminders?: ReminderTimes
+  /** facts the coach added to its memory with this reply, shown under it as "Noted" */
+  noted?: string[]
+  /** a change to the user's details the coach suggests; nothing changes until the user applies it */
+  details?: DetailsChange
+  /** date of the workout this message asks about, once it is finished */
+  checkin?: string
 }
+
+/** One thing Breeze remembers about the user, in the coach's own words */
+export interface MemoryItem { id: string; at: string; text: string }
+
+/** Details the coach can suggest changing from the conversation; only the fields that change are present */
+export interface DetailsChange { weightKg?: number; targetWeightKg?: number; goal?: GoalType; activity?: Activity }
 
 /** A saved conversation. The one in progress lives in AppState.chat. */
 export interface ChatThread {
@@ -196,6 +212,8 @@ export interface AppState {
   chatId?: string
   /** earlier conversations, newest first */
   threads?: ChatThread[]
+  /** what the coach remembers about the user between conversations, newest first */
+  memory?: MemoryItem[]
   /** meal and workout reminders; off until the user turns them on */
   reminders?: ReminderSettings
   /** the weekly workout routine in use; when absent one is built from the profile */

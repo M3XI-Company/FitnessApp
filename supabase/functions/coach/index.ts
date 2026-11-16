@@ -32,7 +32,7 @@ const PRICE = { input: 4 / 1_000_000, output: 20 / 1_000_000 }
 const MONTHLY_LIMIT = Number(Deno.env.get('COACH_MONTHLY_LIMIT') ?? '150')
 const MAX_MESSAGES = 16
 const MAX_MESSAGE_CHARS = 2000
-const MAX_CONTEXT_CHARS = 16000
+const MAX_CONTEXT_CHARS = 24000
 
 const anthropic = new Anthropic() // reads ANTHROPIC_API_KEY
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -44,6 +44,30 @@ const CORS = {
 }
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
+// ---- streaming ---------------------------------------------------------------
+type Emit = (event: string, data: unknown) => void
+type Outcome = { status: number; body: unknown }
+const out = (status: number, body: unknown): Outcome => ({ status, body })
+
+/**
+ * Server-sent events for clients that ask for them: the model's thinking
+ * (a summary, as it happens) and then one `result` event carrying the same
+ * status and body the plain response would have had.
+ */
+function sse(run: (emit: Emit) => Promise<Outcome>) {
+  const enc = new TextEncoder()
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const emit: Emit = (event, data) => {
+        try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)) } catch { /* the client went away */ }
+      }
+      emit('result', await run(emit))
+      try { controller.close() } catch { /* already closed */ }
+    },
+  })
+  return new Response(body, { headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } })
+}
+
 // ---- input contract ----------------------------------------------------------
 const Id = z.string().regex(/^[a-z0-9-]{1,40}$/)
 const BodySchema = z.object({
@@ -53,6 +77,7 @@ const BodySchema = z.object({
     exercises: z.array(z.object({ id: Id, name: z.string().max(60), muscle: z.string().max(20), equipment: z.string().max(20), level: z.string().max(20) })).min(1).max(80),
     recipes: z.array(z.object({ id: Id, name: z.string().max(80), kcal: z.number(), protein: z.number() })).max(60),
   }).passthrough(),
+  stream: z.boolean().optional(),
 })
 
 // ---- output contract ---------------------------------------------------------
@@ -71,6 +96,9 @@ const ResultSchema = z.object({
   show: z.enum(SHOW).optional(),
   set_reminders: z.boolean().optional(),
   reminder_times: z.object({ breakfast: z.string(), lunch: z.string(), dinner: z.string(), workout: z.string() }).optional(),
+  remember: z.array(z.string()).optional(),
+  forget: z.array(z.string()).optional(),
+  update_details: z.object({ weight_kg: z.number(), target_weight_kg: z.number(), goal: z.string(), activity: z.string() }).optional(),
 })
 export type CoachResult = z.infer<typeof ResultSchema>
 
@@ -78,10 +106,22 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'show', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'show', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
     reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown. Usually one to three short sentences; at most about 120 words when explaining something.' },
     show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "none" otherwise.' },
+    remember: { type: 'array', items: { type: 'string' }, description: 'New facts worth remembering about this user for future conversations, each one short plain sentence (at most 25 words) that will still make sense weeks from now. Usually empty; at most three.' },
+    forget: { type: 'array', items: { type: 'string' }, description: 'ids of memory entries that the user has just said are no longer true. Usually empty.' },
+    update_details: {
+      type: 'object', additionalProperties: false, required: ['weight_kg', 'target_weight_kg', 'goal', 'activity'],
+      description: 'A change to the user\'s details that they have just told you about. Leave every field at 0 or "unchanged" unless they said it changed.',
+      properties: {
+        weight_kg: { type: 'number', description: 'Their current weight in kilograms if they just told you it, otherwise 0' },
+        target_weight_kg: { type: 'number', description: 'A new target weight in kilograms, otherwise 0' },
+        goal: { type: 'string', enum: ['unchanged', 'lose', 'maintain', 'gain'] },
+        activity: { type: 'string', enum: ['unchanged', 'sedentary', 'light', 'moderate', 'active', 'athlete'] },
+      },
+    },
     set_reminders: { type: 'boolean', description: 'true only when suggesting reminder times in reminder_times' },
     reminder_times: {
       type: 'object', additionalProperties: false, required: ['breakfast', 'lunch', 'dinner', 'workout'],
@@ -133,6 +173,15 @@ Cards, set with the show field:
 - "workout" starts the step-by-step guide for today's workout, with a 3D figure showing the form and the muscles worked. Use it when the user says they are starting, continuing or ready to train. If todays_workout says it is a rest day or already done, say so instead and use "none".
 - A routine or meal plan you propose is shown as its own card with a button to use it and, for meals, a button to copy it with ingredients.
 
+Memory: you do not otherwise remember earlier conversations, so the context carries a memory list of what you have learned about this person, each entry with the date you noted it and an id. Treat it as your own notes. Build every plan around it, refer back to it naturally ("how has the shoulder been since last week?"), and never ask again for something it already answers.
+- Add to it with remember when the user tells you something a coach would want to know next time: an ache or injury and which exercise brought it on, an exercise that felt too easy, too hard or that they dislike, a change in schedule, sleep, work, equipment or where they train, foods they like, avoid or cannot eat, what gets in the way, and what they are aiming at. Write each as one short sentence about "they", with the exercise or food named. Do not store passing remarks, anything already in the list, their name, or anything they ask you not to keep.
+- When they tell you something in the list is no longer true (the shoulder is fine now, they joined a gym), put that entry's id in forget, and remember the new fact if there is one.
+- The app shows the user what you noted, and they can delete any of it in Settings, so you do not need to announce it.
+
+After a workout the app asks the user how it went. Take the answer seriously: remember what matters, and act on it. Pain or a twinge during a movement: tell them to stop that movement, to see a GP or physiotherapist if it persists or is sharp, and offer to swap the exercise; propose the swapped routine if they agree or asked. Too easy or too hard: say what you will adjust and propose the routine with the change. If it all went fine, a short word of encouragement is enough.
+
+Details: the user's weight, goal, target weight and activity level come from the context. When they tell you one has changed ("I am 80 kilos now", "I want to build muscle instead"), fill in update_details with only what changed. The app shows it as a card for them to confirm, so say you have put the change up for them to confirm rather than that it is done. Do not use update_details for anything they did not say.
+
 Reminders: the phone can notify the user at breakfast, lunch, dinner and workout time, naming that day's meal or workout. The context has the current times and whether they are on. When the user asks for reminders, tells you when they eat, sleep, work or train, or asks you to pick times for them, set set_reminders and give all four times. Choose times that suit the plan: meals three to five hours apart, the workout at least an hour after a main meal, and the last meal a couple of hours before a normal bedtime. Say in one sentence why the times suit them. The app shows the times as a card where the user can adjust them and turn reminders on, so do not list the times in your reply or claim they are already on.
 
 Not built yet, so do not offer or promise them: voice, finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
@@ -143,6 +192,7 @@ How the app works, which shapes what you can decide:
 - A routine names exercises, sets and rep ranges for each day. You choose those. The app, not you, sets the weight for every set from the user's own history using gradual progression, so never state weights or tell the user to add load.
 - The app calculates calorie and macro targets from the user's body and goal. You may quote those targets and explain them. Do not produce different calorie numbers, and choose recipes whose totals fit the targets you were given.
 - You can only use the exercises and recipes in the lists you were given.
+- Recipe figures are for one serving. The app sets the portion for the user (1, 1.5 or 2 servings of each meal) so that a day's meals reach their calorie target. So do not quote a day's meal totals, and do not tell the user to add snacks to make up calories; pick recipes that suit them and let the app size them.
 
 Building a routine:
 - Fit it to the goal, the activity level and anything the user tells you: days available, equipment, time per session, exercises they dislike or cannot do.
@@ -154,6 +204,21 @@ Building a routine:
 Meal plans work the same way: set update_meal_plan only when proposing one, one to three recipes a day, and mention how the days line up with the user's targets. meals_today and meals_tomorrow are what the day cards show now. When the user asks for different meals, names ingredients or a kind of food they want or do not want, or asks to change one day, propose a plan that includes that day using the closest recipes you have, and say honestly if nothing in the list matches what they asked for.
 
 When the user asks whether they can do more, look at their consistency. If they have kept to the routine, propose a modest step up (one more set on a couple of exercises, or one more exercise per session, not both). If they have missed sessions, say that keeping the current plan for another week will do more for them.
+
+NHS guidance. Your advice should agree with the NHS Live Well exercise pages for England, summarised here. Use it as the baseline for how much activity someone should be doing, and mention the NHS as the source when you quote a figure from it.
+- Adults aged 19 to 64: at least 150 minutes of moderate activity or 75 minutes of vigorous activity a week, or a mix, spread over four to five days or every day. Some activity every day is the aim, and one or two sessions a week is still worth doing. Several short bursts of very vigorous activity can also meet the target.
+- Strength: muscle-strengthening work on at least two days a week covering all the major muscle groups (legs, hips, back, abdomen, chest, shoulders, arms), worked to the point of needing a short rest before repeating. This is in addition to the aerobic minutes, not part of them.
+- Sitting: cut down the time spent sitting or lying, and break up long spells with some movement. Hitting the weekly target does not cancel out sitting for the rest of the day.
+- How hard: moderate means warmer, breathing faster, able to talk but not sing (brisk walking, cycling, dancing, hiking). Vigorous means breathing hard and able to say only a few words before pausing (running, swimming, fast or hilly cycling, football, skipping). Very vigorous is short bursts of maximum effort with rests (heavy lifting, circuits, hill sprints, intervals, spin).
+- What counts as strengthening: weights, resistance bands, bodyweight exercises such as push-ups and sit-ups, yoga, pilates, tai chi, and heavy everyday work such as carrying shopping or digging.
+- Adults 65 and over: the same 150 or 75 minutes, activity every day even if light, and strength, balance and flexibility work on at least two days a week, which also lowers the risk of falls.
+- Ages 16 to 18: an average of at least 60 minutes a day of moderate or vigorous activity, with a mix that strengthens muscles and bones. A young person should only use weights when a qualified adult has taught them the technique and is supervising, so favour bodyweight and band work for them and say so.
+- Pregnancy and after birth: the adult guidelines still apply, at a level that reflects what the person did before pregnancy, including strength work. After the six to eight week postnatal check they can build up if they feel able; vigorous activity is not advised after pregnancy for someone who was inactive before. Always tell them to check with their midwife or GP.
+- Disabled adults: the same guidelines apply, adapted to what they can do.
+- Warm up for at least six minutes before a session (marching on the spot, heel digs, knee lifts, shoulder rolls, shallow knee bends) and cool down for about five minutes after, holding each stretch 15 to 20 seconds (buttock, hamstring, inner thigh, calf, front of thigh). Remind people of this when it fits; it is not part of the routine card.
+- Starting out or returning: anyone who has not exercised for a while, or who has a medical condition or concerns, should speak to their GP first, and the activity and its intensity should suit their current fitness. Start gently and build up gradually. Stop at once on pain or feeling unwell, and use NHS 111 if symptoms continue.
+- Why it matters, when someone needs a reason: regular activity lowers the risk of heart disease, stroke, type 2 diabetes and some cancers, and of early death by up to 30 percent; it is linked to lower risk of depression and dementia, and it helps mood, sleep and energy.
+The routines in this app are mostly strength training. When someone's week has little aerobic activity, say so and suggest walking, cycling, swimming or a run on other days to reach the NHS minutes, since the app does not schedule those.
 
 Safety comes before helpfulness here, because people act on what you say with their bodies:
 - You give general fitness and nutrition guidance. You are not a doctor, physiotherapist or dietitian, and you do not diagnose or treat anything.
@@ -184,7 +249,7 @@ Deno.serve(async (req) => {
   try { raw = await req.json() } catch { return json(400, { error: 'invalid_json' }) }
   const parsedBody = BodySchema.safeParse(raw)
   if (!parsedBody.success) return json(400, { error: 'invalid_request' })
-  const { device, messages, context } = parsedBody.data
+  const { device, messages, context, stream: wantStream } = parsedBody.data
   const contextText = JSON.stringify(context)
   if (contextText.length > MAX_CONTEXT_CHARS) return json(413, { error: 'context_too_large' })
   if (messages[messages.length - 1].role !== 'user') return json(400, { error: 'last_message_must_be_user' })
@@ -209,26 +274,35 @@ Deno.serve(async (req) => {
     ...messages.map((m): Anthropic.Beta.BetaMessageParam => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
   ]
 
+  const run = async (emit?: Emit): Promise<Outcome> => {
   try {
-    const response = await anthropic.beta.messages.create({
+    const stream = anthropic.beta.messages.stream({
       model: MODEL,
       max_tokens: 8000,
       // if a safety classifier declines, retry on Anthropic's recommended fallback model
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
+      // a readable summary of the reasoning, so the app can show what the coach is working out
+      thinking: { type: 'adaptive', display: 'summarized' },
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: outputSchema(context.exercises.map((e) => e.id), context.recipes.map((r) => r.id)) } },
       system: SYSTEM,
       messages: turns,
     })
+    let thought = ''
+    for await (const event of stream) {
+      if (event.type !== 'content_block_delta') continue
+      if (event.delta.type === 'thinking_delta') { thought += event.delta.thinking; emit?.('thinking', { text: thought.slice(-700) }) }
+    }
+    const response = await stream.finalMessage()
     const usage = { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens }
 
     if (response.stop_reason === 'refusal') {
       await record({ device_hash, user_id: userId, ...usage, outcome: 'declined' })
-      return json(422, { error: 'declined' })
+      return out(422, { error: 'declined' })
     }
     if (response.stop_reason === 'max_tokens') {
       await record({ device_hash, user_id: userId, ...usage, outcome: 'error' })
-      return json(502, { error: 'incomplete' })
+      return out(502, { error: 'incomplete' })
     }
     const text = response.content.find((b) => b.type === 'text')
     let data: unknown = null
@@ -236,12 +310,15 @@ Deno.serve(async (req) => {
     const parsed = ResultSchema.safeParse(data)
     if (!parsed.success) {
       await record({ device_hash, user_id: userId, ...usage, outcome: 'error' })
-      return json(502, { error: 'bad_output' })
+      return out(502, { error: 'bad_output' })
     }
     const r = parsed.data
     const result: CoachResult = {
       reply: r.reply.slice(0, 4000),
       show: r.show ?? 'none',
+      remember: (r.remember ?? []).slice(0, 3).map((t) => t.slice(0, 200)),
+      forget: (r.forget ?? []).slice(0, 10),
+      update_details: r.update_details,
       set_reminders: !!r.set_reminders && !!r.reminder_times,
       reminder_times: r.reminder_times,
       update_routine: r.update_routine && r.routine_days.length > 0,
@@ -251,12 +328,16 @@ Deno.serve(async (req) => {
       meal_days: r.update_meal_plan ? r.meal_days.slice(0, 7).map((d) => ({ ...d, recipe_ids: d.recipe_ids.slice(0, 4) })) : [],
     }
     await record({ device_hash, user_id: userId, ...usage, outcome: 'ok' })
-    return json(200, { ...result, remaining: Math.max(0, MONTHLY_LIMIT - (count ?? 0) - 1) })
+    return out(200, { ...result, remaining: Math.max(0, MONTHLY_LIMIT - (count ?? 0) - 1) })
   } catch (e) {
-    if (e instanceof Anthropic.RateLimitError) return json(503, { error: 'busy' })
-    if (e instanceof Anthropic.APIError) { console.error('coach upstream error:', e.status, e.message); return json(502, { error: 'upstream', status: e.status }) }
+    if (e instanceof Anthropic.RateLimitError) return out(503, { error: 'busy' })
+    if (e instanceof Anthropic.APIError) { console.error('coach upstream error:', e.status, e.message); return out(502, { error: 'upstream', status: e.status }) }
     // name and message only: enough to diagnose from the function logs, never the request body
     console.error('coach failed:', e instanceof Error ? `${e.name}: ${e.message}` : String(e))
-    return json(500, { error: 'internal' })
+    return out(500, { error: 'internal' })
   }
+  }
+
+  if (!wantStream) { const r = await run(); return json(r.status, r.body) }
+  return sse(run)
 })

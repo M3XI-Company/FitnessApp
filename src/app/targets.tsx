@@ -51,7 +51,7 @@ export default function TargetsScreen() {
         <Card style={{ gap: 8 }}>
           <Text style={T.title3}>How we calculate these</Text>
           {targetAssumptions(state.profile).map((line) => <Text key={line} style={[T.body, { lineHeight: 21 }]}>• {line}</Text>)}
-          <Button small variant="tinted" title="Update my details" onPress={() => router.push('/onboarding')} style={{ marginTop: 6, alignSelf: 'flex-start' }} />
+          <Button small variant="tinted" title="Update my details" onPress={() => router.push({ pathname: '/welcome', params: { edit: '1' } })} style={{ marginTop: 6, alignSelf: 'flex-start' }} />
         </Card>
       </ScrollView>
     </View>

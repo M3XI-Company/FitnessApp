@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../lib/store'
-import { isAdult } from '../lib/age'
 import { prettyDate } from '../lib/date'
 import { sendTestReminder, syncReminders } from '../lib/notify'
+import { memoryOf } from '../lib/memory'
 import { remindersOf } from '../lib/reminders'
 import { ReminderCard } from '../components/chat/ReminderCard'
 import { C, T } from '../theme'
-import { Button, Card, Field, Icon, IconTile, List, Row, SectionHeader, SheetHeader, success } from '../components/ui'
+import { Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader } from '../components/ui'
 
 const chevron = <Icon name="chevron-forward" size={16} color={C.text3} />
 
@@ -16,41 +16,37 @@ const chevron = <Icon name="chevron-forward" size={16} color={C.text3} />
 export default function Settings() {
   const { state, dispatch } = useStore()
   const p = state.profile
-  const [gym, setGym] = useState(p.gym ?? '')
   const [erasing, setErasing] = useState(false)
   const [tested, setTested] = useState(false)
   const reminders = remindersOf(state)
+  const remembered = memoryOf(state).length
   // changes made here reach the phone straight away, not only when the chat is next shown
   useEffect(() => { syncReminders(state) }, [state])
-  const gymChanged = gym.trim() !== (p.gym ?? '')
   const goal = p.goal === 'lose' ? 'Lose weight' : p.goal === 'gain' ? 'Build muscle' : 'Maintain'
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title="Settings" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-        <SectionHeader title="Your plan" />
-        <List>
-          <Row first left={<IconTile icon="body" />} title="Details and goal" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg · ${goal}`} onPress={() => router.push('/onboarding')} right={chevron} />
-          <Row left={<IconTile icon="barbell-outline" />} title="Workout routine" subtitle="Ask the coach in the chat to change it" onPress={() => router.back()} right={chevron} />
-          <Row left={<IconTile icon="restaurant-outline" />} title="Meal plan" subtitle="Recipes planned for the next 7 days" onPress={() => router.push('/plans')} right={chevron} />
-          <Row left={<IconTile icon="flame" />} title="Daily targets" subtitle={`${state.targets.kcal} kcal · ${state.targets.protein} g protein`} onPress={() => router.push('/targets')} right={chevron} />
-          {isAdult(p.age) && (
-            <Row left={<IconTile icon="camera-outline" />} title={state.bodyScan ? 'Re-evaluate my body' : 'Body scan'}
-              subtitle={state.bodyScan ? `Last scan ${prettyDate(state.bodyScan.at.slice(0, 10))}` : 'One photo so the coach can see your starting point'}
-              onPress={() => router.push({ pathname: '/onboarding', params: { step: 'scan' } })} right={chevron} />
-          )}
-          <Row left={<IconTile icon="scale-outline" />} title="Log weight" onPress={() => router.push('/weight')} right={chevron} />
-          <Row left={<IconTile icon="book-outline" />} title="Food diary" subtitle="What you have logged each day" onPress={() => router.push('/diary')} right={chevron} />
-          <Row left={<IconTile icon="trophy-outline" />} title="Progress and goals" subtitle="Level, goals and achievements" onPress={() => router.push('/profile')} right={chevron} />
+        <Card onPress={() => router.push('/welcome')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.night, marginTop: 4 }}>
+          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,.14)', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={22} color={C.skyLight} /></View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[T.headline, { color: C.cloud, fontSize: 17 }]}>Talk it through with Breeze</Text>
+            <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 13.5, lineHeight: 18 }}>Changed goal, new schedule, something hurting, meals not working: say it and your plan is updated.</Text>
+          </View>
+          <Icon name="chevron-forward" size={16} color={C.skyLight} />
+        </Card>
+
+        <List style={{ marginTop: 12 }}>
+          <Row first left={<IconTile icon="bookmark-outline" />} title="What Breeze remembers" subtitle={remembered ? `${remembered} note${remembered === 1 ? '' : 's'} from your conversations` : 'Nothing yet'} onPress={() => router.push('/memory')} right={chevron} />
+          <Row left={<IconTile icon="body" />} title="Your details" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg · ${goal}`} onPress={() => router.push({ pathname: '/welcome', params: { edit: '1' } })} right={chevron} />
+          <Row left={<IconTile icon="trophy-outline" />} title="Progress and targets" subtitle={`${state.targets.kcal} kcal · ${state.targets.protein} g protein a day`} onPress={() => router.push('/profile')} right={chevron} />
         </List>
 
         <SectionHeader title="Home gym" />
-        <Card style={{ gap: 10 }}>
-          <Field value={gym} onChangeText={setGym} placeholder="Gym name and town" autoCapitalize="words" returnKeyType="done" />
-          <Text style={[T.caption, { lineHeight: 17 }]}>Used to find training partners at your gym once accounts launch.</Text>
-          {gymChanged && <Button small title="Save gym" onPress={() => { dispatch({ type: 'profile', profile: { ...p, gym: gym.trim() || undefined } }); success() }} />}
-        </Card>
+        <List>
+          <Row first left={<IconTile icon="barbell-outline" />} title={p.gym ?? 'Find your gym'} subtitle={p.gym ? 'Tap to change' : 'Search by name, chain or town, or find gyms near you'} onPress={() => router.push('/gym')} right={chevron} />
+        </List>
 
         <SectionHeader title="Reminders" />
         <View style={{ gap: 10 }}>
@@ -73,7 +69,7 @@ export default function Settings() {
             subtitle={p.formConsentAt ? 'Allowed · processed on this phone, never recorded' : 'Not allowed'}
             right={p.formConsentAt ? <Button small variant="ghost" title="Withdraw" onPress={() => dispatch({ type: 'profile', profile: { ...p, formConsentAt: undefined } })} /> : undefined} />
           <Row left={<IconTile icon="body" />} title="Body scan description"
-            subtitle={state.bodyScan ? 'Saved on this phone · the photo was not kept' : 'None saved'}
+            subtitle={state.bodyScan ? `From ${prettyDate(state.bodyScan.at.slice(0, 10))} · the photo was not kept` : 'None saved'}
             right={state.bodyScan ? <Button small variant="ghost" title="Delete" onPress={() => dispatch({ type: 'bodyScan' })} /> : undefined} />
           <Row left={<IconTile icon="ban-outline" />} title="Blocked people" subtitle={`${state.blocked.length} blocked`} />
         </List>

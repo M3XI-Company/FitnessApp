@@ -40,7 +40,17 @@
         }
       ],
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Breeze uses the microphone so you can answer the coach out loud.",
+          "speechRecognitionPermission": "Breeze turns what you say into text so the coach can understand your answers.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
     ],
     "scheme": "breeze",
     "splash": {

@@ -50,7 +50,7 @@ export function MealPlanCard({ meals }: { meals: NonNullable<ChatMessage['meals'
   return (
     <Card style={{ padding: 0, overflow: 'hidden' }}>
       <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Icon name="restaurant-outline" color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>Meal plan</Text><Pill>{`${dates.length} days`}</Pill>
+        <Icon name="restaurant-outline" color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>Meal plan</Text><Pill>{`${dates.length} day${dates.length === 1 ? '' : 's'}`}</Pill>
       </View>
       {dates.map((d) => {
         const recipes = meals[d].map(recipeById).filter((r) => !!r)

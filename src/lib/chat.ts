@@ -6,6 +6,7 @@
 import { exerciseById } from '../data/exercises'
 import { addDays, prettyDate, todayKey, uid } from './date'
 import { allRecipes, recipeById, scaledGrams, type ComputedRecipe } from './recipes'
+import { parseTime, remindersOf, sanitiseTimes } from './reminders'
 import { dayProgress } from './routine'
 import type { AppState, ChatMessage, RoutineItem, Targets } from './types'
 
@@ -85,6 +86,41 @@ export function mealsFor(s: AppState, date: string): DayMeals {
   }
 }
 
+export type ScheduleSlot = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'workout' | 'rest'
+export interface ScheduleItem {
+  slot: ScheduleSlot
+  /** "HH:MM", or "" for a rest day, which has no time */
+  time: string
+  done: boolean
+  recipe?: ComputedRecipe
+}
+
+/** Which meal slots a day's recipes fill, by how many there are. */
+const MEAL_SLOTS: Record<number, ScheduleSlot[]> = { 1: ['dinner'], 2: ['lunch', 'dinner'], 3: ['breakfast', 'lunch', 'dinner'], 4: ['breakfast', 'lunch', 'snack', 'dinner'] }
+
+/** True when a recipe has been logged as eaten on a date. */
+export const eatenOn = (s: AppState, date: string, r: ComputedRecipe) => s.food.some((f) => f.date === date && f.dataSource === 'recipe' && f.name === r.recipe.title)
+
+/**
+ * The day in the order it happens: each meal and the workout at its time
+ * (the user's reminder times, or the defaults), with what is done ticked off.
+ * `next` is the first thing still to do today, or -1 when everything is done
+ * or the day is not today.
+ */
+export function daySchedule(s: AppState, date: string, today = todayKey()): { items: ScheduleItem[]; next: number } {
+  const times = sanitiseTimes(remindersOf(s).times)
+  const meals = mealsFor(s, date)
+  const workout = dayProgress(s, date)
+  const slots = MEAL_SLOTS[Math.min(4, meals.recipes.length)] ?? []
+  const at = (slot: ScheduleSlot) => (slot === 'snack' ? '16:00' : slot === 'rest' ? '' : times[slot])
+  const items: ScheduleItem[] = meals.recipes.slice(0, 4).map((recipe, i) => ({ slot: slots[i], time: at(slots[i]), done: eatenOn(s, date, recipe), recipe }))
+  items.push(workout.status === 'rest' ? { slot: 'rest', time: '', done: true } : { slot: 'workout', time: times.workout, done: workout.status === 'done' })
+  // a rest day leads the row; everything else in time order
+  items.sort((a, b) => (a.slot === 'rest' ? -1 : b.slot === 'rest' ? 1 : (parseTime(a.time) ?? 0) - (parseTime(b.time) ?? 0)))
+  const next = date === today ? items.findIndex((i) => !i.done && i.slot !== 'rest') : -1
+  return { items, next }
+}
+
 /** A meal plan as plain text with the ingredients for the portion to eat, ready to paste into notes or a message. */
 export function mealPlanText(days: Pick<DayMeals, 'date' | 'recipes' | 'portion'>[]): string {
   const out: string[] = ['Breeze meal plan']
@@ -98,6 +134,21 @@ export function mealPlanText(days: Pick<DayMeals, 'date' | 'recipes' | 'portion'
     })
   }
   return out.join('\n')
+}
+
+/**
+ * The latest part of the coach's thinking as one short line for the screen:
+ * markup is dropped and only the most recent sentence or two is kept, so the
+ * line changes as the thinking moves on instead of growing.
+ */
+export function thinkingLine(thinking: string, max = 150): string {
+  const plain = thinking.replace(/[*_#`>]/g, '').replace(/\s+/g, ' ').trim()
+  if (plain.length <= max) return plain
+  const tail = plain.slice(-max * 2)
+  const sentences = tail.split(/(?<=[.!?:])\s+/).filter(Boolean)
+  let line = ''
+  for (let i = sentences.length - 1; i >= 0 && (line ? line.length + sentences[i].length + 1 : sentences[i].length) <= max; i--) line = line ? `${sentences[i]} ${line}` : sentences[i]
+  return line || `…${plain.slice(-(max - 1)).replace(/^\S*\s/, '')}`
 }
 
 /** What the user typed, when it is something the app can answer straight away. */
@@ -118,6 +169,16 @@ export function localIntent(text: string): LocalIntent | null {
 }
 
 const coach = (text: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({ id: uid(), role: 'coach', text, ...extra })
+
+/**
+ * Asked once, when the workout the coach was guiding is finished. The answer
+ * goes to the coach, which remembers what matters and adjusts the plan.
+ */
+export const checkinMessage = (date = todayKey()): ChatMessage => coach('That is today done, nice work. How did it feel? Tell me if anything hurt, or felt too easy or too hard.', { checkin: date })
+
+/** True when the guided workout for `date` is finished and the user has not been asked about it yet. */
+export const needsCheckin = (s: AppState, date = todayKey()) =>
+  dayProgress(s, date).status === 'done' && s.chat.some((m) => m.guide === date) && !s.chat.some((m) => m.checkin === date)
 
 /** The answer to a local intent. */
 export function localAnswer(s: AppState, intent: Exclude<LocalIntent, 'reminders'>, today = todayKey()): ChatMessage {

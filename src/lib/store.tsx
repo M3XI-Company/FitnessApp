@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { AppState, ChatMessage, ChatThread, ReminderSettings, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
+import { addMemories, forgetMemories } from './memory'
 
 const STORAGE_KEY = 'breeze.v1'
 
@@ -115,6 +116,9 @@ type Action =
   | { type: 'openChat'; id: string }
   | { type: 'deleteChat'; id: string }
   | { type: 'reminders'; reminders: ReminderSettings }
+  | { type: 'remember'; texts: string[] }
+  | { type: 'forget'; ids: string[] }
+  | { type: 'clearMemory' }
   | { type: 'routine'; routine: WeeklyRoutine }
   | { type: 'bodyScan'; scan?: BodyScan }
   | { type: 'mealPlan'; days: Record<string, string[]> }
@@ -164,6 +168,9 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case 'deleteChat': return { ...s, threads: (s.threads ?? []).filter((t) => t.id !== a.id) }
     case 'reminders': return { ...s, reminders: a.reminders }
+    case 'remember': return { ...s, memory: addMemories(s.memory ?? [], a.texts) }
+    case 'forget': return { ...s, memory: forgetMemories(s.memory ?? [], a.ids) }
+    case 'clearMemory': return { ...s, memory: [] }
     case 'routine': return { ...s, routine: a.routine }
     case 'bodyScan': return { ...s, bodyScan: a.scan }
     case 'mealPlan': return { ...s, boxedPlan: { ...s.boxedPlan, ...a.days } }

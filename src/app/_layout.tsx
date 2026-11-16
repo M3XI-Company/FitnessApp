@@ -14,7 +14,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="diary" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="add-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="edit-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="targets" options={{ presentation: 'modal' }} />
@@ -28,6 +28,9 @@ export default function RootLayout() {
           <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
           <Stack.Screen name="history" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="memory" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="gym" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="meal/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="quick-add" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="weight" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true }} />
         </Stack>

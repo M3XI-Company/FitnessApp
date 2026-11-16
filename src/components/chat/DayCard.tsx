@@ -1,12 +1,12 @@
-import { createElement, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Clipboard from 'expo-clipboard'
-import { mealPlanText, mealsFor, sessionMinutes } from '../../lib/chat'
+import { daySchedule, mealPlanText, mealsFor, sessionMinutes, type ScheduleItem } from '../../lib/chat'
 import { addDays, prettyDate, todayKey, uid } from '../../lib/date'
 import { makeEntry } from '../../lib/nutrition'
-import type { ComputedRecipe } from '../../lib/recipes'
+import { parseTime, sayTime } from '../../lib/reminders'
 import { dayProgress } from '../../lib/routine'
 import { useStore } from '../../lib/store'
 import { C, G, T } from '../../theme'
@@ -25,68 +25,91 @@ export function CopyButton({ text, label = 'Copy' }: { text: () => string; label
 const TILE_W = 212
 const TILE_H = 196
 const GAP = 10
-const SLOTS = ['breakfast', 'lunch', 'dinner'] as const
+const LABEL: Record<ScheduleItem['slot'], string> = { breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner', workout: 'Train', rest: 'Recover' }
 
 /**
- * A day of the plan as a row of tiles to swipe through: the workout first,
- * then each meal. One headline and one number per tile; everything else is a
- * tap away. The round button on a tile is the action: start the workout, or
- * tick a meal as eaten (which also logs it). It reads the plan live, so
- * today's row always shows what has been done.
+ * The day as a schedule to follow: each meal and the workout as a tile, in
+ * the order they happen, at the time they are due. Today's next step is
+ * marked "Up next" and the row opens on it. The round button is the action:
+ * start the workout, or tick a meal as eaten (which also logs it). Tapping a
+ * meal opens a short chat about it rather than a page of numbers.
  */
 export function DayCard({ date, onStart, onAsk }: { date: string; onStart: () => void; onAsk: (text: string) => void }) {
   const { state, dispatch } = useStore()
   const [copied, setCopied] = useState(false)
+  const row = useRef<React.ComponentRef<typeof ScrollView>>(null)
   const today = todayKey()
   const isToday = date === today
   const workout = dayProgress(state, date)
   const meals = mealsFor(state, date)
+  const { items, next } = daySchedule(state, date, today)
   const label = isToday ? 'Today' : date === addDays(today, 1) ? 'Tomorrow' : prettyDate(date)
-  const slotOf = (i: number) => (meals.recipes.length === 3 ? SLOTS[i] : 'snack')
-  const slotLabel = (i: number) => (meals.recipes.length === 3 ? SLOTS[i] : `meal ${i + 1}`)
-  const eatenIds = (r: ComputedRecipe) => state.food.filter((f) => f.date === date && f.dataSource === 'recipe' && f.name === r.recipe.title).map((f) => f.id)
-  const toggleEaten = (r: ComputedRecipe, i: number) => {
-    const ids = eatenIds(r)
+  const steps = items.filter((i) => i.slot !== 'rest')
+  const upNext = next >= 0 ? items[next] : null
+  // the next step is overdue once its time has passed
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const late = !!upNext && (parseTime(upNext.time) ?? 0) + 30 < nowMin
+
+  // open the row on what is next, and follow along as things are ticked off
+  useEffect(() => {
+    if (next < 1) return
+    const t = setTimeout(() => row.current?.scrollTo({ x: next * (TILE_W + GAP), animated: true }), 250)
+    return () => clearTimeout(t)
+  }, [next])
+
+  const toggleEaten = (i: ScheduleItem) => {
+    const r = i.recipe!
+    const ids = state.food.filter((f) => f.date === date && f.dataSource === 'recipe' && f.name === r.recipe.title).map((f) => f.id)
     if (ids.length) { tap(); ids.forEach((id) => dispatch({ type: 'removeFood', id })); return }
-    dispatch({ type: 'addFood', entry: makeEntry(r.asFood, { servings: meals.portion }, { id: uid(), date, meal: slotOf(i), source: 'search', dataSource: 'recipe' }) })
+    dispatch({ type: 'addFood', entry: makeEntry(r.asFood, { servings: meals.portion }, { id: uid(), date, meal: i.slot, source: 'search', dataSource: 'recipe' }) })
     success()
   }
-  // one dot per thing to do today: the workout (unless it is a rest day) and each meal
-  const steps = [...(workout.status === 'rest' ? [] : [workout.status === 'done']), ...meals.recipes.map((r) => eatenIds(r).length > 0)]
   const copy = () => Clipboard.setStringAsync(mealPlanText([meals])).then(() => { success(); setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
 
   return (
     <View style={{ gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 }}>
-        <Text style={T.title3}>{label}</Text>
-        {isToday && (
-          <View accessibilityLabel={`${steps.filter(Boolean).length} of ${steps.length} done`} style={{ flexDirection: 'row', gap: 5, flex: 1 }}>
-            {steps.map((done, i) => <View key={i} style={{ width: 18, height: 6, borderRadius: 3, backgroundColor: done ? C.accent : C.fill2 }} />)}
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Text style={T.title3}>{label}</Text>
+            {isToday && (
+              <View accessibilityLabel={`${steps.filter((x) => x.done).length} of ${steps.length} done`} style={{ flexDirection: 'row', gap: 5 }}>
+                {steps.map((x, i) => <View key={i} style={{ width: 18, height: 6, borderRadius: 3, backgroundColor: x.done ? C.accent : C.fill2 }} />)}
+              </View>
+            )}
           </View>
-        )}
-        {!isToday && <View style={{ flex: 1 }} />}
+          {isToday && (
+            <Text style={T.caption}>{!upNext ? 'All done for today' : late ? `${LABEL[upNext.slot]} was due at ${sayTime(upNext.time)}. Tick it off, or ask me to move it.` : `Up next: ${LABEL[upNext.slot].toLowerCase()} at ${sayTime(upNext.time)}`}</Text>
+          )}
+        </View>
         <Round icon={copied ? 'checkmark' : 'copy-outline'} label="Copy the meals with ingredients" onPress={copy} />
         <Round icon="refresh" label="Different meals" onPress={() => onAsk(`Suggest different meals for ${label.toLowerCase()}`)} />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={TILE_W + GAP} decelerationRate="fast" keyboardShouldPersistTaps="handled"
+      <ScrollView ref={row} horizontal showsHorizontalScrollIndicator={false} snapToInterval={TILE_W + GAP} decelerationRate="fast" keyboardShouldPersistTaps="handled"
         style={{ marginHorizontal: -14 }} contentContainerStyle={{ gap: GAP, paddingHorizontal: 14 }}>
-        <Tile colors={G.night} dark eyebrow={workout.status === 'rest' ? 'Recover' : 'Train'} icon="barbell-outline"
-          title={workout.day.title}
-          big={workout.status === 'rest' ? 'Rest' : workout.status === 'done' ? 'Done' : `${sessionMinutes(workout.items)} min`}
-          small={workout.status === 'rest' ? 'walk or stretch' : workout.status === 'started' ? `${workout.doneItems} of ${workout.items.length} done` : `${workout.items.length} moves`}
-          action={!isToday || workout.status === 'rest' ? undefined : workout.status === 'done' ? { icon: 'checkmark', on: true, label: 'Workout done' } : { icon: 'play', on: false, label: workout.status === 'started' ? 'Continue workout' : 'Start workout', onPress: onStart }}
-          onPress={isToday && (workout.status === 'todo' || workout.status === 'started') ? onStart : undefined} />
-        {meals.recipes.map((r, i) => {
-          const eaten = eatenIds(r).length > 0
+        {items.map((i, n) => {
+          const isNext = n === next
+          if (i.slot === 'rest' || i.slot === 'workout') {
+            const rest = i.slot === 'rest'
+            return (
+              <Tile key={i.slot} colors={G.night} dark time={i.time} eyebrow={LABEL[i.slot]} icon="barbell-outline" next={isNext} late={isNext && late} done={!rest && i.done}
+                title={workout.day.title}
+                big={rest ? 'Rest' : i.done ? 'Done' : `${sessionMinutes(workout.items)} min`}
+                small={rest ? 'walk or stretch' : workout.status === 'started' ? `${workout.doneItems} of ${workout.items.length} done` : `${workout.items.length} moves`}
+                action={!isToday || rest ? undefined : i.done ? { icon: 'checkmark', on: true, label: 'Workout done' } : { icon: 'play', on: false, label: workout.status === 'started' ? 'Continue workout' : 'Start workout', onPress: onStart }}
+                onPress={isToday && !rest && !i.done ? onStart : undefined} />
+            )
+          }
+          const r = i.recipe!
           const dark = r.recipe.cover === 'night'
           return (
-            <Tile key={r.recipe.id} colors={dark ? G.night : r.recipe.cover === 'dawn' ? G.dawn : G.day} dark={dark} eyebrow={slotLabel(i)} glyph={r.recipe.title}
+            <Tile key={`${i.slot}-${r.recipe.id}`} colors={dark ? G.night : r.recipe.cover === 'dawn' ? G.dawn : G.day} dark={dark} time={i.time} eyebrow={LABEL[i.slot]} glyph={r.recipe.title} next={isNext} late={isNext && late} done={i.done}
               title={r.recipe.title}
               big={`${Math.round(r.perServing.kcal * meals.portion)} kcal`}
               small={`${Math.round(r.perServing.protein * meals.portion)} g protein`}
-              action={isToday ? { icon: 'checkmark', on: eaten, label: eaten ? `${r.recipe.title} eaten, tap to undo` : `Mark ${r.recipe.title} as eaten`, onPress: () => toggleEaten(r, i) } : undefined}
-              onPress={() => router.push(`/recipe/${r.recipe.id}`)} />
+              action={isToday ? { icon: 'checkmark', on: i.done, label: i.done ? `${r.recipe.title} eaten, tap to undo` : `Mark ${r.recipe.title} as eaten`, onPress: () => toggleEaten(i) } : undefined}
+              onPress={() => router.push({ pathname: '/meal/[id]', params: { id: r.recipe.id, date, slot: i.slot } })} />
           )
         })}
       </ScrollView>
@@ -102,19 +125,25 @@ function Round({ icon, label, onPress }: { icon: IconName; label: string; onPres
   )
 }
 
-function Tile({ colors, dark, eyebrow, icon, glyph, title, big, small, action, onPress }: {
-  colors: readonly [string, string, ...string[]]; dark: boolean; eyebrow: string; icon?: IconName; glyph?: string
+function Tile({ colors, dark, time, eyebrow, icon, glyph, title, big, small, action, next, late, done, onPress }: {
+  colors: readonly [string, string, ...string[]]; dark: boolean; time: string; eyebrow: string; icon?: IconName; glyph?: string
   title: string; big: string; small: string
   action?: { icon: IconName; on: boolean; label: string; onPress?: () => void }
+  next?: boolean; late?: boolean; done?: boolean
   onPress?: () => void
 }) {
   const fg = dark ? C.cloud : C.night
   const sub = dark ? C.skyLight : C.night
+  const when = time ? sayTime(time) : ''
   return (
-    <Pressable accessibilityLabel={`${eyebrow}: ${title}, ${big}, ${small}`} disabled={!onPress} onPress={() => { tap(); onPress?.() }} style={({ pressed }) => [pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}>
-      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: TILE_W, height: TILE_H, borderRadius: 26, padding: 16, justifyContent: 'space-between' }}>
+    <Pressable accessibilityLabel={`${when ? `${when}, ` : ''}${eyebrow}: ${title}, ${big}, ${small}${next ? ', up next' : ''}${done ? ', done' : ''}`} disabled={!onPress} onPress={() => { tap(); onPress?.() }}
+      style={({ pressed }) => [{ opacity: done && !next ? 0.62 : 1 }, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}>
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: TILE_W, height: TILE_H, borderRadius: 26, padding: 16, justifyContent: 'space-between', borderWidth: next ? 3 : 0, borderColor: late ? C.dawn : C.sky }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={{ color: sub, fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', opacity: 0.85 }}>{eyebrow}</Text>
+          <View style={{ gap: 3 }}>
+            {next && <View style={{ alignSelf: 'flex-start', paddingHorizontal: 8, height: 20, borderRadius: 10, justifyContent: 'center', backgroundColor: late ? C.dawn : C.sky }}><Text style={{ color: C.night, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.8 }}>{late ? 'DUE' : 'UP NEXT'}</Text></View>}
+            <Text style={{ color: sub, fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', opacity: 0.85 }}>{when ? `${when} · ` : ''}{eyebrow}</Text>
+          </View>
           {glyph ? createElement(foodIconFor(glyph), { size: 26, color: sub, strokeWidth: 1.6 }) : icon ? <Icon name={icon} size={24} color={sub} /> : null}
         </View>
         <Text style={{ color: fg, fontSize: 20, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 }} numberOfLines={2}>{title}</Text>
