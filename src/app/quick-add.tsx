@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useStore } from '../lib/store'
 import { todayKey } from '../lib/date'
 import { C, T } from '../theme'
-import { Icon, IconTile, success, tap, type IconName } from '../components/ui'
+import { IconTile, success, tap, type IconName } from '../components/ui'
 
 export default function QuickAdd() {
   const insets = useSafeAreaInsets()
@@ -16,15 +16,13 @@ export default function QuickAdd() {
     ['camera-outline', 'Snap your meal', go(() => router.push('/food-photo'))],
     ['search', 'Log food', go(() => router.push('/add-food'))],
     ['water', `+${state.waterPlan.glassMl} ml water`, () => { success(); dispatch({ type: 'water', date: todayKey(), delta: state.waterPlan.glassMl }); router.back() }],
-    ['barbell-outline', 'Log workout', go(() => router.navigate('/fitness'))],
     ['scale-outline', 'Log weight', go(() => router.push('/weight'))],
-    ['book-outline', 'Recipes', go(() => router.navigate('/recipes'))],
-    ['sparkles-outline', 'Ask AI trainer', go(() => router.navigate({ pathname: '/fitness', params: { q: 'Build me a workout' } }))],
+    ['book-outline', 'Food diary', go(() => router.push('/diary'))],
   ]
   return (
     <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,36,64,.42)', justifyContent: 'flex-end' }} onPress={() => router.back()}>
-      <Pressable onPress={() => {}} style={{ margin: 12, marginBottom: Math.max(12, insets.bottom) + 84, backgroundColor: C.bg, borderRadius: 28, padding: 16 }}>
-        <Text style={[T.title3, { marginBottom: 12, marginLeft: 4 }]}>Quick add</Text>
+      <Pressable onPress={() => {}} style={{ margin: 12, marginBottom: Math.max(12, insets.bottom) + 12, backgroundColor: C.bg, borderRadius: 28, padding: 16 }}>
+        <Text style={[T.title3, { marginBottom: 12, marginLeft: 4 }]}>Log something</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {items.map(([icon, label, fn]) => (
             <Pressable key={label} onPress={fn} style={({ pressed }) => [{ width: '48.4%', backgroundColor: '#fff', borderRadius: 18, padding: 14, gap: 10 }, pressed && { opacity: 0.75 }]}>
@@ -34,9 +32,6 @@ export default function QuickAdd() {
           ))}
         </View>
       </Pressable>
-      <View style={{ position: 'absolute', alignSelf: 'center', bottom: Math.max(12, insets.bottom) + 8 }}>
-        <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={28} color="#fff" /></View>
-      </View>
     </Pressable>
   )
 }

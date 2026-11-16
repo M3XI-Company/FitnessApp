@@ -16,7 +16,7 @@ const QUICK = ['3 days a week, full gym', '4 days a week, full gym', '3 days, du
 /**
  * Onboarding chat: the coach asks what it needs, then proposes the first
  * weekly routine as a card the user can accept. The conversation is kept, so
- * it carries on in the Coach tab afterwards. `draft` is the app state with the
+ * it carries on in the main chat afterwards. `draft` is the app state with the
  * profile as entered so far (it is not saved until onboarding finishes).
  */
 export function CoachIntro({ draft }: { draft: AppState }) {
@@ -43,7 +43,7 @@ export function CoachIntro({ draft }: { draft: AppState }) {
     // built-in coach: used when the connected coach is not set up or cannot be reached
     const local = () => answer(chat.some((x) => x.routine)
       ? reply(draft, m)
-      : { id: uid(), role: 'coach', text: 'Here is a weekly routine built from your goal and activity level. Weights are set for you and go up gradually. You can change any of it later in the Coach tab.', routine: buildRoutine(draft.profile) })
+      : { id: uid(), role: 'coach', text: 'Here is a weekly routine built from your goal and activity level. Weights are set for you and go up gradually. You can change any of it later by asking me.', routine: buildRoutine(draft.profile) })
     if (!coachConfigured()) { setTimeout(local, 700); return }
     askCoach(draft, [...chat, ...fresh]).then((res) => {
       if (res.ok) return answer(res.message)

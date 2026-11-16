@@ -12,7 +12,8 @@ export default function RootLayout() {
       <StoreProvider>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="diary" options={{ presentation: 'modal' }} />
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="add-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="edit-food" options={{ presentation: 'modal' }} />

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { router } from 'expo-router'
-import { useStore } from '../../lib/store'
-import { addDays, prettyDate, todayKey, uid } from '../../lib/date'
-import { ZERO, dayTotals, fmt } from '../../lib/nutrition'
-import { useMeals } from '../../lib/meals'
-import type { FoodEntry } from '../../lib/types'
-import { WaterCard } from '../../components/WaterCard'
-import { C, T } from '../../theme'
-import { Bar, Button, Card, Field, Icon, IconButton, Screen, SectionHeader, success, tap } from '../../components/ui'
-import { FoodIcon, MealIcon } from '../../components/foodIcons'
+import { useStore } from '../lib/store'
+import { addDays, prettyDate, todayKey, uid } from '../lib/date'
+import { ZERO, dayTotals, fmt } from '../lib/nutrition'
+import { useMeals } from '../lib/meals'
+import type { FoodEntry } from '../lib/types'
+import { WaterCard } from '../components/WaterCard'
+import { C, T } from '../theme'
+import { Bar, Button, Card, Field, Icon, IconButton, Screen, SectionHeader, success, tap } from '../components/ui'
+import { FoodIcon, MealIcon } from '../components/foodIcons'
 
 
 const st = {
@@ -17,7 +17,8 @@ const st = {
   mealActionText: { color: C.accent, fontWeight: '600' as const, fontSize: 14 },
 }
 
-export default function Food() {
+/** Everything logged for a day: opened from the chat, not a tab. */
+export default function Diary() {
   const { state, dispatch } = useStore()
   const [date, setDate] = useState(todayKey())
   const [editing, setEditing] = useState(false)
@@ -35,10 +36,11 @@ export default function Food() {
   }
 
   return (
-    <Screen title="Food" right={
+    <Screen title="Food diary" bottomPad={40} right={
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <IconButton icon="barcode-outline" onPress={() => router.push({ pathname: '/scanner', params: { mode: 'barcode' } })} label="Scan barcode" />
         <IconButton icon="add" variant="blue" onPress={() => router.push('/add-food')} label="Add food" />
+        <IconButton icon="close" variant="fill" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} label="Close" />
       </View>
     }>
       {/* Date switcher */}

@@ -53,7 +53,7 @@ export default function ExerciseDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <SheetHeader title={ex.name} onClose={() => router.back()} fallback="/fitness" />
+      <SheetHeader title={ex.name} onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
         <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
           <Pill color={MUSCLE_COLOR[ex.muscle]} bg={MUSCLE_COLOR[ex.muscle] + '1A'}>{ex.muscle}</Pill>

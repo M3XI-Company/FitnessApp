@@ -83,7 +83,7 @@ export default function FoodPhoto() {
     }
     success()
     router.dismissAll()
-    router.navigate('/food')
+    router.replace('/diary')
   }
 
   return (

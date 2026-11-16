@@ -3,7 +3,8 @@
  *
  * Sends the recent conversation and a compact picture of the user (no name,
  * no photos) and gets back a reply and, when the user asked for one, a
- * proposed weekly routine and meal plan. Every proposal is validated here
+ * proposed weekly routine and meal plan, or a card to show (the day's plan or
+ * the guided workout). Every proposal is validated here
  * against the app's own exercise and recipe lists and limits before it is
  * shown, and nothing changes until the user taps "Use this plan".
  *
@@ -15,7 +16,8 @@ import { addDays, todayKey, uid } from './date'
 import { deviceId } from './foodPhoto'
 import { dayMacros, workoutsThisWeek } from './progress'
 import { allRecipes, recipeById } from './recipes'
-import { WEEKDAYS, routineFor, routineStreak, sanitiseRoutine, weekdayOf } from './routine'
+import { mealsFor } from './chat'
+import { WEEKDAYS, dayProgress, routineFor, routineStreak, sanitiseRoutine, weekdayOf } from './routine'
 import type { AppState, ChatMessage, Weekday } from './types'
 
 export type CoachError = 'not_configured' | 'monthly_limit' | 'declined' | 'offline' | 'busy' | 'failed'
@@ -33,6 +35,8 @@ interface ServerResult {
   routine_days: { day: Weekday; title: string; focus: string; items: { exercise_id: string; sets: number; reps: string }[] }[]
   update_meal_plan: boolean
   meal_days: { day: Weekday; recipe_ids: string[] }[]
+  /** a card to show under the reply; absent from older deployments of the function */
+  show?: 'none' | 'today' | 'tomorrow' | 'workout'
 }
 
 /** What the coach is told about the user. Deliberately leaves out the name and anything free-text. */
@@ -47,6 +51,10 @@ export function coachContext(s: AppState) {
     current_routine: WEEKDAYS.map((d) => ({ day: d, title: routine.days[d].title, exercises: routine.days[d].items.map((i) => `${i.exerciseId} ${i.sets}x${i.reps}`) })),
     consistency: { workouts_last_7_days: workoutsThisWeek(s), routine_streak_days: routineStreak(s), sessions_logged: new Set(s.sets.map((x) => x.date)).size },
     today: weekdayOf(todayKey()),
+    todays_workout: (() => { const d = dayProgress(s); return { title: d.day.title, status: d.status, exercises_done: d.doneItems, exercises_total: d.items.length } })(),
+    // what the day cards in the chat currently show
+    meals_today: mealsFor(s, todayKey()).recipes.map((r) => r.recipe.id),
+    meals_tomorrow: mealsFor(s, addDays(todayKey(), 1)).recipes.map((r) => r.recipe.id),
     // from a photo the user chose to take; a trainer's first-look description, not a measurement
     ...(s.bodyScan ? { body_scan: { build: s.bodyScan.build, muscle_development: s.bodyScan.muscle, posture_notes: s.bodyScan.posture, focus_areas: s.bodyScan.focusAreas, confidence: s.bodyScan.confidence } } : {}),
     exercises: EXERCISES.map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, equipment: e.equipment, level: e.level })),
@@ -58,8 +66,12 @@ export function coachContext(s: AppState) {
 const comingWeek = () => Object.fromEntries(Array.from({ length: 7 }, (_, i) => addDays(todayKey(), i)).map((d) => [weekdayOf(d), d])) as Record<Weekday, string>
 
 /** Turn the server's answer into a chat message, keeping only proposals that pass the app's own checks. */
-export function toChatMessage(r: ServerResult): ChatMessage {
+export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
   const msg: ChatMessage = { id: uid(), role: 'coach', text: r.reply.trim() }
+  if (r.show === 'today') msg.day = todayKey()
+  else if (r.show === 'tomorrow') msg.day = addDays(todayKey(), 1)
+  // only when there is a workout left to do today
+  else if (r.show === 'workout' && s && ['todo', 'started'].includes(dayProgress(s).status)) msg.guide = todayKey()
   if (r.update_routine) {
     const routine = sanitiseRoutine({ days: Object.fromEntries(r.routine_days.map((d) => [d.day, { title: d.title, focus: d.focus, items: d.items.map((i) => ({ exerciseId: i.exercise_id, sets: i.sets, reps: i.reps })) }])) }, 'coach')
     if (routine) msg.routine = routine
@@ -92,7 +104,7 @@ export async function askCoach(s: AppState, chat: ChatMessage[]): Promise<{ ok: 
       }),
     })
     const body = await res.json().catch(() => ({}))
-    if (res.ok) return { ok: true, message: toChatMessage(body as ServerResult), remaining: body.remaining }
+    if (res.ok) return { ok: true, message: toChatMessage(body as ServerResult, s), remaining: body.remaining }
     if (res.status === 429) return { ok: false, error: 'monthly_limit', limit: body.limit }
     if (res.status === 422) return { ok: false, error: 'declined' }
     if (res.status === 503) return { ok: false, error: 'busy' }

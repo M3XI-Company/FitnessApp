@@ -6,7 +6,9 @@
  *   context: { profile, targets, routine, activity, exercises: [...], recipes: [...] }
  * }
  *
- * The AI coach. It talks with the user and, when they ask for it, proposes a
+ * The AI coach. The app is a single chat, so the coach also chooses which card
+ * (the day's plan or the guided workout) the app shows under a reply. It talks
+ * with the user and, when they ask for it, proposes a
  * weekly workout routine and a meal plan. It may only pick from the exercise
  * and recipe ids the app sends (the output schema is built from those ids), it
  * never sets weights (the app's progression rules do) and it never invents
@@ -55,6 +57,8 @@ const BodySchema = z.object({
 
 // ---- output contract ---------------------------------------------------------
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+/** cards the app can show under the reply */
+const SHOW = ['none', 'today', 'tomorrow', 'workout'] as const
 const ResultSchema = z.object({
   reply: z.string(),
   update_routine: z.boolean(),
@@ -64,6 +68,7 @@ const ResultSchema = z.object({
   })),
   update_meal_plan: z.boolean(),
   meal_days: z.array(z.object({ day: z.enum(DAYS), recipe_ids: z.array(z.string()) })),
+  show: z.enum(SHOW).optional(),
 })
 export type CoachResult = z.infer<typeof ResultSchema>
 
@@ -71,9 +76,10 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'show', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
-    reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown, at most about 120 words.' },
+    reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown. Usually one to three short sentences; at most about 120 words when explaining something.' },
+    show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "none" otherwise.' },
     update_routine: { type: 'boolean', description: 'true only when proposing a new or changed weekly workout routine in routine_days' },
     routine_days: {
       type: 'array',
@@ -110,7 +116,16 @@ const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   },
 })
 
-const SYSTEM = `You are the coach inside Breeze, a UK fitness and nutrition app. You talk with one user about their training and food, and when they want it you build or adjust their weekly workout routine and their meal plan.
+const SYSTEM = `You are Breeze, the coach in a UK fitness and nutrition app. The app is this one conversation: there are no other screens for the user to browse, so everything they need comes from you and from the cards the app shows under your replies. You talk with one user about their training and food, and when they want it you build or adjust their weekly workout routine and their meal plan.
+
+Keep it simple and quick. People read this on a phone, often in the gym or the kitchen. Answer in one to three short sentences unless they ask you to explain, give one clear next step, and never bury them in numbers or options.
+
+Cards, set with the show field:
+- "today" or "tomorrow" shows that day's workout and meals. Use it when the user asks what is on, what to eat, or what is next. The card lists the details, so do not repeat them in your reply.
+- "workout" starts the step-by-step guide for today's workout, with a 3D figure showing the form and the muscles worked. Use it when the user says they are starting, continuing or ready to train. If todays_workout says it is a rest day or already done, say so instead and use "none".
+- A routine or meal plan you propose is shown as its own card with a button to use it and, for meals, a button to copy it with ingredients.
+
+Not built yet, so do not offer or promise them: reminders and notifications, voice, finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
 
 What you know about the user arrives in a JSON block at the start of the conversation: their profile and goal, the daily targets the app has calculated, their current routine, how consistent they have been lately, and the exercises and recipes the app has. Treat it as facts about the user. Their name is not included, so do not use one. If it includes body_scan, that is a trainer's first-look description from a photo the user chose to share: use its focus areas and posture notes to shape exercise choice, mention it lightly and kindly if at all, and never turn it into a judgement about their body or a weight target.
 
@@ -126,7 +141,9 @@ Building a routine:
 - Only set update_routine when you are actually proposing a routine. When the user is only asking a question, answer it and leave the routine alone. If you need one or two facts before you can build a good plan, ask for them first, briefly.
 - When you do propose one, say in your reply what changed and why in a sentence or two. The app shows the plan itself as a card with a button to use it, so do not list the exercises in your reply.
 
-Meal plans work the same way: set update_meal_plan only when proposing one, one to three recipes a day, and mention how the days line up with the user's targets.
+Meal plans work the same way: set update_meal_plan only when proposing one, one to three recipes a day, and mention how the days line up with the user's targets. meals_today and meals_tomorrow are what the day cards show now. When the user asks for different meals, names ingredients or a kind of food they want or do not want, or asks to change one day, propose a plan that includes that day using the closest recipes you have, and say honestly if nothing in the list matches what they asked for.
+
+When the user asks whether they can do more, look at their consistency. If they have kept to the routine, propose a modest step up (one more set on a couple of exercises, or one more exercise per session, not both). If they have missed sessions, say that keeping the current plan for another week will do more for them.
 
 Safety comes before helpfulness here, because people act on what you say with their bodies:
 - You give general fitness and nutrition guidance. You are not a doctor, physiotherapist or dietitian, and you do not diagnose or treat anything.
@@ -214,6 +231,7 @@ Deno.serve(async (req) => {
     const r = parsed.data
     const result: CoachResult = {
       reply: r.reply.slice(0, 4000),
+      show: r.show ?? 'none',
       update_routine: r.update_routine && r.routine_days.length > 0,
       // clamp to the app's limits; the app validates again before anything is applied
       routine_days: r.update_routine ? r.routine_days.slice(0, 7).map((d) => ({ ...d, items: d.items.slice(0, 8).map((i) => ({ ...i, sets: Math.max(1, Math.min(5, Math.round(i.sets))) })) })) : [],

@@ -25,7 +25,7 @@ export default function Settings() {
         <SectionHeader title="Your plan" />
         <List>
           <Row first left={<IconTile icon="body" />} title="Details and goal" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg · ${goal}`} onPress={() => router.push('/onboarding')} right={chevron} />
-          <Row left={<IconTile icon="barbell-outline" />} title="Workout routine" subtitle="Change it by talking to the coach" onPress={() => router.push({ pathname: '/onboarding', params: { step: 'coach' } })} right={chevron} />
+          <Row left={<IconTile icon="barbell-outline" />} title="Workout routine" subtitle="Ask the coach in the chat to change it" onPress={() => router.back()} right={chevron} />
           <Row left={<IconTile icon="restaurant-outline" />} title="Meal plan" subtitle="Recipes planned for the next 7 days" onPress={() => router.push('/plans')} right={chevron} />
           <Row left={<IconTile icon="flame" />} title="Daily targets" subtitle={`${state.targets.kcal} kcal · ${state.targets.protein} g protein`} onPress={() => router.push('/targets')} right={chevron} />
           {isAdult(p.age) && (
@@ -34,12 +34,14 @@ export default function Settings() {
               onPress={() => router.push({ pathname: '/onboarding', params: { step: 'scan' } })} right={chevron} />
           )}
           <Row left={<IconTile icon="scale-outline" />} title="Log weight" onPress={() => router.push('/weight')} right={chevron} />
+          <Row left={<IconTile icon="book-outline" />} title="Food diary" subtitle="What you have logged each day" onPress={() => router.push('/diary')} right={chevron} />
+          <Row left={<IconTile icon="trophy-outline" />} title="Progress and goals" subtitle="Level, goals and achievements" onPress={() => router.push('/profile')} right={chevron} />
         </List>
 
         <SectionHeader title="Home gym" />
         <Card style={{ gap: 10 }}>
           <Field value={gym} onChangeText={setGym} placeholder="Gym name and town" autoCapitalize="words" returnKeyType="done" />
-          <Text style={[T.caption, { lineHeight: 17 }]}>Gym buddies will only show people who train at the same gym.</Text>
+          <Text style={[T.caption, { lineHeight: 17 }]}>Used to find training partners at your gym once accounts launch.</Text>
           {gymChanged && <Button small title="Save gym" onPress={() => { dispatch({ type: 'profile', profile: { ...p, gym: gym.trim() || undefined } }); success() }} />}
         </Card>
 

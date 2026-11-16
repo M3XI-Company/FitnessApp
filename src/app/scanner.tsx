@@ -50,7 +50,7 @@ export default function Scanner() {
     dispatch({ type: 'addFood', entry: makeEntry(product, { servings: qty }, { id: uid(), date: todayKey(), meal, source: mode === 'barcode' ? 'barcode' : 'scan', dataSource: 'off' }) })
     success()
     router.dismissAll()
-    router.navigate('/food')
+    router.replace('/diary')
   }
 
   const cameraReady = permission?.granted && Platform.OS !== 'web'

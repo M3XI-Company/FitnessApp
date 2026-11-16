@@ -8,7 +8,7 @@ import { exerciseHistory, goalProgress, levelName, LEVEL_NAMES, logStreak, water
 import { todayKey, uid } from '../lib/date'
 import type { UserGoal } from '../lib/types'
 import { C, T, glow, G } from '../theme'
-import { Bar, Button, Card, Icon, IconButton, IconTile, List, Row, SectionHeader, SheetHeader, tap, type IconName } from '../components/ui'
+import { Bar, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap, type IconName } from '../components/ui'
 
 const PRESETS: Omit<UserGoal, 'id' | 'createdAt'>[] = [
   { title: 'Train 3× this week', metric: 'workouts_week', target: 3 },
@@ -39,7 +39,7 @@ export default function Profile() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <SheetHeader title="Profile" onClose={() => router.back()} right={<IconButton icon="settings-outline" variant="fill" size={36} onPress={() => router.push('/settings')} label="Settings" />} />
+      <SheetHeader title="Profile" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
         <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
@@ -108,8 +108,6 @@ export default function Profile() {
           <Row left={<IconTile icon="water-outline" />} title="Fat" right={<Text style={T.headline}>{t.fat} g</Text>} />
           <Row left={<IconTile icon="water" />} title="Water" right={<Text style={T.headline}>{(t.waterMl / 1000).toFixed(1)} L</Text>} />
         </List>
-
-        <Button variant="tinted" icon="settings-outline" title="Settings" onPress={() => router.push('/settings')} style={{ marginTop: 22 }} />
       </ScrollView>
     </View>
   )

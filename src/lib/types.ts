@@ -119,6 +119,10 @@ export interface ChatMessage {
   routine?: WeeklyRoutine
   /** a meal plan the coach proposes: date -> recipe ids */
   meals?: Record<string, string[]>
+  /** date whose plan (workout and meals) is shown as a card under the message */
+  day?: string
+  /** date of the workout the coach is walking the user through */
+  guide?: string
 }
 
 /**

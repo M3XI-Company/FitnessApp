@@ -35,7 +35,7 @@ export default function RecipeScreen() {
   const logged = nutritionFor(c.asFood, { servings: eaten })
   const addToDiary = () => {
     dispatch({ type: 'addFood', entry: makeEntry(c.asFood, { servings: eaten }, { id: uid(), date: todayKey(), meal, source: 'search', dataSource: 'recipe' }) })
-    success(); setLogOpen(false); router.navigate('/food')
+    success(); setLogOpen(false); router.replace('/diary')
   }
 
   return (
