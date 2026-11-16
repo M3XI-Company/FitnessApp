@@ -6,7 +6,7 @@
 import { exerciseById } from '../data/exercises'
 import { addDays, prettyDate, todayKey, uid } from './date'
 import { allRecipes, recipeById, scaledGrams, type ComputedRecipe } from './recipes'
-import { parseTime, remindersOf, sanitiseTimes } from './reminders'
+import { parseTime, remindersOf, sanitiseTimes } from './times'
 import { dayProgress } from './routine'
 import type { AppState, ChatMessage, RoutineItem, Targets } from './types'
 

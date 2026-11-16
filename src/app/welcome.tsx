@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BodyScanStep } from '../components/onboarding/BodyScanStep'
@@ -7,7 +7,7 @@ import { MIN_AGE } from '../lib/age'
 import { askCoach } from '../lib/coachApi'
 import { uid } from '../lib/date'
 import { thinkingLine } from '../lib/chat'
-import { askInterview, heardProgress, heardTags, interviewConfigured, knownFrom, understand, type HeardProfile, type InterviewError, type InterviewTurn, type ProfileField } from '../lib/interview'
+import { askInterview, heardTags, interviewConfigured, knownFrom, understand, type HeardProfile, type InterviewError, type InterviewTurn, type ProfileField } from '../lib/interview'
 import { addMemories, memoryOf, notesToMemories } from '../lib/memory'
 import { computeTargets } from '../lib/nutrition'
 import { WEEKDAYS, buildRoutine } from '../lib/routine'
@@ -15,7 +15,9 @@ import { useStore } from '../lib/store'
 import type { Activity, GoalType, Profile, WeeklyRoutine } from '../lib/types'
 import { canListen, listen, speak, stopSpeaking, type Listening } from '../lib/voice'
 import { C, T, shadow } from '../theme'
-import { Bar, Button, Card, Icon, Stepper, success, tap } from '../components/ui'
+import { SkyOrb, type OrbMode } from '../components/SkyOrb'
+import { VoiceBar } from '../components/VoiceBar'
+import { Button, Card, Icon, Stepper, success, tap } from '../components/ui'
 
 type Phase = 'intro' | 'talk' | 'review' | 'underage' | 'scan' | 'plan'
 type Mode = 'thinking' | 'speaking' | 'listening' | 'waiting'
@@ -174,7 +176,7 @@ export default function Welcome() {
     return (
       <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 26 }}>
-          <Bars mode="waiting" level={0} />
+          <SkyOrb size={230} />
           <View style={{ gap: 10, alignItems: 'center' }}>
             <Text style={[T.largeTitle, { textAlign: 'center' }]}>{returning ? 'Let’s catch up' : 'Hi, I’m Breeze'}</Text>
             <Text style={[T.body, { color: C.text2, fontSize: 17, lineHeight: 24, textAlign: 'center', maxWidth: 320 }]}>
@@ -199,61 +201,30 @@ export default function Welcome() {
 
   if (phase === 'talk') {
     return (
-      <KeyboardAvoidingView style={[{ flex: 1, backgroundColor: C.bg }, pad]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, height: 36 }}>
-          <View style={{ flex: 1 }}><Bar pct={heardProgress(heard)} height={4} /></View>
-          <Pressable hitSlop={10} onPress={() => { tap(); toReview(heard, notes) }}><Text style={{ color: C.accent, fontWeight: '600', fontSize: 15 }}>Skip</Text></Pressable>
-        </View>
-
-        <Pressable style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 }} onPress={mode === 'speaking' ? interrupt : undefined} accessibilityLabel={mode === 'speaking' ? 'Breeze is speaking. Tap to skip ahead.' : undefined}>
-          <Bars mode={mode} level={level} />
-          <View style={{ minHeight: 150, gap: 14, alignItems: 'center' }}>
-            {mode === 'thinking' && (
-              <Text accessibilityLabel={thought ? `Breeze is thinking: ${thought}` : 'Breeze is thinking'} style={[T.sub, { textAlign: 'center', fontStyle: 'italic', lineHeight: 20, minHeight: 20 }]} numberOfLines={3}>{thought || 'Thinking…'}</Text>
+      <KeyboardAvoidingView style={[{ flex: 1, backgroundColor: '#F7F8FA' }, pad]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable focusable={false} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 34 }} onPress={mode === 'speaking' ? interrupt : undefined} accessibilityLabel={mode === 'speaking' ? 'Breeze is speaking. Tap to skip ahead.' : undefined}>
+          <SkyOrb size={250} mode={ORB_MODE[mode]} level={level} />
+          <View style={{ minHeight: 150, maxWidth: 340, gap: 12, alignItems: 'center' }}>
+            {mode === 'thinking' ? (
+              // Breeze's thinking, as it happens
+              <Text accessibilityLabel={`Breeze is thinking: ${thought}`} style={[T.sub, { textAlign: 'center', fontStyle: 'italic', lineHeight: 21, color: C.text3 }]} numberOfLines={4}>{thought || 'Thinking\u2026'}</Text>
+            ) : mode === 'listening' ? (
+              <Text style={[T.body, { textAlign: 'center', fontSize: 18, lineHeight: 25, color: partial ? C.text : C.text3 }]}>{partial || 'Listening\u2026'}</Text>
+            ) : (
+              <Text style={[T.body, { textAlign: 'center', fontSize: 19, lineHeight: 27, color: C.text }]}>{line}</Text>
             )}
-            {!!line && mode !== 'thinking' && <Text style={[T.title2, { textAlign: 'center', lineHeight: 30 }]}>{line}</Text>}
-            {!!partial && <Text style={[T.body, { color: C.text2, textAlign: 'center', fontSize: 17 }]}>{partial}</Text>}
             {!!error && <Text style={[T.sub, { color: C.red, textAlign: 'center' }]}>{ERRORS[error]}</Text>}
-            {/* what has been understood so far, so the user can see they were heard */}
-            {tags.length > 0 && (
-              <View accessibilityLabel={`Understood so far: ${tags.join(', ')}`} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 }}>
-                {tags.map((t) => <View key={t} style={{ paddingHorizontal: 11, height: 28, justifyContent: 'center', borderRadius: 14, backgroundColor: C.card }}><Text style={{ color: C.text, fontWeight: '600', fontSize: 13 }}>{t}</Text></View>)}
-              </View>
-            )}
+            {/* what has been understood so far, quietly */}
+            {tags.length > 0 && <Text accessibilityLabel={`Understood so far: ${tags.join(', ')}`} style={[T.caption, { textAlign: 'center', color: C.text3 }]}>{tags.join('  \u00b7  ')}</Text>}
           </View>
         </Pressable>
-
-        <View style={{ gap: 10 }}>
-          <Text style={[T.caption, { textAlign: 'center', fontWeight: '700', letterSpacing: 1 }]}>
-            {mode === 'listening' ? 'LISTENING' : mode === 'speaking' ? 'BREEZE IS SPEAKING' : mode === 'thinking' ? 'THINKING' : typing ? 'YOUR TURN' : 'TAP THE MIC TO ANSWER'}
-          </Text>
-          {error ? (
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Button variant="ghost" title="Carry on without talking" style={{ flex: 1 }} onPress={() => toReview(heard, notes)} />
-              {error !== 'not_configured' && error !== 'monthly_limit' && <Button title="Try again" style={{ flex: 1 }} onPress={() => next()} />}
-            </View>
-          ) : typing ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, padding: 6, backgroundColor: '#fff', borderRadius: 26, ...shadow }}>
-              {hears && (
-                <Pressable accessibilityLabel="Answer out loud instead" onPress={() => { tap(); setTyping(false); typingRef.current = false; if (mode === 'waiting') hear() }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.fill, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="sparkles" size={19} color={C.accent} />
-                </Pressable>
-              )}
-              <TextInput value={typed} onChangeText={setTyped} editable={mode !== 'thinking'} placeholder="Type your answer" placeholderTextColor={C.text3} onSubmitEditing={() => { stopSpeaking(); answer(typed) }} returnKeyType="send" submitBehavior="submit"
-                style={{ flex: 1, fontSize: 16, paddingHorizontal: 10, color: C.text, minHeight: 40 }} />
-              <Pressable accessibilityLabel="Send" disabled={!typed.trim() || mode === 'thinking'} onPress={() => { stopSpeaking(); answer(typed) }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: typed.trim() && mode !== 'thinking' ? C.night : C.fill2, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="arrow-up" size={20} color={C.skyLight} />
-              </Pressable>
-            </View>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Button variant="ghost" title="Type instead" style={{ flex: 1 }} onPress={() => { ear.current?.cancel(); ear.current = null; setTyping(true); typingRef.current = true; if (mode === 'listening') setMode('waiting') }} />
-              {mode === 'listening'
-                ? <Button variant="dark" icon="checkmark" title="Done" style={{ flex: 1 }} onPress={() => ear.current?.stop()} />
-                : <Button variant="dark" icon="sparkles" title="Answer" disabled={mode !== 'waiting'} style={{ flex: 1 }} onPress={() => hear()} />}
-            </View>
-          )}
-        </View>
+        {error && error !== 'not_configured' && error !== 'monthly_limit' && (
+          <Pressable onPress={() => next()} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: 12 }}><Text style={{ color: C.accent, fontWeight: '600', fontSize: 15 }}>Try again</Text></Pressable>
+        )}
+        <VoiceBar text={typed} onChangeText={setTyped} onSend={() => { stopSpeaking(); answer(typed) }} placeholder={hears ? 'Or type your answer' : 'Type your answer'} editable={mode !== 'thinking'}
+          mic={!hears ? 'off' : mode === 'listening' ? 'listening' : mode === 'waiting' ? 'ready' : 'busy'}
+          onMic={() => { setTyping(false); typingRef.current = false; if (mode === 'listening') ear.current?.stop(); else hear() }}
+          onClose={() => toReview(heard, notes)} closeLabel="Finish the conversation" />
       </KeyboardAvoidingView>
     )
   }
@@ -318,7 +289,7 @@ export default function Welcome() {
   return (
     <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
       <View style={{ flex: 1, justifyContent: 'center', gap: 22 }}>
-        <View style={{ alignItems: 'center' }}><Bars mode={routine ? 'waiting' : 'thinking'} level={0} small /></View>
+        <View style={{ alignItems: 'center' }}><SkyOrb size={150} mode={routine ? 'idle' : 'thinking'} /></View>
         {!routine ? (
           <Text style={[T.title2, { textAlign: 'center' }]}>{returning ? 'Updating' : 'Building'} your plan{draft.name ? `, ${draft.name}` : ''}</Text>
         ) : (
@@ -371,46 +342,4 @@ function Choice<V extends string>({ value, options, onChange }: { value: V; opti
   )
 }
 
-const BARS = 5
-/** how much each bar answers to the voice: the middle ones move most */
-const WEIGHT = [0.55, 0.85, 1, 0.8, 0.5]
-
-/**
- * The conversation as five bars. Each state looks different, so it is clear
- * at a glance what is happening: a slow ripple while Breeze is thinking, a
- * lively bounce while it speaks, and bars that rise with the user's own voice
- * while it listens.
- */
-function Bars({ mode, level, small }: { mode: Mode; level: number; small?: boolean }) {
-  const [values] = useState(() => Array.from({ length: BARS }, () => new Animated.Value(0)))
-  useEffect(() => {
-    if (mode === 'listening') return
-    if (mode === 'waiting') { const rest = Animated.parallel(values.map((v) => Animated.timing(v, { toValue: 0, duration: 250, useNativeDriver: true }))); rest.start(); return () => rest.stop() }
-    const speaking = mode === 'speaking'
-    const half = speaking ? 260 : 620
-    const loops = values.map((v, i) => Animated.loop(Animated.sequence([
-      Animated.delay(i * (speaking ? 70 : 150)),
-      Animated.timing(v, { toValue: speaking ? WEIGHT[(i * 2 + 1) % BARS] : 0.32, duration: half, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(v, { toValue: speaking ? 0.12 : 0, duration: half, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.delay((BARS - 1 - i) * (speaking ? 70 : 150)),
-    ])))
-    loops.forEach((l) => l.start())
-    return () => loops.forEach((l) => l.stop())
-  }, [mode, values])
-  useEffect(() => {
-    if (mode !== 'listening') return
-    const move = Animated.parallel(values.map((v, i) => Animated.spring(v, { toValue: Math.min(1, level * 1.25) * WEIGHT[i], useNativeDriver: true, speed: 28, bounciness: 3 })))
-    move.start()
-    return () => move.stop()
-  }, [level, mode, values])
-  const h = small ? 84 : 150
-  const w = small ? 20 : 34
-  const color = mode === 'listening' ? C.accent : C.night
-  return (
-    <View style={{ height: h, flexDirection: 'row', alignItems: 'center', gap: small ? 8 : 12 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {values.map((v, i) => (
-        <Animated.View key={i} style={{ width: w, height: h, borderRadius: w / 2, backgroundColor: color, opacity: mode === 'waiting' ? 0.85 : 1, transform: [{ scaleY: v.interpolate({ inputRange: [0, 1], outputRange: [0.34, 1] }) }] }} />
-      ))}
-    </View>
-  )
-}
+const ORB_MODE: Record<Mode, OrbMode> = { thinking: 'thinking', speaking: 'speaking', listening: 'listening', waiting: 'idle' }

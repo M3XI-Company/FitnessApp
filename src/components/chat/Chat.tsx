@@ -13,10 +13,12 @@ import { useStore } from '../../lib/store'
 import type { ChatMessage } from '../../lib/types'
 import { C, T, shadow } from '../../theme'
 import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
+import { SkyOrb } from '../SkyOrb'
 import { Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
 import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
+import { VoiceMode } from './VoiceMode'
 import { WorkoutGuide } from './WorkoutGuide'
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
@@ -38,6 +40,7 @@ export function Chat() {
   const [typing, setTyping] = useState(false)
   // what the coach is working out, shown while it works
   const [thought, setThought] = useState('')
+  const [voice, setVoice] = useState(false)
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null)
   const today = todayKey()
   const workout = dayProgress(state, today)
@@ -54,17 +57,17 @@ export function Chat() {
   useEffect(() => { if (needsCheckin(state, today)) dispatch({ type: 'chat', messages: [checkinMessage(today)] }) }, [state, today, dispatch])
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing, thought])
 
-  const send = (msg: string) => {
-    const m = msg.trim()
-    if (!m || typing) return
-    tap()
+  /** Send what the user said and resolve with Breeze's reply; used by typing and by voice. */
+  const respond = (m: string, onThinking?: (thought: string) => void) => new Promise<ChatMessage>((resolve) => {
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
-    setText('')
     const intent = localIntent(m)
-    if (intent) { dispatch({ type: 'chat', messages: [user, intent === 'reminders' ? remindersMessage(state) : localAnswer(state, intent, today)] }); return }
+    if (intent) {
+      const a = intent === 'reminders' ? remindersMessage(state) : localAnswer(state, intent, today)
+      dispatch({ type: 'chat', messages: [user, a] }); resolve(a); return
+    }
     dispatch({ type: 'chat', messages: [user] })
     setTyping(true); setThought('')
-    const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false) }
+    const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false); resolve(message) }
     // built-in coach: rule-based, used when the AI coach is not set up or cannot be reached
     const local = (notice?: string) => {
       const q = m.toLowerCase()
@@ -75,16 +78,24 @@ export function Chat() {
       answer(notice ? { ...message, text: `${notice}\n\n${message.text}` } : message)
     }
     if (!coachConfigured()) { setTimeout(() => local(), 500); return }
-    askCoach(state, [...state.chat, user], (thinking) => setThought(thinkingLine(thinking))).then((res) => {
+    askCoach(state, [...state.chat, user], (thinking) => { const l = thinkingLine(thinking); setThought(l); onThinking?.(l) }).then((res) => {
       if (res.ok) {
         // the coach's memory is updated straight away; what it noted is shown under the reply
         if (res.memory.forget.length) dispatch({ type: 'forget', ids: res.memory.forget })
         if (res.memory.remember.length) dispatch({ type: 'remember', texts: res.memory.remember })
         return answer(res.message)
       }
-      if (res.error === 'declined') return answer({ id: uid(), role: 'coach', text: 'I can’t help with that one. If it is about your health, your GP is the right person to ask.' })
-      local(res.error === 'monthly_limit' ? 'You have used this month’s AI coach messages, so this answer comes from the built-in coach.' : 'I couldn’t reach the AI coach just now, so this answer comes from the built-in coach.')
+      if (res.error === 'declined') return answer({ id: uid(), role: 'coach', text: 'I can\u2019t help with that one. If it is about your health, your GP is the right person to ask.' })
+      local(res.error === 'monthly_limit' ? 'You have used this month\u2019s AI coach messages, so this answer comes from the built-in coach.' : 'I couldn\u2019t reach the AI coach just now, so this answer comes from the built-in coach.')
     })
+  })
+
+  const send = (msg: string) => {
+    const m = msg.trim()
+    if (!m || typing) return
+    tap()
+    setText('')
+    respond(m)
   }
 
   const shown = state.chat.slice(-SHOWN)
@@ -92,24 +103,23 @@ export function Chat() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 10 }}>
-        <IconButton icon="chatbubbles-outline" size={36} onPress={() => router.push('/history')} label="Earlier chats" />
-        <View accessibilityLabel={`Streak: ${streak} day${streak === 1 ? '' : 's'}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: 36, borderRadius: 18, backgroundColor: C.card }}>
-          <Icon name="flame" size={17} color={streak > 0 ? '#F2622E' : C.text3} />
-          <Text style={[T.headline, T.num, { color: streak > 0 ? C.text : C.text3 }]}>{streak}</Text>
-        </View>
+        <IconButton icon="menu" size={44} onPress={() => router.push('/history')} label="Chats" />
         <View style={{ flex: 1 }} />
-        {shown.length > 0 && <IconButton icon="create-outline" size={36} onPress={() => { tap(); dispatch({ type: 'newChat' }) }} label="New chat" />}
-        <IconButton icon="settings-outline" size={36} onPress={() => router.push('/settings')} label="Settings" />
+        {shown.length > 0 && <IconButton icon="create-outline" size={44} onPress={() => { tap(); dispatch({ type: 'newChat' }) }} label="New chat" />}
+        <IconButton icon="sliders" size={44} onPress={() => router.push('/settings')} label="Settings" />
       </View>
 
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* a new chat is empty: a greeting and today at a glance, nothing posted */}
         {!shown.length && (
-          <View style={{ flex: 1, justifyContent: 'center', gap: 22, paddingBottom: 30 }}>
-            <View style={{ gap: 4, paddingHorizontal: 2 }}>
-              <Text style={T.title1}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
-              <Text style={[T.body, { color: C.text2 }]}>{workout.status === 'rest' ? 'Rest day. Ask me anything.' : workout.status === 'done' ? 'Training is done. Ask me anything.' : 'Tap play when you are ready to train, or ask me anything.'}</Text>
-            </View>
+          <View style={{ flex: 1, justifyContent: 'center', gap: 26, paddingBottom: 20 }}>
+            <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" style={{ alignItems: 'center', gap: 18 }}>
+              <SkyOrb size={200} />
+              <View style={{ alignItems: 'center', gap: 4 }}>
+                <Text style={[T.title2, { textAlign: 'center' }]}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
+                <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}Tap the sky to talk, or type below.</Text>
+              </View>
+            </Pressable>
             <DayCard date={today} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
           </View>
         )}
@@ -151,18 +161,24 @@ export function Chat() {
         )}
       </ScrollView>
 
-      <View style={{ paddingBottom: Math.max(10, insets.bottom + 6), gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, padding: 6, backgroundColor: '#fff', borderRadius: 26, ...shadow }}>
-          <Pressable onPress={() => { tap(); router.push('/quick-add') }} accessibilityLabel="Log food, water or weight" style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.fill, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="add" size={22} color={C.accent} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(12, insets.bottom + 8) }}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 6, paddingRight: 6, backgroundColor: '#fff', borderRadius: 28, ...shadow }}>
+          <Pressable onPress={() => { tap(); router.push('/quick-add') }} accessibilityLabel="Log food, water or weight" style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="add" size={24} color={C.night} />
           </Pressable>
-          <TextInput value={text} onChangeText={setText} placeholder="Message Breeze" placeholderTextColor={C.text3} onSubmitEditing={() => send(text)} returnKeyType="send" submitBehavior="submit"
-            style={{ flex: 1, fontSize: 16, paddingHorizontal: 8, color: C.text, minHeight: 40 }} />
-          <Pressable onPress={() => send(text)} disabled={!text.trim() || typing} accessibilityLabel="Send" style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: text.trim() && !typing ? C.night : C.fill2, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="arrow-up" size={20} color={C.skyLight} />
-          </Pressable>
+          <TextInput value={text} onChangeText={setText} placeholder="Ask Breeze" placeholderTextColor={C.text3} onSubmitEditing={() => send(text)} returnKeyType="send" submitBehavior="submit"
+            style={{ flex: 1, fontSize: 17, paddingHorizontal: 4, color: C.text, minHeight: 44 }} />
+          {!!text.trim() && (
+            <Pressable onPress={() => send(text)} disabled={typing} accessibilityLabel="Send" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: typing ? C.fill2 : C.night, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="arrow-up" size={20} color={C.cloud} />
+            </Pressable>
+          )}
         </View>
+        <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+          <Icon name="voice" size={24} color="#fff" />
+        </Pressable>
       </View>
+      {voice && <VoiceMode onClose={() => setVoice(false)} respond={respond} />}
     </KeyboardAvoidingView>
   )
 }
