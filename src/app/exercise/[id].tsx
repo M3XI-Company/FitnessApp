@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Suspense, lazy, useState } from 'react'
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../../lib/store'
@@ -10,9 +10,11 @@ import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
 import { C, T, G, F } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, Stepper, success, tap } from '../../components/ui'
-import { Trainer3D } from '../../components/trainer/Trainer3D'
 import { RestTimer } from '../../components/RestTimer'
 import { supportsForm } from '../../lib/form/engine'
+
+// Loaded on demand so the 3D engine never delays or blocks app start-up
+const Trainer3D = lazy(() => import('../../components/trainer/Trainer3D').then((m) => ({ default: m.Trainer3D })))
 
 export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
@@ -51,7 +53,9 @@ export default function ExerciseDetail() {
           <Pill color={C.text2} bg={C.fill}>{ex.level}</Pill>
         </View>
 
-        <Trainer3D exerciseId={ex.id} />
+        <Suspense fallback={<View style={{ height: 320, borderRadius: 24, backgroundColor: C.fill, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.accent} /></View>}>
+          <Trainer3D exerciseId={ex.id} />
+        </Suspense>
         <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
         <Card style={{ marginBottom: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
