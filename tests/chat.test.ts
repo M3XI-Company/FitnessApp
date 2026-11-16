@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { briefing, localAnswer, localIntent, mealPlanText, mealsFor, needsBriefing, portionFor, restSeconds, sessionMinutes, suggestMeals } from '../src/lib/chat'
+import { localAnswer, localIntent, mealPlanText, mealsFor, portionFor, restSeconds, sessionMinutes, suggestMeals } from '../src/lib/chat'
 import { coachContext, toChatMessage } from '../src/lib/coachApi'
 import { addDays, todayKey } from '../src/lib/date'
 import { effectiveTargets } from '../src/lib/nutrition'
@@ -99,18 +99,9 @@ test('only short, plain asks are answered on the phone', () => {
   assert.equal(localIntent('Can I do more next week?'), null)
   assert.equal(localIntent('Should I start a new routine?'), null)
   assert.equal(localIntent('Change my meals'), null)
-})
-
-test('the day briefing is posted once per day and carries the day card', () => {
-  const s = state()
-  assert.equal(needsBriefing([], today), true)
-  const b = briefing(s, today)
-  assert.equal(b.day, today)
-  assert.match(b.text, /Full body: 2 exercises, about 20 minutes/)
-  assert.equal(needsBriefing([b], today), false)
-  assert.equal(needsBriefing([b], addDays(today, 1)), true)
-  assert.match(briefing(state([weekdayOf(today)]), today).text, /rest day/)
-  assert.match(briefing(doneToday(), today).text, /done for today/)
+  assert.equal(localIntent('Reminders'), 'reminders')
+  assert.equal(localIntent('set up my reminders'), 'reminders')
+  assert.equal(localIntent('Remind me to eat breakfast at 7'), null)
 })
 
 test('starting a workout opens the guide only when there is one to do', () => {

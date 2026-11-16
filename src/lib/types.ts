@@ -123,6 +123,27 @@ export interface ChatMessage {
   day?: string
   /** date of the workout the coach is walking the user through */
   guide?: string
+  /** reminder times the coach suggests; nothing is scheduled until the user turns them on */
+  reminders?: ReminderTimes
+}
+
+/** A saved conversation. The one in progress lives in AppState.chat. */
+export interface ChatThread {
+  id: string
+  /** the first thing the user said, shortened */
+  title: string
+  /** ISO time of the last message */
+  at: string
+  messages: ChatMessage[]
+}
+
+/** When to remind, as 24-hour "HH:MM" */
+export interface ReminderTimes { breakfast: string; lunch: string; dinner: string; workout: string }
+export interface ReminderSettings {
+  on: boolean
+  /** ping again every few minutes until the app is opened */
+  repeat: boolean
+  times: ReminderTimes
 }
 
 /**
@@ -169,7 +190,14 @@ export interface AppState {
   waterPlan: WaterPlan
   boxedPlan: Record<string, string[]> // date -> boxed meal ids
   goals: UserGoal[]
+  /** the conversation in progress */
   chat: ChatMessage[]
+  /** id of the conversation in progress */
+  chatId?: string
+  /** earlier conversations, newest first */
+  threads?: ChatThread[]
+  /** meal and workout reminders; off until the user turns them on */
+  reminders?: ReminderSettings
   /** the weekly workout routine in use; when absent one is built from the profile */
   routine?: WeeklyRoutine
   /** latest body scan description, if the user chose to do one */

@@ -27,6 +27,7 @@ export default function RootLayout() {
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="history" options={{ presentation: 'modal' }} />
           <Stack.Screen name="quick-add" options={{ presentation: 'transparentModal', animation: 'fade' }} />
           <Stack.Screen name="weight" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true }} />
         </Stack>

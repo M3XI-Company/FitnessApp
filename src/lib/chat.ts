@@ -101,7 +101,7 @@ export function mealPlanText(days: Pick<DayMeals, 'date' | 'recipes' | 'portion'
 }
 
 /** What the user typed, when it is something the app can answer straight away. */
-export type LocalIntent = 'start' | 'today' | 'tomorrow'
+export type LocalIntent = 'start' | 'today' | 'tomorrow' | 'reminders'
 export function localIntent(text: string): LocalIntent | null {
   const q = text.toLowerCase().trim()
   if (q.length > 80) return null
@@ -112,27 +112,15 @@ export function localIntent(text: string): LocalIntent | null {
   const ask = (day: string) => new RegExp(`^(show me |what'?s |what is |what am i doing |what do i have |what'?s the plan |my plan )?(on |planned )?(for )?${day}[?]?$`).test(q)
   if (ask('tomorrow')) return 'tomorrow'
   if (ask('today')) return 'today'
+  // a bare ask for reminders shows the times; one that names times goes to the coach
+  if (/^(set up |set |turn on |change |show |edit )?(my )?(meal |workout |daily )?(reminders?|notifications?)( please)?[?]?$/.test(q)) return 'reminders'
   return null
 }
 
 const coach = (text: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({ id: uid(), role: 'coach', text, ...extra })
 
-/** The coach's first message of a day: what is planned, with the day card under it. */
-export function briefing(s: AppState, date = todayKey()): ChatMessage {
-  const p = dayProgress(s, date)
-  const text = p.status === 'rest'
-    ? 'Today is a rest day, so no training. Your meals are below.'
-    : p.status === 'done'
-      ? `${p.day.title} is done for today. Your meals are below.`
-      : `Today is ${p.day.title}: ${p.items.length} exercises, about ${sessionMinutes(p.items)} minutes. Your meals are below. Tell me when you are starting.`
-  return coach(text, { day: date })
-}
-
-/** True when the day's briefing has not been posted yet. */
-export const needsBriefing = (chat: ChatMessage[], date = todayKey()) => !chat.some((m) => m.role === 'coach' && m.day === date)
-
 /** The answer to a local intent. */
-export function localAnswer(s: AppState, intent: LocalIntent, today = todayKey()): ChatMessage {
+export function localAnswer(s: AppState, intent: Exclude<LocalIntent, 'reminders'>, today = todayKey()): ChatMessage {
   if (intent === 'tomorrow') {
     const date = addDays(today, 1)
     const p = dayProgress(s, date)

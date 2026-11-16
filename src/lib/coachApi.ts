@@ -17,6 +17,7 @@ import { deviceId } from './foodPhoto'
 import { dayMacros, workoutsThisWeek } from './progress'
 import { allRecipes, recipeById } from './recipes'
 import { mealsFor } from './chat'
+import { remindersOf, sanitiseTimes } from './reminders'
 import { WEEKDAYS, dayProgress, routineFor, routineStreak, sanitiseRoutine, weekdayOf } from './routine'
 import type { AppState, ChatMessage, Weekday } from './types'
 
@@ -37,6 +38,9 @@ interface ServerResult {
   meal_days: { day: Weekday; recipe_ids: string[] }[]
   /** a card to show under the reply; absent from older deployments of the function */
   show?: 'none' | 'today' | 'tomorrow' | 'workout'
+  /** reminder times the coach suggests, as "HH:MM" */
+  set_reminders?: boolean
+  reminder_times?: { breakfast: string; lunch: string; dinner: string; workout: string }
 }
 
 /** What the coach is told about the user. Deliberately leaves out the name and anything free-text. */
@@ -55,6 +59,7 @@ export function coachContext(s: AppState) {
     // what the day cards in the chat currently show
     meals_today: mealsFor(s, todayKey()).recipes.map((r) => r.recipe.id),
     meals_tomorrow: mealsFor(s, addDays(todayKey(), 1)).recipes.map((r) => r.recipe.id),
+    reminders: remindersOf(s),
     // from a photo the user chose to take; a trainer's first-look description, not a measurement
     ...(s.bodyScan ? { body_scan: { build: s.bodyScan.build, muscle_development: s.bodyScan.muscle, posture_notes: s.bodyScan.posture, focus_areas: s.bodyScan.focusAreas, confidence: s.bodyScan.confidence } } : {}),
     exercises: EXERCISES.map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, equipment: e.equipment, level: e.level })),
@@ -72,6 +77,8 @@ export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
   else if (r.show === 'tomorrow') msg.day = addDays(todayKey(), 1)
   // only when there is a workout left to do today
   else if (r.show === 'workout' && s && ['todo', 'started'].includes(dayProgress(s).status)) msg.guide = todayKey()
+  // shown as a card to adjust; nothing is scheduled until the user turns reminders on
+  if (r.set_reminders && r.reminder_times) msg.reminders = sanitiseTimes(r.reminder_times, s ? remindersOf(s).times : undefined)
   if (r.update_routine) {
     const routine = sanitiseRoutine({ days: Object.fromEntries(r.routine_days.map((d) => [d.day, { title: d.title, focus: d.focus, items: d.items.map((i) => ({ exerciseId: i.exercise_id, sets: i.sets, reps: i.reps })) }])) }, 'coach')
     if (routine) msg.routine = routine

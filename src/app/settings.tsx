@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../lib/store'
 import { isAdult } from '../lib/age'
 import { prettyDate } from '../lib/date'
+import { sendTestReminder, syncReminders } from '../lib/notify'
+import { remindersOf } from '../lib/reminders'
+import { ReminderCard } from '../components/chat/ReminderCard'
 import { C, T } from '../theme'
 import { Button, Card, Field, Icon, IconTile, List, Row, SectionHeader, SheetHeader, success } from '../components/ui'
 
@@ -15,6 +18,10 @@ export default function Settings() {
   const p = state.profile
   const [gym, setGym] = useState(p.gym ?? '')
   const [erasing, setErasing] = useState(false)
+  const [tested, setTested] = useState(false)
+  const reminders = remindersOf(state)
+  // changes made here reach the phone straight away, not only when the chat is next shown
+  useEffect(() => { syncReminders(state) }, [state])
   const gymChanged = gym.trim() !== (p.gym ?? '')
   const goal = p.goal === 'lose' ? 'Lose weight' : p.goal === 'gain' ? 'Build muscle' : 'Maintain'
 
@@ -44,6 +51,21 @@ export default function Settings() {
           <Text style={[T.caption, { lineHeight: 17 }]}>Used to find training partners at your gym once accounts launch.</Text>
           {gymChanged && <Button small title="Save gym" onPress={() => { dispatch({ type: 'profile', profile: { ...p, gym: gym.trim() || undefined } }); success() }} />}
         </Card>
+
+        <SectionHeader title="Reminders" />
+        <View style={{ gap: 10 }}>
+          <ReminderCard suggested={reminders.times} />
+          {reminders.on && (
+            <Card style={{ gap: 10 }}>
+              <Text style={[T.caption, { lineHeight: 17 }]}>Each reminder names that day&apos;s meal or workout. {reminders.repeat ? 'It repeats twice, ten minutes apart, until you open Breeze.' : 'It is sent once.'} Rest days and finished workouts are skipped.</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button small variant="tinted" title={reminders.repeat ? 'Send once only' : 'Repeat until opened'} style={{ flex: 1 }} onPress={() => dispatch({ type: 'reminders', reminders: { ...reminders, repeat: !reminders.repeat } })} />
+                <Button small variant="ghost" title="Turn off" style={{ flex: 1 }} onPress={() => dispatch({ type: 'reminders', reminders: { ...reminders, on: false } })} />
+              </View>
+              <Button small variant="ghost" icon="sparkles-outline" title={tested ? 'Sent. It arrives in 5 seconds.' : 'Send a test reminder'} onPress={() => { sendTestReminder().then(setTested) }} />
+            </Card>
+          )}
+        </View>
 
         <SectionHeader title="Privacy and safety" />
         <List>

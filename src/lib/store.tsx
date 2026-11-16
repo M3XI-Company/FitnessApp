@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { AppState, ChatMessage, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
+import type { AppState, ChatMessage, ChatThread, ReminderSettings, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
 
@@ -84,6 +84,19 @@ function withoutDemo(s: AppState): AppState {
 
 const initialState = () => (DEMO_BY_DEFAULT ? withDemo(emptyState()) : emptyState())
 
+/** How many earlier conversations are kept */
+const MAX_THREADS = 40
+
+/** The saved conversations with the one in progress put away at the front. An empty conversation is not kept. */
+function shelve(s: AppState): ChatThread[] {
+  const threads = s.threads ?? []
+  if (!s.chat.length) return threads
+  const first = s.chat.find((m) => m.role === 'user')?.text ?? s.chat[0].text
+  const title = first.trim().replace(/\s+/g, ' ').slice(0, 48) || 'Conversation'
+  const id = s.chatId ?? uid()
+  return [{ id, title, at: new Date().toISOString(), messages: s.chat }, ...threads.filter((t) => t.id !== id)].slice(0, MAX_THREADS)
+}
+
 type Action =
   | { type: 'profile'; profile: Profile }
   | { type: 'addFood'; entry: FoodEntry }
@@ -98,6 +111,10 @@ type Action =
   | { type: 'addGoal'; goal: UserGoal }
   | { type: 'removeGoal'; id: string }
   | { type: 'chat'; messages: ChatMessage[] }
+  | { type: 'newChat' }
+  | { type: 'openChat'; id: string }
+  | { type: 'deleteChat'; id: string }
+  | { type: 'reminders'; reminders: ReminderSettings }
   | { type: 'routine'; routine: WeeklyRoutine }
   | { type: 'bodyScan'; scan?: BodyScan }
   | { type: 'mealPlan'; days: Record<string, string[]> }
@@ -138,7 +155,15 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case 'addGoal': return { ...s, goals: [...s.goals, a.goal] }
     case 'removeGoal': return { ...s, goals: s.goals.filter((g) => g.id !== a.id) }
-    case 'chat': return { ...s, chat: [...s.chat, ...a.messages] }
+    case 'chat': return { ...s, chat: [...s.chat, ...a.messages], chatId: s.chatId ?? uid() }
+    case 'newChat': return { ...s, chat: [], chatId: uid(), threads: shelve(s) }
+    case 'openChat': {
+      const target = (s.threads ?? []).find((t) => t.id === a.id)
+      if (!target) return s
+      return { ...s, chat: target.messages, chatId: target.id, threads: shelve(s).filter((t) => t.id !== a.id) }
+    }
+    case 'deleteChat': return { ...s, threads: (s.threads ?? []).filter((t) => t.id !== a.id) }
+    case 'reminders': return { ...s, reminders: a.reminders }
     case 'routine': return { ...s, routine: a.routine }
     case 'bodyScan': return { ...s, bodyScan: a.scan }
     case 'mealPlan': return { ...s, boxedPlan: { ...s.boxedPlan, ...a.days } }

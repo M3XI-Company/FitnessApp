@@ -69,6 +69,8 @@ const ResultSchema = z.object({
   update_meal_plan: z.boolean(),
   meal_days: z.array(z.object({ day: z.enum(DAYS), recipe_ids: z.array(z.string()) })),
   show: z.enum(SHOW).optional(),
+  set_reminders: z.boolean().optional(),
+  reminder_times: z.object({ breakfast: z.string(), lunch: z.string(), dinner: z.string(), workout: z.string() }).optional(),
 })
 export type CoachResult = z.infer<typeof ResultSchema>
 
@@ -76,10 +78,16 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'show', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'show', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
     reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown. Usually one to three short sentences; at most about 120 words when explaining something.' },
     show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "none" otherwise.' },
+    set_reminders: { type: 'boolean', description: 'true only when suggesting reminder times in reminder_times' },
+    reminder_times: {
+      type: 'object', additionalProperties: false, required: ['breakfast', 'lunch', 'dinner', 'workout'],
+      description: 'When set_reminders is true: when to remind the user, as 24-hour "HH:MM". Otherwise repeat the current times from the context.',
+      properties: { breakfast: { type: 'string' }, lunch: { type: 'string' }, dinner: { type: 'string' }, workout: { type: 'string' } },
+    },
     update_routine: { type: 'boolean', description: 'true only when proposing a new or changed weekly workout routine in routine_days' },
     routine_days: {
       type: 'array',
@@ -125,7 +133,9 @@ Cards, set with the show field:
 - "workout" starts the step-by-step guide for today's workout, with a 3D figure showing the form and the muscles worked. Use it when the user says they are starting, continuing or ready to train. If todays_workout says it is a rest day or already done, say so instead and use "none".
 - A routine or meal plan you propose is shown as its own card with a button to use it and, for meals, a button to copy it with ingredients.
 
-Not built yet, so do not offer or promise them: reminders and notifications, voice, finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
+Reminders: the phone can notify the user at breakfast, lunch, dinner and workout time, naming that day's meal or workout. The context has the current times and whether they are on. When the user asks for reminders, tells you when they eat, sleep, work or train, or asks you to pick times for them, set set_reminders and give all four times. Choose times that suit the plan: meals three to five hours apart, the workout at least an hour after a main meal, and the last meal a couple of hours before a normal bedtime. Say in one sentence why the times suit them. The app shows the times as a card where the user can adjust them and turn reminders on, so do not list the times in your reply or claim they are already on.
+
+Not built yet, so do not offer or promise them: voice, finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
 
 What you know about the user arrives in a JSON block at the start of the conversation: their profile and goal, the daily targets the app has calculated, their current routine, how consistent they have been lately, and the exercises and recipes the app has. Treat it as facts about the user. Their name is not included, so do not use one. If it includes body_scan, that is a trainer's first-look description from a photo the user chose to share: use its focus areas and posture notes to shape exercise choice, mention it lightly and kindly if at all, and never turn it into a judgement about their body or a weight target.
 
@@ -232,6 +242,8 @@ Deno.serve(async (req) => {
     const result: CoachResult = {
       reply: r.reply.slice(0, 4000),
       show: r.show ?? 'none',
+      set_reminders: !!r.set_reminders && !!r.reminder_times,
+      reminder_times: r.reminder_times,
       update_routine: r.update_routine && r.routine_days.length > 0,
       // clamp to the app's limits; the app validates again before anything is applied
       routine_days: r.update_routine ? r.routine_days.slice(0, 7).map((d) => ({ ...d, items: d.items.slice(0, 8).map((i) => ({ ...i, sets: Math.max(1, Math.min(5, Math.round(i.sets))) })) })) : [],

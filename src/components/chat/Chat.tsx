@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { AppState as PhoneState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { briefing, localAnswer, localIntent, needsBriefing } from '../../lib/chat'
+import { localAnswer, localIntent } from '../../lib/chat'
 import { reply } from '../../lib/coach'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { todayKey, uid } from '../../lib/date'
+import { syncReminders } from '../../lib/notify'
+import { remindersMessage } from '../../lib/reminders'
 import { buildRoutine, dayProgress, routineStreak } from '../../lib/routine'
 import { useStore } from '../../lib/store'
 import type { ChatMessage } from '../../lib/types'
@@ -13,14 +15,18 @@ import { C, T, shadow } from '../../theme'
 import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
+import { ReminderCard } from './ReminderCard'
 import { WorkoutGuide } from './WorkoutGuide'
+
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 
 /** Older messages stay saved; only the recent ones are drawn. */
 const SHOWN = 60
 
 /**
- * Breeze is one conversation. The coach posts each day's plan, walks the user
- * through the workout and changes the routine or meals when asked. Asking for
+ * Breeze is a chat. A new chat is empty apart from a greeting and today's
+ * plan as tiles; the coach walks the user through the workout and changes
+ * the routine or meals when asked. Earlier chats are kept in History. Asking for
  * the plan or starting a workout is answered on the phone; everything else
  * goes to the AI coach, with the built-in coach as the fallback.
  */
@@ -34,10 +40,13 @@ export function Chat() {
   const workout = dayProgress(state, today)
   const streak = routineStreak(state)
 
-  // the first message of each day is the plan for that day
+  // keep the phone's reminders in step with the plan, and rebuild them whenever the app comes back to the front
+  const latest = useRef(state)
+  useEffect(() => { latest.current = state; syncReminders(state) }, [state])
   useEffect(() => {
-    if (needsBriefing(state.chat, today)) dispatch({ type: 'chat', messages: [briefing(state, today)] })
-  }, [today, state, dispatch])
+    const sub = PhoneState.addEventListener('change', (status) => { if (status === 'active') syncReminders(latest.current) })
+    return () => sub.remove()
+  }, [])
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing])
 
   const send = (msg: string) => {
@@ -47,7 +56,7 @@ export function Chat() {
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
     setText('')
     const intent = localIntent(m)
-    if (intent) { dispatch({ type: 'chat', messages: [user, localAnswer(state, intent, today)] }); return }
+    if (intent) { dispatch({ type: 'chat', messages: [user, intent === 'reminders' ? remindersMessage(state) : localAnswer(state, intent, today)] }); return }
     dispatch({ type: 'chat', messages: [user] })
     setTyping(true)
     const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false) }
@@ -70,28 +79,33 @@ export function Chat() {
 
   const shown = state.chat.slice(-SHOWN)
   const liveGuide = [...shown].reverse().find((m) => m.guide)?.id
-  const quick = [
-    workout.status === 'todo' ? 'Start my workout' : workout.status === 'started' ? 'Continue my workout' : null,
-    'Tomorrow',
-    'Change my meals',
-    'Can I do more next week?',
-  ].filter((x): x is string => !!x)
-
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 10 }}>
-        <Text style={[T.title2, { flex: 1 }]}>Breeze</Text>
+        <IconButton icon="chatbubbles-outline" size={36} onPress={() => router.push('/history')} label="Earlier chats" />
         <View accessibilityLabel={`Streak: ${streak} day${streak === 1 ? '' : 's'}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: 36, borderRadius: 18, backgroundColor: C.card }}>
           <Icon name="flame" size={17} color={streak > 0 ? '#F2622E' : C.text3} />
           <Text style={[T.headline, T.num, { color: streak > 0 ? C.text : C.text3 }]}>{streak}</Text>
         </View>
+        <View style={{ flex: 1 }} />
+        {shown.length > 0 && <IconButton icon="create-outline" size={36} onPress={() => { tap(); dispatch({ type: 'newChat' }) }} label="New chat" />}
         <IconButton icon="settings-outline" size={36} onPress={() => router.push('/settings')} label="Settings" />
       </View>
 
-      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10 }} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        {/* a new chat is empty: a greeting and today at a glance, nothing posted */}
+        {!shown.length && (
+          <View style={{ flex: 1, justifyContent: 'center', gap: 22, paddingBottom: 30 }}>
+            <View style={{ gap: 4, paddingHorizontal: 2 }}>
+              <Text style={T.title1}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
+              <Text style={[T.body, { color: C.text2 }]}>{workout.status === 'rest' ? 'Rest day. Ask me anything.' : workout.status === 'done' ? 'Training is done. Ask me anything.' : 'Tap play when you are ready to train, or ask me anything.'}</Text>
+            </View>
+            <DayCard date={today} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
+          </View>
+        )}
         {shown.map((m) => {
           const mine = m.role === 'user'
-          const wide = !!(m.day || m.guide || m.routine || m.meals || m.workout)
+          const wide = !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders)
           return (
             <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : wide ? 'stretch' : 'flex-start', maxWidth: wide ? '100%' : '86%', gap: 8 }}>
               {!!m.text && (
@@ -104,6 +118,7 @@ export function Chat() {
               {m.workout && <WorkoutCard workout={m.workout} />}
               {m.routine && <RoutineCard routine={m.routine} />}
               {m.meals && <MealPlanCard meals={m.meals} />}
+              {m.reminders && <ReminderCard suggested={m.reminders} />}
             </View>
           )
         })}
@@ -111,13 +126,6 @@ export function Chat() {
       </ScrollView>
 
       <View style={{ paddingBottom: Math.max(10, insets.bottom + 6), gap: 8 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8, paddingHorizontal: 14 }}>
-          {quick.map((q) => (
-            <Pressable key={q} onPress={() => send(q)} disabled={typing} style={({ pressed }) => [{ paddingHorizontal: 14, height: 36, justifyContent: 'center', borderRadius: 18, backgroundColor: C.card }, (pressed || typing) && { opacity: 0.6 }]}>
-              <Text style={{ color: C.accent, fontWeight: '700', fontSize: 14 }}>{q}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, padding: 6, backgroundColor: '#fff', borderRadius: 26, ...shadow }}>
           <Pressable onPress={() => { tap(); router.push('/quick-add') }} accessibilityLabel="Log food, water or weight" style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.fill, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="add" size={22} color={C.accent} />
