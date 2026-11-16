@@ -20,6 +20,8 @@ export interface Profile {
   healthNoticeAt?: string
   /** ISO time the user agreed to on-device camera form checks */
   formConsentAt?: string
+  /** the gym the user trains at; gym buddies are limited to it */
+  gym?: string
   /** index into the 3D figure's skin tones */
   figureTone?: number
 }
@@ -113,6 +115,36 @@ export interface ChatMessage {
   text: string
   /** optional structured workout card */
   workout?: { title: string; items: { exerciseId: string; sets: number; reps: string }[] }
+  /** a weekly routine the coach proposes; nothing changes until the user applies it */
+  routine?: WeeklyRoutine
+  /** a meal plan the coach proposes: date -> recipe ids */
+  meals?: Record<string, string[]>
+}
+
+/**
+ * A coarse, neutral description of the user's build from a photo they chose to
+ * take. The photo itself is never kept; this is all that is stored, on the device.
+ */
+export interface BodyScan {
+  at: string
+  build: 'slender' | 'average' | 'athletic' | 'sturdy' | 'fuller'
+  muscle: 'early' | 'developing' | 'developed'
+  posture: string[]
+  focusAreas: string[]
+  summary: string
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+export interface RoutineItem { exerciseId: string; sets: number; reps: string }
+/** One day of the weekly routine; a rest day has no items */
+export interface RoutineDay { title: string; focus: string; items: RoutineItem[] }
+export interface WeeklyRoutine {
+  id: string
+  createdAt: string
+  /** built from the onboarding profile, or proposed by the AI coach */
+  source: 'profile' | 'coach'
+  days: Record<Weekday, RoutineDay>
 }
 
 export interface UserGoal {
@@ -134,6 +166,10 @@ export interface AppState {
   boxedPlan: Record<string, string[]> // date -> boxed meal ids
   goals: UserGoal[]
   chat: ChatMessage[]
+  /** the weekly workout routine in use; when absent one is built from the profile */
+  routine?: WeeklyRoutine
+  /** latest body scan description, if the user chose to do one */
+  bodyScan?: BodyScan
   buddies: string[] // connected buddy ids
   blocked: string[]
   reports: { id: string; targetId: string; reason: string; at: string }[]

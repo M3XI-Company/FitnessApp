@@ -11,7 +11,7 @@ import { todayKey, uid } from '../lib/date'
 import { fmt, kcalToKj, makeEntry, nutritionFor } from '../lib/nutrition'
 import { dayMacros } from '../lib/progress'
 import type { MealSlot } from '../lib/types'
-import { C, GRADE_COLOR, T, F } from '../theme'
+import { C, GRADE_COLOR, T } from '../theme'
 import { Bar, Button, Grade, Icon, IconButton, Stepper, success, tap } from '../components/ui'
 import { FoodIcon } from '../components/foodIcons'
 
@@ -143,7 +143,7 @@ function ProductResult({ product, mode, qty, setQty, onAdd, onRescan, meal, kcal
         <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 18, gap: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 6, borderColor: GRADE_COLOR[a.grade], alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 32, fontFamily: F.hand, color: C.text, lineHeight: 34 }}>{a.score}</Text>
+              <Text style={{ fontSize: 23, fontWeight: '800', color: C.text, lineHeight: 27 }}>{a.score}</Text>
               <Text style={{ fontSize: 10, fontWeight: '700', color: C.text3, marginTop: -2 }}>/100</Text>
             </View>
             <View style={{ flex: 1 }}>

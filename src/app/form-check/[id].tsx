@@ -9,7 +9,7 @@ import { FormSession, cameraAdvice, supportsForm, type Cue, type FormUpdate, typ
 import type { RunnerMessage } from '../../lib/form/runner'
 import { nextTarget } from '../../lib/progress'
 import { todayKey, uid } from '../../lib/date'
-import { C, F, T } from '../../theme'
+import { C, T } from '../../theme'
 import { Button, Card, Icon, IconButton, SheetHeader, Stepper, success, tap, type IconName } from '../../components/ui'
 import { PoseCamera } from '../../components/form/PoseCamera'
 
@@ -203,7 +203,7 @@ const st = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, height: 32, borderRadius: 99 },
   pillText: { color: C.cloud, fontWeight: '700', fontSize: 13 },
-  count: { fontFamily: F.hand, fontSize: 96, lineHeight: 100, color: C.cloud, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 12 },
+  count: { fontWeight: '800', fontSize: 69, lineHeight: 78, color: C.cloud, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 12 },
   countLabel: { color: C.skyLight, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase', fontSize: 12, marginTop: -6 },
   hint: { flexDirection: 'row', gap: 10, alignItems: 'center', marginHorizontal: 16, marginBottom: 10, padding: 12, borderRadius: 16, backgroundColor: 'rgba(15,36,64,.8)' },
   hintText: { color: C.cloud, flex: 1, fontSize: 14, lineHeight: 19 },

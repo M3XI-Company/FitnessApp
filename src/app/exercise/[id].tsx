@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -8,22 +8,30 @@ import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
-import { C, T, G, F } from '../../theme'
-import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, Stepper, success, tap } from '../../components/ui'
+import { C, T, G } from '../../theme'
+import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
+import { FormSteps } from '../../components/trainer/FormSteps'
 import { RestTimer } from '../../components/RestTimer'
 import { supportsForm } from '../../lib/form/engine'
 
 // Loaded on demand so the 3D engine never delays or blocks app start-up
 const Trainer3D = lazy(() => import('../../components/trainer/Trainer3D').then((m) => ({ default: m.Trainer3D })))
 
+/** sets advised per exercise per session */
+const ADVISED_SETS = 3
+
 export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
   const { state, dispatch } = useStore()
   const ex = exerciseById(id)
-  const target = ex ? nextTarget(state, ex.id) : null
-  const [weight, setWeight] = useState(target?.weight ?? 20)
-  const [reps, setReps] = useState(target?.reps ?? 8)
+  // today's advice comes from earlier sessions only, so it stays the same while today's sets are ticked off
+  const before = useMemo(() => ({ ...state, sets: state.sets.filter((x) => x.date !== todayKey()) }), [state])
+  const target = ex ? nextTarget(before, ex.id) : null
+  // weight and reps are advised, never typed in: see nextTarget (lib/progress)
+  const weight = target?.weight ?? 0
+  const reps = target?.reps ?? 8
   const [rest, setRest] = useState<{ endsAt: number; total: number } | null>(null)
+  const [extra, setExtra] = useState(0)
   if (!ex) return <View style={{ flex: 1, backgroundColor: C.bg }}><SheetHeader title="Not found" onClose={() => router.back()} /></View>
 
   const all = state.sets.filter((s) => s.exerciseId === ex.id)
@@ -32,6 +40,8 @@ export default function ExerciseDetail() {
   const pr = all.length ? all.reduce((b, s) => (e1rm(s.weight, s.reps) > e1rm(b.weight, b.reps) ? s : b)) : null
   const sessions = [...new Set(all.map((s) => s.date))].sort().reverse().slice(0, 6)
   const isTimed = ex.id === 'plank'
+  // advised sets, plus any the user added or already logged beyond them
+  const rows = Math.max(ADVISED_SETS + extra, today.length)
 
   const logSet = () => {
     const isPR = !pr || e1rm(weight, reps) > e1rm(pr.weight, pr.reps)
@@ -45,7 +55,7 @@ export default function ExerciseDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <SheetHeader title={ex.name} onClose={() => router.back()} />
+      <SheetHeader title={ex.name} onClose={() => router.back()} fallback="/fitness" />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
         <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
           <Pill color={MUSCLE_COLOR[ex.muscle]} bg={MUSCLE_COLOR[ex.muscle] + '1A'}>{ex.muscle}</Pill>
@@ -61,6 +71,17 @@ export default function ExerciseDetail() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
           <MuscleMap primary={worksFor(ex.id).primary} secondary={worksFor(ex.id).secondary} gender={state.profile.sex} />
         </Card>
+        {/* Form: pictures of each key position, then the cues */}
+        <SectionHeader title="Form" />
+        <FormSteps exerciseId={ex.id} />
+        <Card style={{ gap: 10, marginTop: 10, marginBottom: 14 }}>
+          {ex.cues.map((c, i) => (
+            <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.skyLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
+              <Text style={[T.body, { flex: 1 }]}>{c}</Text>
+            </View>
+          ))}
+        </Card>
         {supportsForm(ex.id) && (
           <Button title="Check my form with the camera" icon="videocam-outline" variant="tinted" onPress={() => router.push(`/form-check/${ex.id}`)} style={{ marginBottom: 14 }} />
         )}
@@ -68,8 +89,8 @@ export default function ExerciseDetail() {
         {/* Progression target */}
         {target && (
           <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18 }}>
-            <Text style={{ color: C.skyLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>NEXT TARGET</Text>
-            <Text style={{ color: C.cloud, fontSize: 40, fontFamily: F.hand, lineHeight: 44, marginTop: 2 }}>
+            <Text style={{ color: C.skyLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>TODAY&apos;S TARGET</Text>
+            <Text style={{ color: C.cloud, fontSize: 29, fontWeight: '800', lineHeight: 34, marginTop: 2 }}>
               {target.weight ? `${target.weight} kg × ` : ''}{target.reps}{isTimed ? ' s' : ' reps'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,.9)', fontSize: 14, marginTop: 4 }}>{target.note}</Text>
@@ -83,29 +104,29 @@ export default function ExerciseDetail() {
         )}
 
         {/* Logger */}
-        <SectionHeader title="Log a set" />
-        <Card style={{ gap: 14 }}>
-          {ex.step > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={T.headline}>Weight</Text>
-              <Stepper value={weight} step={ex.step} onChange={setWeight} suffix="kg" />
-            </View>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={T.headline}>{isTimed ? 'Seconds' : 'Reps'}</Text>
-            <Stepper value={reps} step={isTimed ? 5 : 1} min={1} onChange={setReps} />
-          </View>
-          <Button title={`Log set ${today.length + 1}`} icon="checkmark" onPress={logSet} />
-          {rest && <RestTimer endsAt={rest.endsAt} total={rest.total} onChange={(endsAt, total) => setRest({ endsAt, total })} onDone={() => setRest(null)} />}
-          {today.map((s, i) => (
-            <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.accent, fontWeight: '800' }}>{i + 1}</Text></View>
-              <Text style={[T.headline, T.num, { flex: 1 }]}>{s.weight ? `${s.weight} kg × ` : ''}{s.reps}{isTimed ? ' s' : ''}</Text>
-              <Text style={[T.caption, T.num]}>e1RM {round(e1rm(s.weight, s.reps), 1)}</Text>
-              <Pressable onPress={() => { tap(); dispatch({ type: 'removeSet', id: s.id }) }} hitSlop={8} accessibilityLabel="Delete set"><Icon name="trash-outline" size={18} color={C.text3} /></Pressable>
-            </View>
-          ))}
+        {/* Logger: a checklist of the advised sets. Ticking a set logs it at the advised weight and reps. */}
+        <SectionHeader title="Today's sets" />
+        <Card style={{ gap: 0, paddingVertical: 6 }}>
+          {Array.from({ length: rows }, (_, i) => {
+            const done = today[i]
+            const label = done
+              ? `${done.weight ? `${done.weight} kg × ` : ''}${done.reps}${isTimed ? ' s' : ' reps'}`
+              : `${ex.step > 0 ? `${weight} kg × ` : ''}${reps}${isTimed ? ' s' : ' reps'}`
+            return (
+              <Pressable key={done?.id ?? `todo${i}`} accessibilityRole="checkbox" accessibilityState={{ checked: !!done }} accessibilityLabel={`Set ${i + 1}, ${label}`}
+                onPress={() => { if (done) { tap(); dispatch({ type: 'removeSet', id: done.id }) } else logSet() }}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: C.sep }, pressed && { opacity: 0.6 }]}>
+                <Icon name={done ? 'checkbox' : 'square-outline'} size={26} color={done ? C.accent : C.text2} />
+                <Text style={[T.headline, { width: 52, color: done ? C.text3 : C.text }]}>Set {i + 1}</Text>
+                <Text style={[T.headline, T.num, { flex: 1, color: done ? C.text3 : C.text, textDecorationLine: done ? 'line-through' : 'none' }]}>{label}</Text>
+                {done && <Text style={[T.caption, T.num]}>e1RM {round(e1rm(done.weight, done.reps), 1)}</Text>}
+              </Pressable>
+            )
+          })}
+          {today.length >= rows && <Button title="Add another set" icon="add" variant="ghost" small onPress={() => setExtra(extra + 1)} style={{ marginVertical: 8 }} />}
+          {rest && <View style={{ paddingBottom: 8 }}><RestTimer endsAt={rest.endsAt} total={rest.total} onChange={(endsAt, total) => setRest({ endsAt, total })} onDone={() => setRest(null)} /></View>}
         </Card>
+        <Text style={[T.caption, { marginTop: 6, marginLeft: 4 }]}>{today.length >= ADVISED_SETS ? 'All advised sets done. Nice work.' : `Tick each set as you finish it. ${today.length} of ${ADVISED_SETS} done.`}</Text>
 
         {/* Stats */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
@@ -116,16 +137,6 @@ export default function ExerciseDetail() {
 
         <SectionHeader title="Progression" />
         <Card><LineChart data={hist} unit=" kg" /><Text style={[T.caption, { marginTop: 6 }]}>Best estimated 1-rep max per session (Epley)</Text></Card>
-
-        <SectionHeader title="Form cues" />
-        <Card style={{ gap: 10 }}>
-          {ex.cues.map((c, i) => (
-            <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.skyLight, fontWeight: '800', fontSize: 12 }}>{i + 1}</Text></View>
-              <Text style={[T.body, { flex: 1 }]}>{c}</Text>
-            </View>
-          ))}
-        </Card>
 
         {sessions.length > 0 && <SectionHeader title="History" />}
         <View style={{ gap: 10 }}>

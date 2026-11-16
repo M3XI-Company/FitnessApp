@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
-import { C, F, T } from '../theme'
+import { C, T } from '../theme'
 import { Bar, Button, Card, success } from './ui'
 
 /** Rest countdown based on an end timestamp, so it stays correct if the app is backgrounded. */
@@ -20,7 +20,7 @@ export function RestTimer({ endsAt, total, onChange, onDone }: { endsAt: number;
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
           <Text style={[T.eyebrow, { color: C.skyLight }]}>Rest</Text>
-          <Text style={{ fontFamily: F.hand, fontSize: 52, color: C.cloud, lineHeight: 56 }}>{left === 0 ? 'Go!' : `${mm}:${ss}`}</Text>
+          <Text style={{ fontWeight: '800', fontSize: 37, color: C.cloud, lineHeight: 44 }}>{left === 0 ? 'Go!' : `${mm}:${ss}`}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button small variant="tinted" title="−15s" onPress={() => onChange(endsAt - 15000, Math.max(15, total - 15))} />

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { AppState, ChatMessage, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan } from './types'
+import type { AppState, ChatMessage, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
 
@@ -98,6 +98,9 @@ type Action =
   | { type: 'addGoal'; goal: UserGoal }
   | { type: 'removeGoal'; id: string }
   | { type: 'chat'; messages: ChatMessage[] }
+  | { type: 'routine'; routine: WeeklyRoutine }
+  | { type: 'bodyScan'; scan?: BodyScan }
+  | { type: 'mealPlan'; days: Record<string, string[]> }
   | { type: 'toggleBuddy'; id: string }
   | { type: 'reset' }
   | { type: 'setTargets'; custom?: Partial<Targets> }
@@ -136,6 +139,9 @@ function reducer(s: AppState, a: Action): AppState {
     case 'addGoal': return { ...s, goals: [...s.goals, a.goal] }
     case 'removeGoal': return { ...s, goals: s.goals.filter((g) => g.id !== a.id) }
     case 'chat': return { ...s, chat: [...s.chat, ...a.messages] }
+    case 'routine': return { ...s, routine: a.routine }
+    case 'bodyScan': return { ...s, bodyScan: a.scan }
+    case 'mealPlan': return { ...s, boxedPlan: { ...s.boxedPlan, ...a.days } }
     case 'toggleBuddy': return { ...s, buddies: s.buddies.includes(a.id) ? s.buddies.filter((x) => x !== a.id) : [...s.buddies, a.id] }
     case 'reset': return initialState()
     case 'setTargets': return { ...s, customTargets: a.custom, targets: effectiveTargets(s.profile, a.custom) }

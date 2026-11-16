@@ -3,7 +3,7 @@ import { Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import type { ComputedRecipe } from '../lib/recipes'
 import { TAG_LABEL } from '../lib/recipes'
-import { C, F, G } from '../theme'
+import { C, G } from '../theme'
 import { foodIconFor } from './foodIcons'
 
 const FoodGlyph = ({ name, size, color }: { name: string; size: number; color: string }) => createElement(foodIconFor(name), { size, color, strokeWidth: 1.5 })
@@ -33,8 +33,7 @@ export function RecipeCover({ c, size = 'card', style }: { c: ComputedRecipe; si
             <FoodGlyph name={c.recipe.title} size={size === 'hero' ? 44 : 32} color={dark ? C.skyLight : C.night} />
           </View>
           <View>
-            <Text style={{ fontFamily: F.hand, fontSize: title, lineHeight: title * 1.08, color: fg }} numberOfLines={2}>{c.recipe.title}</Text>
-            <View style={{ width: 40, height: 3, borderRadius: 2, backgroundColor: dark ? C.sky : C.night, opacity: 0.8, marginTop: 6, transform: [{ rotate: '-2deg' }] }} />
+            <Text style={{ fontWeight: '800', letterSpacing: -0.4, fontSize: title * 0.72, lineHeight: title * 0.86, color: fg }} numberOfLines={2}>{c.recipe.title}</Text>
           </View>
         </>
       )}

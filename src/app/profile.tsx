@@ -3,11 +3,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useStore } from '../lib/store'
+import { routineStreak } from '../lib/routine'
 import { exerciseHistory, goalProgress, levelName, LEVEL_NAMES, logStreak, waterDaysStreak, workoutDates, xp } from '../lib/progress'
 import { todayKey, uid } from '../lib/date'
 import type { UserGoal } from '../lib/types'
-import { C, T, glow, G, F } from '../theme'
-import { Bar, Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap, type IconName } from '../components/ui'
+import { C, T, glow, G } from '../theme'
+import { Bar, Button, Card, Icon, IconButton, IconTile, List, Row, SectionHeader, SheetHeader, tap, type IconName } from '../components/ui'
 
 const PRESETS: Omit<UserGoal, 'id' | 'createdAt'>[] = [
   { title: 'Train 3× this week', metric: 'workouts_week', target: 3 },
@@ -32,19 +33,19 @@ export default function Profile() {
     { e: 'barcode-outline', t: 'Scanner', d: 'Scan a barcode', ok: state.food.some((f) => f.source === 'barcode' || f.source === 'scan') },
     { e: 'book', t: 'Home cook', d: 'Log a Breeze recipe', ok: state.food.some((f) => f.dataSource === 'recipe') },
     { e: 'muscle', t: 'Bench 100', d: '100 kg e1RM bench', ok: benchBest >= 100 },
-    { e: 'people', t: 'Teammate', d: 'Connect a buddy', ok: state.buddies.length > 0 },
+    { e: 'activity', t: 'Consistent', d: '3-day routine streak', ok: routineStreak(state) >= 3 },
     { e: 'award', t: 'Level 5', d: 'Reach level 5', ok: lv.level >= 5 },
   ]
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <SheetHeader title="Profile & Goals" onClose={() => router.back()} />
+      <SheetHeader title="Profile" onClose={() => router.back()} right={<IconButton icon="settings-outline" variant="fill" size={36} onPress={() => router.push('/settings')} label="Settings" />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
         <LinearGradient colors={G.night} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 24, padding: 20 }, glow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,.22)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 24 }}>{p.name[0]?.toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: C.cloud, fontSize: 32, fontFamily: F.hand, lineHeight: 34 }}>{p.name}</Text>
+              <Text style={{ color: C.cloud, fontSize: 23, fontWeight: '800', lineHeight: 27 }}>{p.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,.8)', fontWeight: '600' }}>Level {lv.level} · {levelName(lv.level)} · {lv.total} XP</Text>
             </View>
           </View>
@@ -108,32 +109,7 @@ export default function Profile() {
           <Row left={<IconTile icon="water" />} title="Water" right={<Text style={T.headline}>{(t.waterMl / 1000).toFixed(1)} L</Text>} />
         </List>
 
-        <SectionHeader title="Profile" />
-        <List>
-          <Row first left={<IconTile icon="body" />} title="Body" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg`} />
-          <Row left={<IconTile icon="trending-down" />} title="Goal" subtitle={`${p.goal === 'lose' ? 'Lose weight' : p.goal === 'gain' ? 'Build muscle' : 'Maintain'} · target ${p.targetWeightKg} kg`} />
-          <Row left={<IconTile icon="create-outline" />} title="Edit plan" onPress={() => router.push('/onboarding')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
-          <Row left={<IconTile icon="scale-outline" />} title="Log weight" onPress={() => router.push('/weight')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
-          <Row left={<IconTile icon="document-text-outline" />} title="Data sources & licences" onPress={() => router.push('/licences')} right={<Icon name="chevron-forward" size={16} color={C.text3} />} />
-        </List>
-
-        <SectionHeader title="Privacy & safety" />
-        <List>
-          <Row first left={<IconTile icon="videocam-outline" />} title="Camera form check"
-            subtitle={p.formConsentAt ? 'Allowed · processed on this phone, never recorded' : 'Not allowed'}
-            right={p.formConsentAt ? <Button small variant="ghost" title="Withdraw" onPress={() => dispatch({ type: 'profile', profile: { ...p, formConsentAt: undefined } })} /> : undefined} />
-          <Row left={<IconTile icon="shield-checkmark-outline" />} title="Gym buddy safety guidelines"
-            subtitle={state.buddySafetyAt ? 'Accepted' : 'Shown before you see buddies'} />
-          <Row left={<IconTile icon="ban-outline" />} title="Blocked people" subtitle={`${state.blocked.length} blocked · ${state.reports.length} reports sent`} />
-        </List>
-
-        <SectionHeader title="Demo data" />
-        <Card style={{ gap: 10 }}>
-          <Text style={[T.body, { lineHeight: 21 }]}>{state.demo
-            ? 'Sample history is loaded so you can explore Breeze: two weeks of meals, workouts, weight and water. It’s marked as demo data and can be removed without touching anything you logged.'
-            : 'No demo data. Everything in your diary was logged by you.'}</Text>
-          <Button small variant={state.demo ? 'ghost' : 'tinted'} icon={state.demo ? 'trash-outline' : 'sparkles-outline'} title={state.demo ? 'Remove demo data' : 'Load demo data'} onPress={() => dispatch({ type: 'demo', on: !state.demo })} />
-        </Card>
+        <Button variant="tinted" icon="settings-outline" title="Settings" onPress={() => router.push('/settings')} style={{ marginTop: 22 }} />
       </ScrollView>
     </View>
   )

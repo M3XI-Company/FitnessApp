@@ -4,10 +4,10 @@ import { router } from 'expo-router'
 import { useStore } from '../../lib/store'
 import { dayTotals, fmt, remainingOf } from '../../lib/nutrition'
 import { allRecipes, fitFor } from '../../lib/recipes'
-import { logStreak, workoutsThisWeek } from '../../lib/progress'
+import { dayProgress, routineStreak } from '../../lib/routine'
 import { lastNDays, prettyDate, todayKey, uid, weekdayShort } from '../../lib/date'
 import { mealLabel, useMeals } from '../../lib/meals'
-import { C, F, T } from '../../theme'
+import { C, T } from '../../theme'
 import { Bar, Card, FadeIn, Icon, IconTile, Pill, Ring, Screen, SectionHeader, success, tap, type IconName } from '../../components/ui'
 import { RecipeRow } from '../../components/RecipeRow'
 import { FoodIcon } from '../../components/foodIcons'
@@ -24,6 +24,8 @@ export default function Home() {
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   const isToday = date === todayKey()
+  const workout = dayProgress(state)
+  const streak = routineStreak(state)
 
   const suggestions = allRecipes().map((c) => ({ c, fit: fitFor(c.perServing, left) })).sort((a, b) => b.fit.score - a.fit.score).slice(0, 3)
   // recent distinct meals from earlier days, newest first — one tap to log again today
@@ -41,9 +43,9 @@ export default function Home() {
     <Screen
       eyebrow={`${greet} · ${prettyDate(date)}`}
       title={isToday ? 'Today' : prettyDate(date).split(',')[0]}
-      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Profile"><Text style={{ color: C.skyLight, fontFamily: F.hand, fontSize: 24 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
+      right={<Pressable onPress={() => { tap(); router.push('/profile') }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Profile"><Text style={{ color: C.skyLight, fontWeight: '800', fontSize: 17 }}>{state.profile.name[0]?.toUpperCase()}</Text></Pressable>}
     >
-      {state.demo && <View style={{ marginTop: -6, marginBottom: 10 }}><Pill color={C.accent} bg={C.accentSoft}>Demo data — remove in Profile</Pill></View>}
+      {state.demo && <View style={{ marginTop: -6, marginBottom: 10 }}><Pill color={C.accent} bg={C.accentSoft}>Sample history loaded · remove in Settings</Pill></View>}
 
       {/* Week strip */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -126,20 +128,20 @@ export default function Home() {
         </>
       )}
 
-      {/* 5. Supporting: fitness and community */}
-      <SectionHeader title="Also today" />
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Card tight onPress={() => router.navigate('/fitness')} style={{ flex: 1, gap: 4 }}>
-          <Icon name="barbell-outline" color={C.accent} />
-          <Text style={T.title3}>{workoutsThisWeek(state)} workouts</Text>
-          <Text style={T.caption}>this week · {logStreak(state)}-day logging streak</Text>
-        </Card>
-        <Card tight onPress={() => router.navigate('/social')} style={{ flex: 1, gap: 4 }}>
-          <Icon name="people-outline" color={C.accent} />
-          <Text style={T.title3}>Gym buddies</Text>
-          <Text style={T.caption}>Find training partners (18+)</Text>
-        </Card>
-      </View>
+      {/* 5. Today's training */}
+      <SectionHeader title="Today's training" action="Open" onAction={() => router.navigate('/fitness')} />
+      <Card onPress={() => router.navigate('/fitness')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <IconTile icon={workout.status === 'rest' ? 'moon' : workout.status === 'done' ? 'checkmark' : 'barbell-outline'} size={46} color={C.skyLight} bg={C.night} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={T.title3} numberOfLines={1}>{workout.day.title}</Text>
+          <Text style={T.sub}>{workout.status === 'rest' ? 'Recovery day' : workout.status === 'done' ? 'Done for today' : `${workout.doneItems} of ${workout.items.length} exercises done`}</Text>
+          {workout.status !== 'rest' && <View style={{ marginTop: 6 }}><Bar pct={workout.items.length ? workout.doneItems / workout.items.length : 0} height={6} /></View>}
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <Icon name="flame" size={20} color={streak > 0 ? '#F2622E' : C.text3} />
+          <Text style={[T.headline, T.num, { color: streak > 0 ? '#C2410C' : C.text3 }]}>{streak}</Text>
+        </View>
+      </Card>
       <Card tight onPress={() => router.navigate('/food')} style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Icon name="water-outline" color={C.accent} />
         <View style={{ flex: 1 }}><Text style={T.headline}>Water</Text><Text style={T.caption}>{((state.water[date] ?? 0) / 1000).toFixed(2)} of {(t.waterMl / 1000).toFixed(1)} L</Text></View>

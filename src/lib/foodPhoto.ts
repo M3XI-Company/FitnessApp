@@ -14,7 +14,7 @@ const ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 export const photoScanConfigured = () => !!(URL_BASE && ANON)
 
 /** Random per-install id; the server only ever stores its SHA-256 hash, for fair-use limits. */
-async function deviceId() {
+export async function deviceId() {
   const key = 'breeze.device'
   let id = await AsyncStorage.getItem(key)
   if (!id) {
