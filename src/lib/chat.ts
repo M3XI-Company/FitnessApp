@@ -174,7 +174,13 @@ const coach = (text: string, extra: Partial<ChatMessage> = {}): ChatMessage => (
  * Asked once, when the workout the coach was guiding is finished. The answer
  * goes to the coach, which remembers what matters and adjusts the plan.
  */
-export const checkinMessage = (date = todayKey()): ChatMessage => coach('That is today done, nice work. How did it feel? Tell me if anything hurt, or felt too easy or too hard.', { checkin: date })
+export function checkinMessage(date = todayKey(), opts: { early?: boolean; easing?: boolean } = {}): ChatMessage {
+  const opening = opts.early ? 'Session ended, and what you did is saved.' : 'That is today done, nice work.'
+  const ask = opts.easing
+    ? 'For your first few sessions I need you to talk me through it so I can set your weights safely. Where did you feel it most, did anything hurt or feel wrong, and could you have done more or less?'
+    : 'Talk me through it. Where did you feel it most, did anything hurt, and could you have done more or less?'
+  return coach(`${opening} ${ask}`, { checkin: date })
+}
 
 /** True when the guided workout for `date` is finished and the user has not been asked about it yet. */
 export const needsCheckin = (s: AppState, date = todayKey()) =>
@@ -193,3 +199,11 @@ export function localAnswer(s: AppState, intent: Exclude<LocalIntent, 'reminders
   if (p.status === 'done') return coach('You have already finished today’s workout. Rest up, and I will have the next one ready tomorrow.')
   return coach(`${p.status === 'started' ? 'Picking up where you left off' : 'Let’s go'}. I will take you through it one exercise at a time. Tap Set done after each set.`, { guide: today })
 }
+
+/** A chat holds this many messages, the user's and Breeze's together. After that a new one is started. */
+export const CHAT_LIMIT = 60
+export const chatFull = (s: AppState) => s.chat.length >= CHAT_LIMIT
+/** True when the chat in progress began on an earlier day, so a fresh one is due. */
+export const chatIsOld = (s: AppState, today = todayKey()) => s.chat.length > 0 && !!s.chatDay && s.chatDay < today
+/** What Breeze says when a chat has reached its limit. */
+export const CHAT_FULL_TEXT = 'This chat is full. Start a new one and we will carry on: I keep what matters about you between chats.'

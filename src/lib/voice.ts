@@ -2,7 +2,8 @@
  * Talking and listening for the spoken onboarding.
  *
  * Speaking uses the phone's own text-to-speech (expo-speech) and works
- * everywhere, including Expo Go. Listening uses the phone's speech recogniser
+ * everywhere, including Expo Go. It picks the most natural voice the phone
+ * has installed (an enhanced British English one where there is one). Listening uses the phone's speech recogniser
  * (expo-speech-recognition), which is native code that only exists in a
  * development or release build: where it is missing, `canListen()` is false
  * and the screen falls back to typed answers.
@@ -32,6 +33,27 @@ export function canListen(): boolean {
   }
 }
 
+/**
+ * The best voice installed for speaking English: enhanced before standard,
+ * British before other English, and on Android the higher-quality voices
+ * that are stored on the phone before the basic ones. Looked up once.
+ */
+let chosen: Promise<string | undefined> | undefined
+function bestVoice(): Promise<string | undefined> {
+  chosen ??= Speech.getAvailableVoicesAsync()
+    .then((voices) => {
+      const score = (v: Speech.Voice) =>
+        (v.quality === Speech.VoiceQuality.Enhanced ? 4 : 0) +
+        (/^en[-_]GB/i.test(v.language) ? 3 : /^en/i.test(v.language) ? 1 : -100) +
+        // Android names its better offline voices "...-local"; "...-network" ones stall without a connection
+        (/-local$/i.test(v.identifier) ? 1 : 0)
+      const best = voices.filter((v) => /^en/i.test(v.language)).sort((a, b) => score(b) - score(a))[0]
+      return best?.identifier
+    })
+    .catch(() => undefined)
+  return chosen
+}
+
 /** Say something aloud. Resolves when it has finished, was stopped, or could not be said. */
 export function speak(text: string): Promise<void> {
   return new Promise((resolve) => {
@@ -39,11 +61,14 @@ export function speak(text: string): Promise<void> {
     // never leave the conversation waiting on a callback that does not come
     const giveUp = setTimeout(resolve, Math.min(60000, 4000 + text.length * 110))
     const done = () => { clearTimeout(giveUp); resolve() }
-    try {
-      Speech.speak(text, { language: LANG, rate: Platform.OS === 'ios' ? 0.52 : 1, onDone: done, onStopped: done, onError: done })
-    } catch {
-      done()
-    }
+    bestVoice().then((voice) => {
+      try {
+        // a touch slower than the default reads as a person talking rather than a machine reading
+        Speech.speak(text, { language: LANG, ...(voice ? { voice } : {}), rate: Platform.OS === 'ios' ? 0.5 : 0.94, pitch: 1, onDone: done, onStopped: done, onError: done })
+      } catch {
+        done()
+      }
+    })
   })
 }
 

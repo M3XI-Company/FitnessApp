@@ -3,6 +3,7 @@ import { Animated, Easing } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Path } from 'react-native-svg'
 import { gustPath, gustReach, type Gust } from '../lib/gust'
+import { MOODS, type Mood } from '../lib/mood'
 
 export type OrbMode = 'idle' | 'thinking' | 'speaking' | 'listening'
 
@@ -20,6 +21,23 @@ const GUSTS = [
 /** How hard the wind blows in each mode: it calms to listen and picks up to think and to speak. */
 const WIND: Record<OrbMode, number> = { idle: 1, listening: 0.55, speaking: 1.9, thinking: 2.5 }
 
+/**
+ * How each mood looks and moves: the colours of the sky, how hard the wind
+ * blows, how wildly the gusts swerve, and how often the orb perks up.
+ */
+const LOOK: Record<Mood, { sky: readonly [string, string, string]; wind: number; wild: number; perk: number }> = {
+  // everyday: clear blue, an easy breeze
+  calm: { sky: ['#00C8FF', '#068AFF', '#0060FF'], wind: 1, wild: 1, perk: 0.2 },
+  // things are going well: brighter, bouncier
+  upbeat: { sky: ['#5CF0FF', '#19B0FF', '#1F74FF'], wind: 1.3, wild: 1.3, perk: 0.45 },
+  // training, or raring to go: electric, fast and wild
+  fired_up: { sky: ['#00B4FF', '#2E5BFF', '#7A2CFF'], wind: 2, wild: 1.75, perk: 0.5 },
+  // tired, low or hurting: soft and slow, long easy curves
+  gentle: { sky: ['#A9E2FF', '#6FB4F2', '#5A84DA'], wind: 0.5, wild: 0.55, perk: 0 },
+  // something achieved: a warm glow of dawn, big happy loops
+  proud: { sky: ['#FFE08A', '#4DB4FF', '#0A66FF'], wind: 1.15, wild: 1.4, perk: 0.7 },
+}
+
 const between = (a: number, b: number) => a + Math.random() * (b - a)
 const ease = Easing.inOut(Easing.sin)
 
@@ -35,7 +53,8 @@ function launch(index: number, size: number, spread?: number): Flying {
     width: size * (g.far ? 0.026 : 0.046) * scale,
     hook: size * (g.far ? 0.04 : 0.066) * scale,
     turn: (g.up ? 1 : -1) * between(3.2, 3.9),
-    bend: between(0.1, 0.2),
+    bend: between(0.42, 0.7),
+    swerve: size * between(0.03, 0.07),
     ripples: between(0.8, 1.5),
     phase: between(0, Math.PI * 2),
   }
@@ -52,14 +71,16 @@ function launch(index: number, size: number, spread?: number): Flying {
 /**
  * Breeze's face: the app icon come to life. A round of clear blue with gusts
  * of wind blowing through it, and a mind of its own. The gusts are drawn
- * afresh every frame, so each one ripples along its length and its hook curls
- * and uncurls as it blows across; every crossing is a new gust; the wind keeps
+ * afresh every frame, so each one snakes and veers as it blows across and its
+ * hook curls and uncurls; every crossing is a new gust; the wind keeps
  * changing direction; and the whole orb drifts about and now and then perks
  * up. It also says what is happening in a conversation: it calms and holds
  * still to listen and swells with the user's voice, whirls round while Breeze
- * is thinking, and blows hard and pulses while Breeze speaks.
+ * is thinking, and blows hard and pulses while Breeze speaks. And it has
+ * moods, which follow how the chat is going: the colour of the sky, the
+ * strength of the wind and how wildly the gusts swerve all change with `mood`.
  */
-export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number; mode?: OrbMode; level?: number }) {
+export function SkyOrb({ size = 240, mode = 'idle', level = 0, mood = 'calm' }: { size?: number; mode?: OrbMode; level?: number; mood?: Mood }) {
   const [pulse] = useState(() => new Animated.Value(0))
   const [voice] = useState(() => new Animated.Value(0))
   const [whirl] = useState(() => new Animated.Value(0))
@@ -68,8 +89,17 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number
   const [lean] = useState(() => new Animated.Value(0))
   const [perk] = useState(() => new Animated.Value(0))
   const [paths, setPaths] = useState<string[]>([])
+  const [skies] = useState(() => MOODS.map((m) => new Animated.Value(m === 'calm' ? 1 : 0)))
   const wind = useRef(1)
-  useEffect(() => { wind.current = WIND[mode] }, [mode])
+  const wild = useRef(1)
+  useEffect(() => { wind.current = WIND[mode] * LOOK[mood].wind; wild.current = LOOK[mood].wild }, [mode, mood])
+
+  // the sky changes colour with the mood, one fading into the next
+  useEffect(() => {
+    const fade = Animated.parallel(MOODS.map((m, i) => Animated.timing(skies[i], { toValue: m === mood ? 1 : 0, duration: 1100, easing: ease, useNativeDriver: true })))
+    fade.start()
+    return () => fade.stop()
+  }, [mood, skies])
 
   // the gusts: moved on and redrawn every frame
   useEffect(() => {
@@ -78,6 +108,7 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number
     let last = 0
     let time = 0
     let blowing = 1
+    let swerving = 1
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick)
       // thirty redraws a second is smooth for wind and leaves the phone free for everything else
@@ -86,11 +117,12 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number
       last = now
       // the wind picks up and dies down smoothly rather than all at once
       blowing += (wind.current - blowing) * Math.min(1, dt * 2.5)
-      time += dt * (0.6 + 0.4 * blowing)
+      swerving += (wild.current - swerving) * Math.min(1, dt * 2)
+      time += dt * (0.55 + 0.45 * blowing)
       setPaths(flying.map((f, i) => {
         f.x += f.speed * blowing * dt
         if (f.x > size * 1.05) flying[i] = f = launch(i, size)
-        return gustPath(f.shape, f.x, f.y, time)
+        return gustPath(f.shape, f.x, f.y, time, swerving)
       }))
     }
     frame = requestAnimationFrame(tick)
@@ -108,13 +140,13 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number
       const to = (v: Animated.Value, toValue: number, duration = ms) => Animated.timing(v, { toValue, duration, easing: ease, useNativeDriver: true })
       const steps = [to(driftX, between(-reach, reach)), to(driftY, between(-reach, reach)), to(lean, still ? 0 : between(-1, 1))]
       // now and then it perks up, as if something caught its attention
-      if (!still && Math.random() < 0.22) steps.push(Animated.sequence([to(perk, 1, 260), to(perk, 0, 620)]))
+      if (!still && Math.random() < LOOK[mood].perk) steps.push(Animated.sequence([to(perk, 1, 260), to(perk, 0, 620)]))
       move = Animated.parallel(steps)
       move.start(({ finished }) => { if (finished && alive) wander() })
     }
     wander()
     return () => { alive = false; move?.stop() }
-  }, [mode, size, driftX, driftY, lean, perk])
+  }, [mode, mood, size, driftX, driftY, lean, perk])
 
   // the whole orb breathes: slowly at rest, deeper while thinking, quickly while speaking
   useEffect(() => {
@@ -158,7 +190,11 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0 }: { size?: number
   return (
     <Animated.View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
       style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', transform: [{ translateX: driftX }, { translateY: driftY }, { scale }] }}>
-      <LinearGradient colors={['#00C8FF', '#068AFF', '#0060FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: size, height: size }} />
+      {MOODS.map((m, i) => (
+        <Animated.View key={m} style={{ position: 'absolute', width: size, height: size, opacity: skies[i] }}>
+          <LinearGradient colors={LOOK[m].sky} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: size, height: size }} />
+        </Animated.View>
+      ))}
       <Animated.View style={{ width: size, height: size, transform: [{ rotate: whirl.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
         <Animated.View style={{ width: size, height: size, transform: [{ rotate: lean.interpolate({ inputRange: [-1, 1], outputRange: ['-16deg', '16deg'] }) }] }}>
           <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>

@@ -2,7 +2,7 @@
  * POST /functions/v1/coach
  * Body: {
  *   device: <app install uuid>,
- *   messages: [{ role: 'user' | 'coach', text }]   // the recent conversation, oldest first
+ *   messages: [{ role: 'user' | 'coach', text }]   // the conversation so far, oldest first (a chat is at most 60 messages)
  *   context: { profile, targets, routine, activity, exercises: [...], recipes: [...] }
  * }
  *
@@ -30,9 +30,10 @@ const MODEL = 'claude-opus-5-5'
 // USD per token for claude-opus-5-5 ($4 / $20 per million) — for the cost ledger
 const PRICE = { input: 4 / 1_000_000, output: 20 / 1_000_000 }
 const MONTHLY_LIMIT = Number(Deno.env.get('COACH_MONTHLY_LIMIT') ?? '150')
-const MAX_MESSAGES = 16
+// a chat in the app is cut off at 60 messages and a new one starts each day, so the whole chat fits
+const MAX_MESSAGES = 60
 const MAX_MESSAGE_CHARS = 2000
-const MAX_CONTEXT_CHARS = 24000
+const MAX_CONTEXT_CHARS = 32000
 
 const anthropic = new Anthropic() // reads ANTHROPIC_API_KEY
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -84,16 +85,19 @@ const BodySchema = z.object({
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 /** cards the app can show under the reply */
 const SHOW = ['none', 'today', 'tomorrow', 'workout'] as const
+/** how the conversation is going, which sets the look of Breeze's face in the app */
+const MOODS = ['calm', 'upbeat', 'fired_up', 'gentle', 'proud'] as const
 const ResultSchema = z.object({
   reply: z.string(),
   update_routine: z.boolean(),
   routine_days: z.array(z.object({
-    day: z.enum(DAYS), title: z.string(), focus: z.string(),
+    day: z.enum(DAYS), title: z.string(), focus: z.string(), style: z.enum(['strength', 'volume']).optional(),
     items: z.array(z.object({ exercise_id: z.string(), sets: z.number(), reps: z.string() })),
   })),
   update_meal_plan: z.boolean(),
   meal_days: z.array(z.object({ day: z.enum(DAYS), recipe_ids: z.array(z.string()) })),
   show: z.enum(SHOW).optional(),
+  mood: z.enum(MOODS).optional(),
   set_reminders: z.boolean().optional(),
   reminder_times: z.object({ breakfast: z.string(), lunch: z.string(), dinner: z.string(), workout: z.string() }).optional(),
   remember: z.array(z.string()).optional(),
@@ -106,9 +110,10 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'show', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'mood', 'show', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
     reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown. Usually one to three short sentences; at most about 120 words when explaining something.' },
+    mood: { type: 'string', enum: MOODS, description: 'How the conversation is going right now, which the app shows in the look and movement of Breeze\'s face. calm: ordinary questions and planning. upbeat: things are going well, friendly chat, thanks. fired_up: the user is starting or in the middle of a workout, or is motivated and wants a push. gentle: the user is tired, low, in pain, struggling, disappointed or has missed sessions. proud: the user has finished a workout, hit a target, kept a streak or set a personal best.' },
     show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "none" otherwise.' },
     remember: { type: 'array', items: { type: 'string' }, description: 'New facts worth remembering about this user for future conversations, each one short plain sentence (at most 25 words) that will still make sense weeks from now. Usually empty; at most three.' },
     forget: { type: 'array', items: { type: 'string' }, description: 'ids of memory entries that the user has just said are no longer true. Usually empty.' },
@@ -133,11 +138,12 @@ const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
       type: 'array',
       description: 'When update_routine is true: every training day of the week (leave rest days out). Otherwise empty.',
       items: {
-        type: 'object', additionalProperties: false, required: ['day', 'title', 'focus', 'items'],
+        type: 'object', additionalProperties: false, required: ['day', 'title', 'focus', 'style', 'items'],
         properties: {
           day: { type: 'string', enum: DAYS },
-          title: { type: 'string', description: 'Short name, e.g. "Upper body A"' },
+          title: { type: 'string', description: 'Short name for the part of the body, e.g. "Chest & triceps"' },
           focus: { type: 'string', description: 'Main muscles, e.g. "Chest, back, arms"' },
+          style: { type: 'string', enum: ['strength', 'volume'], description: 'strength: heavier weight and few reps (about 4 to 6 on the big lifts). volume: a comfortable weight and many reps (about 12 to 15).' },
           items: {
             type: 'array',
             items: {
@@ -178,13 +184,21 @@ Memory: you do not otherwise remember earlier conversations, so the context carr
 - When they tell you something in the list is no longer true (the shoulder is fine now, they joined a gym), put that entry's id in forget, and remember the new fact if there is one.
 - The app shows the user what you noted, and they can delete any of it in Settings, so you do not need to announce it.
 
-After a workout the app asks the user how it went. Take the answer seriously: remember what matters, and act on it. Pain or a twinge during a movement: tell them to stop that movement, to see a GP or physiotherapist if it persists or is sharp, and offer to swap the exercise; propose the swapped routine if they agree or asked. Too easy or too hard: say what you will adjust and propose the routine with the change. If it all went fine, a short word of encouragement is enough.
+Chats: a chat lasts one day and at most 60 messages, then the app starts a new one, so you see the whole of the current chat but none of the earlier ones. What carries over is your memory list and recent_achievements in the context: what the user has done over the last week (workouts finished, food logged, streaks, new best lifts, change in body weight), taken from the app's own records. Use it the way a coach who was there would: at the start of a new chat, or when it helps, mention one relevant thing briefly ("good work finishing upper body yesterday"), and build on it. Do not recite the list, and do not praise things that are not in it.
+
+After a session, finished or ended early, the app asks the user out loud to talk it through, and what they say comes to you. This debrief is how you learn their body, so take it seriously and keep it a conversation: your reply is spoken, so one or two sentences and one question at a time. Find out, if they have not said: where they felt it most (which muscles, and whether it was the muscle working or a joint complaining), whether anything hurt, felt wrong or was on one side only, whether the weights and reps were too easy, about right or too hard, and whether they could do more or less next time. Then act on it: remember what matters, say plainly what you will change, and propose the routine with the change when one is needed. Felt it in the wrong place (a bench press felt in the shoulders, a squat in the lower back): give the one form change that fits their build and consider a kinder exercise. Pain or a twinge in a movement: tell them to stop that movement, to see a GP or physiotherapist if it is sharp or persists, and swap the exercise. If it all went well, a short word of encouragement and a note of what moves up next time is enough.
+
+Starting out: when the context has easing_in, the user is in their first few sessions. The app sets every weight light on purpose for these, and each session ends with the debrief. Tell them to start easy and that it is meant to feel easy, do not push them to go heavier, and use what they tell you afterwards to judge what they can take. Once easing_in is false, the debrief still happens but can be brief.
+
+Strength and volume days: every training day in the routine has a style. A strength day is about how much weight: heavier, few reps (about 4 to 6 on the big lifts), longer rests, stop when form slips. A volume day is about how many reps: a comfortable weight and as many clean reps as the range allows (about 12 to 15). The app works the weight out for each; you choose the style and rep ranges. Explain the difference in a sentence when the user asks or when it helps them train the day properly.
+
+Fit the advice to the person: the context has their sex, height, age and, when they did a body scan, their build and posture. Bodies differ: long legs mean a wider squat stance and more forward lean, a wider pelvis means knees tracking out over the toes, long arms mean a wider grip on presses, rounded shoulders need the shoulder blades set before pressing or pulling. When you give form advice, give the version for this person, not the textbook one, and say why in a few words.
 
 Details: the user's weight, goal, target weight and activity level come from the context. When they tell you one has changed ("I am 80 kilos now", "I want to build muscle instead"), fill in update_details with only what changed. The app shows it as a card for them to confirm, so say you have put the change up for them to confirm rather than that it is done. Do not use update_details for anything they did not say.
 
 Reminders: the phone can notify the user at breakfast, lunch, dinner and workout time, naming that day's meal or workout. The context has the current times and whether they are on. When the user asks for reminders, tells you when they eat, sleep, work or train, or asks you to pick times for them, set set_reminders and give all four times. Choose times that suit the plan: meals three to five hours apart, the workout at least an hour after a main meal, and the last meal a couple of hours before a normal bedtime. Say in one sentence why the times suit them. The app shows the times as a card where the user can adjust them and turn reminders on, so do not list the times in your reply or claim they are already on.
 
-Not built yet, so do not offer or promise them: voice, finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
+Not built yet, so do not offer or promise them: finding or messaging training partners, ordering ingredients or meal kits, and tracking by camera beyond the form check on some exercises. If asked, say plainly that it is not available yet and offer what you can do now.
 
 What you know about the user arrives in a JSON block at the start of the conversation: their profile and goal, the daily targets the app has calculated, their current routine, how consistent they have been lately, and the exercises and recipes the app has. Treat it as facts about the user. Their name is not included, so do not use one. If it includes body_scan, that is a trainer's first-look description from a photo the user chose to share: use its focus areas and posture notes to shape exercise choice, mention it lightly and kindly if at all, and never turn it into a judgement about their body or a weight target.
 
@@ -197,6 +211,8 @@ How the app works, which shapes what you can decide:
 Building a routine:
 - Fit it to the goal, the activity level and anything the user tells you: days available, equipment, time per session, exercises they dislike or cannot do.
 - Keep it sustainable. Two to five training days with at least one full rest day, four to seven exercises per session, two to four sets each. Beginners and people returning after a break get fewer days, simpler exercises and fewer sets. Train each major muscle group across the week and do not put the same muscles on consecutive days.
+- Every training day works different parts of the body from the day before and the day after, so nothing is trained hard two days running: for example chest and triceps, then back and biceps, then legs, then shoulders and core. Name each day after its body part.
+- Give every training day a style and alternate them through the week, with at least one strength day and one volume day. On a strength day the big lifts are 4-6 reps and the rest 6-10; on a volume day weighted exercises are 12-15.
 - Compound lifts come first in a session. Use rep ranges of roughly 5 to 10 for heavy compounds, 8 to 15 for accessories, and seconds for holds.
 - Only set update_routine when you are actually proposing a routine. When the user is only asking a question, answer it and leave the routine alone. If you need one or two facts before you can build a good plan, ask for them first, briefly.
 - When you do propose one, say in your reply what changed and why in a sentence or two. The app shows the plan itself as a card with a button to use it, so do not list the exercises in your reply.
@@ -284,7 +300,8 @@ Deno.serve(async (req) => {
       fallbacks: 'default',
       // a readable summary of the reasoning, so the app can show what the coach is working out
       thinking: { type: 'adaptive', display: 'summarized' },
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: outputSchema(context.exercises.map((e) => e.id), context.recipes.map((r) => r.id)) } },
+      // low effort: the coach answers short questions on a phone, so a quick, light think is what is wanted
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: outputSchema(context.exercises.map((e) => e.id), context.recipes.map((r) => r.id)) } },
       system: SYSTEM,
       messages: turns,
     })
@@ -316,6 +333,7 @@ Deno.serve(async (req) => {
     const result: CoachResult = {
       reply: r.reply.slice(0, 4000),
       show: r.show ?? 'none',
+      mood: r.mood ?? 'calm',
       remember: (r.remember ?? []).slice(0, 3).map((t) => t.slice(0, 200)),
       forget: (r.forget ?? []).slice(0, 10),
       update_details: r.update_details,

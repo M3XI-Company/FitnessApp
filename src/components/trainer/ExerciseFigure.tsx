@@ -1,0 +1,63 @@
+import { useState } from 'react'
+import { Image, Pressable, Text, View } from 'react-native'
+import { EXERCISE_ART } from '../../data/exerciseArt'
+import { exerciseById } from '../../data/exercises'
+import { C } from '../../theme'
+import { tap } from '../ui'
+import { Trainer3D } from './Trainer3D'
+
+/** The poster-style figure for an exercise: the one for this build, or the other build's when only that exists. */
+export function exerciseArt(exerciseId: string, sex?: string): number | undefined {
+  const art = EXERCISE_ART[exerciseId]
+  if (!art) return undefined
+  return sex === 'female' ? art.female ?? art.male : art.male ?? art.female
+}
+
+/**
+ * How an exercise is shown: a figure in the style of the charts on gym
+ * equipment, a man or a woman to match the user, with the muscles doing the
+ * work lit in red and the ones helping in orange. A button swaps it for the
+ * moving 3D figure. Exercises that have no chart figure yet show the 3D one.
+ */
+export function ExerciseFigure({ exerciseId, sex, height }: { exerciseId: string; sex?: string; height?: number }) {
+  const art = exerciseArt(exerciseId, sex)
+  const [moving, setMoving] = useState(false)
+  if (!art || moving) {
+    return (
+      <View>
+        <Trainer3D exerciseId={exerciseId} height={height} />
+        {!!art && <Swap label="Chart" onPress={() => setMoving(false)} dark />}
+      </View>
+    )
+  }
+  return (
+    // the box sets the size; left to itself the picture would be drawn at its own, larger than the screen
+    <View style={{ width: '100%', aspectRatio: 1376 / 768, backgroundColor: '#fff' }}>
+      <Image source={art} resizeMode="contain" accessibilityLabel={`${exerciseById(exerciseId)?.name ?? 'Exercise'}: the position, with the working muscles in red and the helping muscles in orange`}
+        style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }} />
+      <View style={{ position: 'absolute', left: 12, bottom: 10, flexDirection: 'row', gap: 12 }}>
+        <Key color="#E5352B" label="Working" />
+        <Key color="#F08A24" label="Helping" />
+      </View>
+      <Swap label="See it move" onPress={() => setMoving(true)} />
+    </View>
+  )
+}
+
+function Key({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color }} />
+      <Text style={{ fontSize: 11.5, fontWeight: '600', color: C.text2 }}>{label}</Text>
+    </View>
+  )
+}
+
+function Swap({ label, onPress, dark }: { label: string; onPress: () => void; dark?: boolean }) {
+  return (
+    <Pressable onPress={() => { tap(); onPress() }} hitSlop={8} accessibilityRole="button"
+      style={({ pressed }) => [{ position: 'absolute', right: 10, bottom: 8, paddingHorizontal: 12, height: 30, borderRadius: 15, justifyContent: 'center', backgroundColor: dark ? 'rgba(255,255,255,0.16)' : C.fill }, pressed && { opacity: 0.6 }]}>
+      <Text style={{ fontSize: 12.5, fontWeight: '700', color: dark ? '#fff' : C.accent }}>{label}</Text>
+    </Pressable>
+  )
+}

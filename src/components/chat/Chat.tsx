@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { AppState as PhoneState, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { checkinMessage, localAnswer, localIntent, needsCheckin, thinkingLine } from '../../lib/chat'
+import { yesterdayLine } from '../../lib/achievements'
+import { CHAT_FULL_TEXT, chatFull, chatIsOld, checkinMessage, localAnswer, localIntent, needsCheckin, thinkingLine } from '../../lib/chat'
 import { reply } from '../../lib/coach'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { todayKey, uid } from '../../lib/date'
+import { chatMood } from '../../lib/mood'
+import { easingIn } from '../../lib/progress'
 import { syncReminders } from '../../lib/notify'
 import { remindersMessage } from '../../lib/reminders'
 import { buildRoutine, dayProgress, routineStreak } from '../../lib/routine'
@@ -14,7 +17,7 @@ import type { ChatMessage } from '../../lib/types'
 import { C, T, shadow } from '../../theme'
 import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { SkyOrb } from '../SkyOrb'
-import { Icon, IconButton, tap } from '../ui'
+import { Button, Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
 import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
@@ -29,7 +32,9 @@ const SHOWN = 60
 /**
  * Breeze is a chat. A new chat is empty apart from a greeting and today's
  * plan as tiles; the coach walks the user through the workout and changes
- * the routine or meals when asked. Earlier chats are kept in History. Asking for
+ * the routine or meals when asked. A chat lasts a day and at most 60 messages;
+ * earlier chats are kept in History, and what the user achieved in them is
+ * passed to the coach, so nothing is forgotten. Asking for
  * the plan or starting a workout is answered on the phone; everything else
  * goes to the AI coach, with the built-in coach as the fallback.
  */
@@ -41,24 +46,34 @@ export function Chat() {
   // what the coach is working out, shown while it works
   const [thought, setThought] = useState('')
   const [voice, setVoice] = useState(false)
+  // the debrief after a session is spoken: the newest check-in opens the voice conversation once, and not again after it is closed or the app restarts
+  const checkin = [...state.chat].reverse().find((m) => m.checkin)
+  const [heard, setHeard] = useState(() => checkin?.id)
+  const debrief = checkin && checkin.id !== heard ? checkin.text : undefined
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null)
-  const today = todayKey()
+  const [today, setToday] = useState(todayKey)
   const workout = dayProgress(state, today)
+  const mood = chatMood(state.chat)
+  const full = chatFull(state)
   const streak = routineStreak(state)
 
   // keep the phone's reminders in step with the plan, and rebuild them whenever the app comes back to the front
   const latest = useRef(state)
   useEffect(() => { latest.current = state; syncReminders(state) }, [state])
   useEffect(() => {
-    const sub = PhoneState.addEventListener('change', (status) => { if (status === 'active') syncReminders(latest.current) })
+    const sub = PhoneState.addEventListener('change', (status) => { if (status === 'active') { syncReminders(latest.current); setToday(todayKey()) } })
     return () => sub.remove()
   }, [])
+  // a chat lasts a day: yesterday's is put away in History and today starts fresh. What was achieved is not lost, the coach is told it with every message
+  useEffect(() => { if (chatIsOld(state, today)) dispatch({ type: 'newChat' }) }, [state, today, dispatch])
   // once the guided workout is finished, ask how it went (the answer is how the coach learns what to change)
-  useEffect(() => { if (needsCheckin(state, today)) dispatch({ type: 'chat', messages: [checkinMessage(today)] }) }, [state, today, dispatch])
+  useEffect(() => { if (needsCheckin(state, today)) dispatch({ type: 'chat', messages: [checkinMessage(today, { easing: easingIn(state) })] }) }, [state, today, dispatch])
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing, thought])
 
   /** Send what the user said and resolve with Breeze's reply; used by typing and by voice. */
   const respond = (m: string, onThinking?: (thought: string) => void) => new Promise<ChatMessage>((resolve) => {
+    // a full chat takes no more: said out loud in voice mode, and shown in place of the message box
+    if (full) { resolve({ id: uid(), role: 'coach', text: CHAT_FULL_TEXT }); return }
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
     const intent = localIntent(m)
     if (intent) {
@@ -104,7 +119,14 @@ export function Chat() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 10 }}>
         <IconButton icon="menu" size={44} onPress={() => router.push('/history')} label="Chats" />
-        <View style={{ flex: 1 }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          {/* Breeze stays in view through the chat, its mood following the conversation */}
+          {shown.length > 0 && (
+            <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" hitSlop={6}>
+              <SkyOrb size={44} mode={typing ? 'thinking' : 'idle'} mood={mood} />
+            </Pressable>
+          )}
+        </View>
         {shown.length > 0 && <IconButton icon="create-outline" size={44} onPress={() => { tap(); dispatch({ type: 'newChat' }) }} label="New chat" />}
         <IconButton icon="sliders" size={44} onPress={() => router.push('/settings')} label="Settings" />
       </View>
@@ -114,9 +136,10 @@ export function Chat() {
         {!shown.length && (
           <View style={{ flex: 1, justifyContent: 'center', gap: 26, paddingBottom: 20 }}>
             <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" style={{ alignItems: 'center', gap: 18 }}>
-              <SkyOrb size={200} />
+              <SkyOrb size={200} mood={mood} />
               <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text style={[T.title2, { textAlign: 'center' }]}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
+                {!!yesterdayLine(state, today) && <Text style={[T.sub, { textAlign: 'center', color: C.text }]}>{yesterdayLine(state, today)}</Text>}
                 <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}Tap the breeze to talk, or type below.</Text>
               </View>
             </Pressable>
@@ -161,6 +184,12 @@ export function Chat() {
         )}
       </ScrollView>
 
+      {full ? (
+        <View style={{ gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(12, insets.bottom + 8) }}>
+          <Text style={[T.sub, { textAlign: 'center', lineHeight: 19 }]}>{CHAT_FULL_TEXT}</Text>
+          <Button title="Start a new chat" icon="create-outline" variant="dark" onPress={() => dispatch({ type: 'newChat' })} />
+        </View>
+      ) : (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(12, insets.bottom + 8) }}>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 6, paddingRight: 6, backgroundColor: '#fff', borderRadius: 28, ...shadow }}>
           <Pressable onPress={() => { tap(); router.push('/quick-add') }} accessibilityLabel="Log food, water or weight" style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
@@ -178,7 +207,8 @@ export function Chat() {
           <Icon name="voice" size={24} color="#fff" />
         </Pressable>
       </View>
-      {voice && <VoiceMode onClose={() => setVoice(false)} respond={respond} />}
+      )}
+      {(voice || !!debrief) && <VoiceMode onClose={() => { setVoice(false); setHeard(checkin?.id) }} respond={respond} mood={mood} opening={debrief} />}
     </KeyboardAvoidingView>
   )
 }

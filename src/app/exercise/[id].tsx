@@ -10,7 +10,7 @@ import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
 import { C, T, G } from '../../theme'
 import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
-import { Trainer3D } from '../../components/trainer/Trainer3D'
+import { ExerciseFigure } from '../../components/trainer/ExerciseFigure'
 import { FormSteps } from '../../components/trainer/FormSteps'
 import { RestTimer } from '../../components/RestTimer'
 import { supportsForm } from '../../lib/form/engine'
@@ -61,7 +61,7 @@ export default function ExerciseDetail() {
           <Pill color={C.text2} bg={C.fill}>{ex.level}</Pill>
         </View>
 
-        <Trainer3D exerciseId={ex.id} />
+        <View style={{ borderRadius: 22, overflow: 'hidden' }}><ExerciseFigure exerciseId={ex.id} sex={state.profile.sex} /></View>
         <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
         <Card style={{ marginBottom: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>

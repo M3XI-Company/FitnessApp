@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { gustPath, gustReach, type Gust } from '../src/lib/gust'
 
-const gust: Gust = { length: 120, width: 10, hook: 14, turn: 4.2, bend: 0.15, ripples: 1.2, phase: 0.7 }
+const gust: Gust = { length: 120, width: 10, hook: 14, turn: 4.2, bend: 0.5, swerve: 0, ripples: 1.2, phase: 0.7 }
 const points = (d: string) => d.slice(1, -1).split('L').map((p) => p.split(' ').map(Number))
 
 test('a gust is one closed outline of real numbers', () => {
@@ -26,6 +26,15 @@ test('the line itself moves: the same gust in the same place is a different shap
   assert.equal(a.length, b.length)
   const moved = a.filter(([x, y], i) => Math.hypot(x - b[i][0], y - b[i][1]) > 0.5).length
   assert.ok(moved > a.length / 2, `${moved} of ${a.length} points moved`)
+})
+
+test('a wilder gust swerves further, and a calm one barely at all', () => {
+  const spread = (wild: number) => {
+    const ys = points(gustPath({ ...gust, swerve: 8 }, 10, 100, 0.3, wild)).slice(0, 19).map(([, y]) => y)
+    return Math.max(...ys) - Math.min(...ys)
+  }
+  assert.ok(spread(1.75) > spread(1) && spread(1) > spread(0.2), `${spread(0.2)} ${spread(1)} ${spread(1.75)}`)
+  assert.ok(spread(1) > 20, 'the swerve is easy to see')
 })
 
 test('the hook curls up or down', () => {

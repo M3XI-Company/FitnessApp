@@ -135,6 +135,8 @@ export interface ChatMessage {
   details?: DetailsChange
   /** date of the workout this message asks about, once it is finished */
   checkin?: string
+  /** how the coach judged the conversation to be going at this reply, which sets the look of the orb */
+  mood?: 'calm' | 'upbeat' | 'fired_up' | 'gentle' | 'proud'
 }
 
 /** One thing Breeze remembers about the user, in the coach's own words */
@@ -178,8 +180,13 @@ export interface BodyScan {
 
 export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 export interface RoutineItem { exerciseId: string; sets: number; reps: string }
+/**
+ * How a training day is done. Strength: heavier weight and few reps.
+ * Volume: a comfortable weight and as many clean reps as the range allows.
+ */
+export type TrainingStyle = 'strength' | 'volume'
 /** One day of the weekly routine; a rest day has no items */
-export interface RoutineDay { title: string; focus: string; items: RoutineItem[] }
+export interface RoutineDay { title: string; focus: string; items: RoutineItem[]; style?: TrainingStyle }
 export interface WeeklyRoutine {
   id: string
   createdAt: string
@@ -210,6 +217,8 @@ export interface AppState {
   chat: ChatMessage[]
   /** id of the conversation in progress */
   chatId?: string
+  /** the day the conversation in progress began; a new one starts each day */
+  chatDay?: string
   /** earlier conversations, newest first */
   threads?: ChatThread[]
   /** what the coach remembers about the user between conversations, newest first */

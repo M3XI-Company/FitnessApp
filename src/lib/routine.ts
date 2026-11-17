@@ -1,6 +1,10 @@
 /**
  * The weekly routine: which exercises the user does on which day.
  *
+ * Every training day works different parts of the body, and each is either a
+ * strength day (heavier, fewer reps) or a volume day (a comfortable weight,
+ * more reps), so the same muscles are never trained hard two days running.
+ *
  * A routine is first built from the onboarding profile (buildRoutine) and can
  * be replaced by one the AI coach proposes. Either way the routine only names
  * exercises, sets and rep ranges: the weight for each set always comes from
@@ -8,7 +12,7 @@
  */
 import { exerciseById } from '../data/exercises'
 import { addDays, todayKey, uid } from './date'
-import type { AppState, Profile, RoutineDay, RoutineItem, Weekday, WeeklyRoutine } from './types'
+import type { AppState, Profile, RoutineDay, RoutineItem, TrainingStyle, Weekday, WeeklyRoutine } from './types'
 
 export const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 export const WEEKDAY_LABEL: Record<Weekday, string> = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' }
@@ -20,42 +24,73 @@ export const weekdayOf = (dateKey: string): Weekday => WEEKDAYS[(new Date(`${dat
 
 const REST: RoutineDay = { title: 'Rest day', focus: 'Recovery', items: [] }
 
-/** Day templates: exercise ids in the order they are done */
+/** Day templates, one per part of the body: exercise ids in the order they are done */
 const TEMPLATES: Record<string, { title: string; focus: string; ids: string[] }> = {
-  fullA: { title: 'Full body A', focus: 'Legs, chest, back', ids: ['goblet', 'incline-db', 'lat-pulldown', 'db-shoulder', 'plank'] },
-  fullB: { title: 'Full body B', focus: 'Legs, push, pull', ids: ['leg-press', 'pushup', 'seated-row', 'glute-bridge', 'hammer'] },
-  upperA: { title: 'Upper body A', focus: 'Chest, back, arms', ids: ['bench', 'row', 'db-shoulder', 'lat-pulldown', 'curl', 'pushdown'] },
-  lowerA: { title: 'Lower body A', focus: 'Quads, hamstrings, core', ids: ['squat', 'rdl', 'leg-press', 'calf', 'plank'] },
-  upperB: { title: 'Upper body B', focus: 'Shoulders, back, chest', ids: ['ohp', 'lat-pulldown', 'incline-db', 'seated-row', 'lateral', 'face-pull'] },
-  lowerB: { title: 'Lower body B', focus: 'Glutes, hamstrings, quads', ids: ['hip-thrust', 'lunge', 'leg-curl', 'leg-ext', 'cable-crunch'] },
-  push: { title: 'Push', focus: 'Chest, shoulders, triceps', ids: ['bench', 'ohp', 'incline-db', 'lateral', 'pushdown'] },
-  pull: { title: 'Pull', focus: 'Back, biceps', ids: ['row', 'lat-pulldown', 'face-pull', 'curl', 'hammer'] },
-  legs: { title: 'Legs', focus: 'Quads, hamstrings, calves', ids: ['squat', 'rdl', 'leg-press', 'calf', 'plank'] },
+  // three days a week, with exercises that are easy to learn
+  chestArmsEasy: { title: 'Chest & triceps', focus: 'Chest, triceps', ids: ['incline-db', 'pushup', 'cable-fly', 'pushdown'] },
+  backArmsEasy: { title: 'Back & biceps', focus: 'Back, biceps', ids: ['lat-pulldown', 'seated-row', 'db-row', 'hammer'] },
+  legsShouldersEasy: { title: 'Legs & shoulders', focus: 'Legs, glutes, shoulders, core', ids: ['goblet', 'leg-press', 'glute-bridge', 'db-shoulder', 'lateral', 'plank'] },
+  // four and five days a week
+  chestTri: { title: 'Chest & triceps', focus: 'Chest, triceps', ids: ['bench', 'incline-db', 'cable-fly', 'pushdown', 'skull'] },
+  backBi: { title: 'Back & biceps', focus: 'Back, biceps', ids: ['row', 'lat-pulldown', 'seated-row', 'curl', 'hammer'] },
+  legs: { title: 'Legs', focus: 'Quads, hamstrings, glutes, calves', ids: ['squat', 'rdl', 'leg-press', 'leg-curl', 'calf'] },
+  shouldersCore: { title: 'Shoulders & core', focus: 'Shoulders, core', ids: ['ohp', 'lateral', 'face-pull', 'plank', 'cable-crunch'] },
+  chest: { title: 'Chest', focus: 'Chest', ids: ['bench', 'incline-db', 'cable-fly', 'pushup'] },
+  back: { title: 'Back', focus: 'Back', ids: ['row', 'lat-pulldown', 'seated-row', 'db-row'] },
+  shoulders: { title: 'Shoulders', focus: 'Shoulders', ids: ['ohp', 'db-shoulder', 'lateral', 'face-pull'] },
+  armsCore: { title: 'Arms & core', focus: 'Biceps, triceps, core', ids: ['curl', 'pushdown', 'hammer', 'skull', 'plank', 'cable-crunch'] },
 }
 
-/** Which template falls on which day, by training days per week */
-const SCHEDULES: Record<3 | 4 | 5, Partial<Record<Weekday, string>>> = {
-  3: { mon: 'fullA', wed: 'fullB', fri: 'fullA' },
-  4: { mon: 'upperA', tue: 'lowerA', thu: 'upperB', fri: 'lowerB' },
-  5: { mon: 'push', tue: 'pull', wed: 'legs', fri: 'upperB', sat: 'lowerB' },
+/** Which body part falls on which day and how it is trained, by training days per week. Strength and volume days alternate. */
+const SCHEDULES: Record<3 | 4 | 5, Partial<Record<Weekday, [template: string, style: TrainingStyle]>>> = {
+  3: { mon: ['chestArmsEasy', 'strength'], wed: ['backArmsEasy', 'volume'], fri: ['legsShouldersEasy', 'strength'] },
+  4: { mon: ['chestTri', 'strength'], tue: ['backBi', 'volume'], thu: ['legs', 'strength'], fri: ['shouldersCore', 'volume'] },
+  5: { mon: ['chest', 'strength'], tue: ['back', 'volume'], wed: ['legs', 'strength'], fri: ['shoulders', 'volume'], sat: ['armsCore', 'volume'] },
 }
 const DAYS_PER_WEEK: Record<Profile['activity'], 3 | 4 | 5> = { sedentary: 3, light: 3, moderate: 4, active: 5, athlete: 5 }
 /** a short conditioning finisher on fat-loss plans, rotated through the week */
 const FINISHERS = ['mountain', 'kb-swing', 'burpee']
+/** The big lifts, which are the ones done heavy on a strength day. */
+const HEAVY = new Set(['bench', 'squat', 'front-squat', 'deadlift', 'row', 'ohp', 'rdl', 'hip-thrust', 'leg-press', 'lat-pulldown'])
 
-const repLabel = (exerciseId: string) => { const ex = exerciseById(exerciseId); return ex ? `${ex.reps[0]}–${ex.reps[1]}` : '8–12' }
+export const STYLE_LABEL: Record<TrainingStyle, string> = { strength: 'Strength day', volume: 'Volume day' }
+/** What each kind of day means, in a line. */
+export const STYLE_MEANING: Record<TrainingStyle, string> = {
+  strength: 'Heavier weight, fewer reps. Stop a set when your form starts to slip.',
+  volume: 'A comfortable weight, and as many clean reps as you can within the range.',
+}
+
+/**
+ * The rep range for an exercise on a kind of day. Holds, bodyweight moves and
+ * conditioning keep their own range whatever the day.
+ */
+export function repsFor(exerciseId: string, style?: TrainingStyle): string {
+  const ex = exerciseById(exerciseId)
+  if (!ex) return '8–12'
+  if (!style || ex.step === 0 || ex.muscle === 'Cardio' || ex.muscle === 'Core') return `${ex.reps[0]}–${ex.reps[1]}`
+  if (style === 'volume') return '12–15'
+  // heavy and few on the big lifts; smaller movements stay moderate so the joints are not loaded hard
+  return HEAVY.has(ex.id) ? '4–6' : '6–10'
+}
 
 /** The starting routine for a profile: training days from activity level, emphasis from the goal. */
 export function buildRoutine(profile: Profile): WeeklyRoutine {
   const schedule = SCHEDULES[DAYS_PER_WEEK[profile.activity] ?? 3]
   let trained = 0
   const days = Object.fromEntries(WEEKDAYS.map((d) => {
-    const t = schedule[d] ? TEMPLATES[schedule[d]!] : null
-    if (!t) return [d, REST]
+    const planned = schedule[d]
+    if (!planned) return [d, REST]
+    const [key, style] = planned
+    const t = TEMPLATES[key]
     const ids = profile.goal === 'lose' ? [...t.ids, FINISHERS[trained % FINISHERS.length]] : t.ids
     trained++
-    const items: RoutineItem[] = ids.map((id, i) => ({ exerciseId: id, sets: profile.goal === 'gain' && i < 2 ? 4 : 3, reps: repLabel(id) }))
-    return [d, { title: t.title, focus: t.focus, items }]
+    const items: RoutineItem[] = ids.map((id, i) => ({
+      exerciseId: id,
+      // an extra set on the heavy lifts of a strength day, and on the first two lifts when building muscle
+      sets: (style === 'strength' && HEAVY.has(id)) || (profile.goal === 'gain' && i < 2) ? 4 : 3,
+      reps: repsFor(id, style),
+    }))
+    return [d, { title: t.title, focus: t.focus, items, style }]
   })) as Record<Weekday, RoutineDay>
   return { id: uid(), createdAt: new Date().toISOString(), source: 'profile', days }
 }
@@ -65,20 +100,21 @@ export function buildRoutine(profile: Profile): WeeklyRoutine {
  * and day length are clamped, a rep label is always present, and at least one
  * rest day is kept. Returns null when nothing usable is left.
  */
-export function sanitiseRoutine(input: { days: Partial<Record<Weekday, { title?: string; focus?: string; items?: { exerciseId: string; sets: number; reps?: string }[] }>> }, source: WeeklyRoutine['source']): WeeklyRoutine | null {
+export function sanitiseRoutine(input: { days: Partial<Record<Weekday, { title?: string; focus?: string; style?: string; items?: { exerciseId: string; sets: number; reps?: string }[] }>> }, source: WeeklyRoutine['source']): WeeklyRoutine | null {
   const days = Object.fromEntries(WEEKDAYS.map((d) => {
     const raw = input.days[d]
     const seen = new Set<string>()
+    const style: TrainingStyle | undefined = raw?.style === 'strength' || raw?.style === 'volume' ? raw.style : undefined
     const items: RoutineItem[] = (raw?.items ?? [])
       .filter((it) => exerciseById(it.exerciseId) && !seen.has(it.exerciseId) && seen.add(it.exerciseId))
       .slice(0, ROUTINE_LIMITS.maxItemsPerDay)
       .map((it) => ({
         exerciseId: it.exerciseId,
         sets: Math.max(ROUTINE_LIMITS.minSets, Math.min(ROUTINE_LIMITS.maxSets, Math.round(it.sets) || 3)),
-        reps: it.reps && /^\d{1,3}(\s?[–-]\s?\d{1,3})?(\s?s)?$/.test(it.reps.trim()) ? it.reps.trim().replace(/\s?-\s?/, '–') : repLabel(it.exerciseId),
+        reps: it.reps && /^\d{1,3}(\s?[–-]\s?\d{1,3})?(\s?s)?$/.test(it.reps.trim()) ? it.reps.trim().replace(/\s?-\s?/, '–') : repsFor(it.exerciseId, style),
       }))
     if (!items.length) return [d, REST]
-    return [d, { title: (raw?.title ?? '').trim().slice(0, 40) || 'Workout', focus: (raw?.focus ?? '').trim().slice(0, 60), items }]
+    return [d, { title: (raw?.title ?? '').trim().slice(0, 40) || 'Workout', focus: (raw?.focus ?? '').trim().slice(0, 60), items, ...(style ? { style } : {}) }]
   })) as Record<Weekday, RoutineDay>
   const training = WEEKDAYS.filter((d) => days[d].items.length)
   if (!training.length) return null
@@ -87,8 +123,19 @@ export function sanitiseRoutine(input: { days: Partial<Record<Weekday, { title?:
   return { id: uid(), createdAt: new Date().toISOString(), source, days }
 }
 
-/** The routine in use: the saved one, or the starting routine for this profile. */
-export const routineFor = (s: AppState): WeeklyRoutine => s.routine ?? buildRoutine(s.profile)
+/**
+ * The routine in use: the saved one, or the starting routine for this profile.
+ * A starting routine saved before days had a body part and a style (known by
+ * its old day names) is built again, so everyone gets the split; a routine agreed with the coach is kept.
+ */
+const OLD_TITLES = new Set(['Full body A', 'Full body B', 'Upper body A', 'Upper body B', 'Lower body A', 'Lower body B', 'Push', 'Pull', 'Legs'])
+export function routineFor(s: AppState): WeeklyRoutine {
+  const saved = s.routine
+  if (!saved) return buildRoutine(s.profile)
+  const training = WEEKDAYS.map((d) => saved.days[d]).filter((d) => d.items.length)
+  const dated = saved.source === 'profile' && training.length > 0 && training.every((d) => !d.style && OLD_TITLES.has(d.title))
+  return dated ? buildRoutine(s.profile) : saved
+}
 
 export interface ItemProgress extends RoutineItem { done: number; complete: boolean }
 export interface DayProgress { date: string; weekday: Weekday; day: RoutineDay; items: ItemProgress[]; doneItems: number; status: 'rest' | 'todo' | 'started' | 'done' }

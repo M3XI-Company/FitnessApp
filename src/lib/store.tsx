@@ -159,8 +159,8 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case 'addGoal': return { ...s, goals: [...s.goals, a.goal] }
     case 'removeGoal': return { ...s, goals: s.goals.filter((g) => g.id !== a.id) }
-    case 'chat': return { ...s, chat: [...s.chat, ...a.messages], chatId: s.chatId ?? uid() }
-    case 'newChat': return { ...s, chat: [], chatId: uid(), threads: shelve(s) }
+    case 'chat': return { ...s, chat: [...s.chat, ...a.messages], chatId: s.chatId ?? uid(), chatDay: s.chat.length ? s.chatDay ?? todayKey() : todayKey() }
+    case 'newChat': return { ...s, chat: [], chatId: uid(), chatDay: undefined, threads: shelve(s) }
     case 'openChat': {
       const target = (s.threads ?? []).find((t) => t.id === a.id)
       if (!target) return s

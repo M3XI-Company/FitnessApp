@@ -1,13 +1,19 @@
 /// <reference types="node" />
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
 import { exerciseById } from '../src/data/exercises'
 import { addDays, todayKey } from '../src/lib/date'
-import { ROUTINE_LIMITS, WEEKDAYS, buildRoutine, dayProgress, routineStreak, sanitiseRoutine, weekdayOf } from '../src/lib/routine'
+import { formTips } from '../src/lib/fit'
+import { ROUTINE_LIMITS, WEEKDAYS, buildRoutine, dayProgress, repsFor, routineStreak, sanitiseRoutine, weekdayOf } from '../src/lib/routine'
 import { quickFind } from '../src/lib/search'
-import { startingWeight } from '../src/lib/progress'
-import type { AppState, Profile, SetLog, WeeklyRoutine } from '../src/lib/types'
+import { easingIn, nextTarget, startingWeight } from '../src/lib/progress'
+import type { AppState, BodyScan, Profile, SetLog, WeeklyRoutine } from '../src/lib/types'
 
+/** the figures listed in the generated map, read as text because it requires image files */
+const EXERCISE_ART_FILES: Record<string, string[]> = Object.fromEntries(
+  [...readFileSync('src/data/exerciseArt.ts', 'utf8').matchAll(/^  '([^']+)': \{(.*)\},$/gm)].map((m) => [m[1], [...m[2].matchAll(/assets\/exercise\/([a-z0-9_]+\.jpg)/g)].map((x) => x[1])]),
+)
 const profile = (over: Partial<Profile> = {}): Profile => ({ name: '', sex: 'male', age: 30, heightCm: 178, weightKg: 80, targetWeightKg: 76, activity: 'moderate', goal: 'maintain', onboarded: true, ...over })
 const state = (over: Partial<AppState> = {}): AppState => ({ profile: profile(), sets: [], ...over } as AppState)
 const log = (date: string, exerciseId: string, n: number): SetLog[] => Array.from({ length: n }, (_, i) => ({ id: `${date}${exerciseId}${i}`, date, exerciseId, weight: 20, reps: 8 }))
@@ -30,7 +36,56 @@ test('starting routine: fat-loss adds a conditioning finisher, muscle gain adds 
   assert.equal(lose.length, base.length + 1)
   assert.equal(exerciseById(lose.at(-1)!.exerciseId)?.muscle, 'Cardio')
   assert.equal(gain[0].sets, 4)
-  assert.equal(base[0].sets, 3)
+  // dumbbell and bodyweight moves keep three sets; only the heavy lifts of a strength day get a fourth
+  assert.equal(base.find((i) => i.exerciseId === 'cable-fly')?.sets, 3)
+})
+
+test('every training day works a different part of the body, on strength and volume days', () => {
+  for (const activity of ['light', 'moderate', 'active'] as const) {
+    const days = WEEKDAYS.map((d) => buildRoutine(profile({ activity })).days[d]).filter((d) => d.items.length)
+    assert.equal(new Set(days.map((d) => d.title)).size, days.length, `${activity}: every day has its own body part`)
+    assert.ok(days.some((d) => d.style === 'strength') && days.some((d) => d.style === 'volume'), `${activity}: has both kinds of day`)
+    for (const d of days) {
+      assert.ok(d.style, `${d.title} has a style`)
+      const heavy = d.items.filter((i) => ['bench', 'squat', 'row', 'ohp', 'rdl', 'leg-press', 'lat-pulldown'].includes(i.exerciseId))
+      for (const i of heavy) assert.equal(i.reps, d.style === 'strength' ? '4–6' : '12–15', `${i.exerciseId} on a ${d.style} day`)
+    }
+  }
+  assert.equal(repsFor('plank', 'strength'), '30–60')
+  assert.equal(repsFor('curl', 'volume'), '12–15')
+  assert.equal(repsFor('curl', 'strength'), '6–10')
+})
+
+test('weights follow the kind of day and start light for the first sessions', () => {
+  const day = (n: number) => addDays(todayKey(), -n)
+  const fresh = state()
+  const first = nextTarget(fresh, 'bench', { reps: '4–6', style: 'strength' })!
+  const settled = state({ sets: [1, 2, 3].map((n) => ({ id: `s${n}`, date: day(n * 2), exerciseId: 'plank', weight: 0, reps: 30 })) })
+  const later = nextTarget(settled, 'bench', { reps: '4–6', style: 'strength' })!
+  assert.equal(easingIn(fresh), true)
+  assert.equal(easingIn(settled), false)
+  assert.ok(first.weight < later.weight, `${first.weight} is lighter than ${later.weight}`)
+  assert.match(first.note, /light on purpose/)
+  assert.ok(nextTarget(settled, 'bench', { reps: '12–15', style: 'volume' })!.weight < later.weight, 'a volume day starts lighter than a strength day')
+  // a lift that was done for many reps is worked out again, heavier, when it moves to a strength day
+  const volume = state({ sets: [{ id: 'v', date: day(3), exerciseId: 'bench', weight: 40, reps: 15 }] })
+  const heavy = nextTarget(volume, 'bench', { reps: '4–6', style: 'strength' })!
+  assert.ok(heavy.weight > 40 && heavy.reps === 4, `${heavy.weight} kg for ${heavy.reps}`)
+  // and inside a range it is double progression as before
+  const hit = state({ sets: [{ id: 'h', date: day(3), exerciseId: 'bench', weight: 60, reps: 6 }] })
+  assert.equal(nextTarget(hit, 'bench', { reps: '4–6', style: 'strength' })!.weight, 62.5)
+})
+
+test('form tips fit the person, and say nothing when nothing calls for a change', () => {
+  const tall = formTips('squat', { ...profile(), sex: 'male', heightCm: 192 })
+  assert.match(tall[0], /long legs/i)
+  const woman = formTips('squat', { ...profile(), sex: 'female', heightCm: 165 })
+  assert.match(woman[0], /pelvis/i)
+  assert.deepEqual(formTips('squat', { ...profile(), sex: 'male', heightCm: 178, age: 30 }), [])
+  const scan = { at: '', build: 'average', muscle: 'developing', posture: ['Slightly rounded shoulders'], focusAreas: [], summary: '', confidence: 'medium' } as BodyScan
+  assert.match(formTips('bench', { ...profile(), sex: 'male', heightCm: 178 }, scan)[0], /shoulder blades/i)
+  assert.ok(formTips('squat', { ...profile(), sex: 'female', heightCm: 180, age: 60 }).length <= 2)
+  assert.deepEqual(formTips('not-real', profile()), [])
 })
 
 test('a proposed routine is cleaned up before use', () => {
@@ -110,4 +165,12 @@ test('quick find: names first, typos tolerated, every typed word must match', ()
   assert.deepEqual(find('sholder'), ['Seated DB Shoulder Press'])
   assert.deepEqual(find('hammer curl'), ['Hammer Curl'])
   assert.deepEqual(find('xyz'), [])
+})
+
+test('exercise figures are real files for real exercises', () => {
+  for (const [id, art] of Object.entries(EXERCISE_ART_FILES)) {
+    assert.ok(exerciseById(id), `${id} is an exercise`)
+    for (const file of art) assert.ok(existsSync(`assets/exercise/${file}`), `${file} exists`)
+  }
+  assert.ok(Object.keys(EXERCISE_ART_FILES).length >= 8)
 })

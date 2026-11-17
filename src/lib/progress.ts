@@ -1,4 +1,4 @@
-import type { AppState } from './types'
+import type { AppState, TrainingStyle } from './types'
 import { lastNDays, todayKey, addDays } from './date'
 import { dayTotals, e1rm } from './nutrition'
 import { exerciseById } from '../data/exercises'
@@ -81,26 +81,68 @@ export const startingWeight = (s: AppState, exerciseId: string) => {
   return Math.max(floor, Math.round(raw / ex.step) * ex.step)
 }
 
-/** Double-progression recommendation for next session */
-export const nextTarget = (s: AppState, exerciseId: string) => {
+/** For this many sessions the weights are kept light on purpose, while the coach learns how the user's body takes to training. */
+export const EASE_IN_SESSIONS = 3
+export const sessionsDone = (s: AppState) => workoutDates(s).length
+/** True while the user is still in their first few sessions. */
+export const easingIn = (s: AppState) => sessionsDone(s) < EASE_IN_SESSIONS
+
+const range = (ex: { reps: [number, number] }, label?: string): [number, number] => {
+  const m = /^(\d{1,3})(?:\s?[–-]\s?(\d{1,3}))?/.exec(label ?? '')
+  return m ? [+m[1], +(m[2] ?? m[1])] : ex.reps
+}
+
+/**
+ * What to lift next time: the weight and reps for a set, and why.
+ *
+ * `plan` is the day's rep range and kind of day from the routine. On a
+ * strength day the range is low and the weight high; on a volume day the
+ * weight is one the user is comfortable with and the reps go up. Within a
+ * range the rule is double progression: add reps until every set reaches the
+ * top of the range, then add weight and start again at the bottom. When the
+ * range has changed since last time (a lift moved from a volume day to a
+ * strength day, say) the weight is worked out afresh from what was lifted.
+ * For the first few sessions everything starts lighter still.
+ */
+export const nextTarget = (s: AppState, exerciseId: string, plan: { reps?: string; style?: TrainingStyle } = {}) => {
   const ex = exerciseById(exerciseId)
   if (!ex) return null
+  const [lo, hi] = range(ex, plan.reps)
+  const toStep = (kg: number) => Math.max(ex.equipment === 'Barbell' ? 20 : ex.step, Math.round(kg / ex.step) * ex.step)
   const sets = s.sets.filter((x) => x.exerciseId === exerciseId)
   if (!sets.length) {
-    const weight = startingWeight(s, exerciseId)
-    return { weight, reps: ex.reps[0], note: weight ? 'First session: a light starting weight set from your body weight. It should feel like you could do 3 more reps.' : 'First session: bodyweight only. Stop 2 to 3 reps before you could do no more.' }
+    const start = startingWeight(s, exerciseId)
+    if (!start) return { weight: 0, reps: lo, note: 'First session: bodyweight only. Stop 2 to 3 reps before you could do no more.' }
+    const easing = easingIn(s)
+    const weight = toStep(start * (plan.style === 'volume' ? 0.8 : 1) * (easing ? 0.8 : 1))
+    return {
+      weight, reps: lo,
+      note: easing
+        ? 'Starting light on purpose for your first few sessions. It should feel easy: tell me afterwards where you felt it and I will set the next one.'
+        : 'First time on this one: a light starting weight set from your body weight. It should feel like you could do 3 more reps.',
+    }
   }
   const lastDate = sets.map((x) => x.date).sort().at(-1)!
   const last = sets.filter((x) => x.date === lastDate)
   const top = Math.max(...last.map((x) => x.weight))
   const topSets = last.filter((x) => x.weight === top)
-  const allHitTop = topSets.every((x) => x.reps >= ex.reps[1])
+  const allHitTop = topSets.every((x) => x.reps >= hi)
   const minReps = Math.min(...topSets.map((x) => x.reps))
   if (ex.step === 0) {
-    return { weight: top, reps: Math.min(minReps + 1, ex.reps[1] + 5), note: 'Bodyweight: add one rep per set, then slow the tempo.' }
+    return { weight: top, reps: Math.min(minReps + 1, hi + 5), note: 'Bodyweight: add one rep per set, then slow the tempo.' }
   }
-  if (allHitTop) return { weight: top + ex.step, reps: ex.reps[0], note: `You hit ${ex.reps[1]} reps on every set — add ${ex.step} kg.` }
-  return { weight: top, reps: Math.min(minReps + 1, ex.reps[1]), note: `Stay at ${top} kg and beat ${minReps} reps.` }
+  // the range has moved a long way since last time: work the weight out again from what was lifted, a little under
+  if (minReps > hi + 2 || minReps < lo - 2) {
+    const weight = toStep((e1rm(top, minReps) / (1 + lo / 30)) * 0.92)
+    return {
+      weight, reps: lo,
+      note: minReps > hi + 2
+        ? `Heavier today: ${weight} kg for ${lo} to ${hi} reps, worked out from your last session. Stop when your form slips.`
+        : `Lighter today: ${weight} kg for ${lo} to ${hi} reps. A comfortable weight, and as many clean reps as you can.`,
+    }
+  }
+  if (allHitTop) return { weight: top + ex.step, reps: lo, note: `You hit ${hi} reps on every set — add ${ex.step} kg.` }
+  return { weight: top, reps: Math.min(minReps + 1, hi), note: `Stay at ${top} kg and beat ${minReps} reps.` }
 }
 
 /** XP & levels: every logged meal, set, water glass and workout earns XP */

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { Mood } from '../../lib/mood'
 import type { ChatMessage } from '../../lib/types'
 import { canListen, listen, speak, stopSpeaking, type Listening } from '../../lib/voice'
 import { C, T } from '../../theme'
@@ -20,15 +21,19 @@ const hasCard = (m: ChatMessage) => !!(m.day || m.guide || m.routine || m.meals 
  * is thinking while it works, says its answer, and listens again. Everything
  * said is also written into the chat, where any plan or card it made waits.
  */
-export function VoiceMode({ onClose, respond }: {
+export function VoiceMode({ onClose, respond, mood, opening }: {
   onClose: () => void
+  /** how the chat is going, which sets the look of the orb */
+  mood?: Mood
+  /** something Breeze says first, before listening: the debrief after a session */
+  opening?: string
   /** sends what the user said to the coach and resolves with its reply; `onThinking` gets the live thinking */
   respond: (text: string, onThinking: (thought: string) => void) => Promise<ChatMessage>
 }) {
   const insets = useSafeAreaInsets()
   const hears = canListen()
   const [mode, setMode] = useState<Mode>('waiting')
-  const [line, setLine] = useState(() => (hears ? 'I’m listening.' : 'Type below and I’ll answer out loud.'))
+  const [line, setLine] = useState(() => opening ?? (hears ? 'I’m listening.' : 'Type below and I’ll answer out loud.'))
   const [partial, setPartial] = useState('')
   const [thought, setThought] = useState('')
   const [level, setLevel] = useState(0)
@@ -63,10 +68,18 @@ export function VoiceMode({ onClose, respond }: {
     hear()
   }
 
-  // start listening as soon as the conversation opens, and stop everything when it closes
+  /** Breeze speaks first, then listens. */
+  async function begin() {
+    if (!opening) { hear(); return }
+    setMode('speaking')
+    await speak(opening)
+    if (open.current) hear()
+  }
+
+  // start as soon as the conversation opens, and stop everything when it closes
   useEffect(() => {
     open.current = true
-    const t = setTimeout(hear, 0)
+    const t = setTimeout(begin, 0)
     return () => { clearTimeout(t); open.current = false; ear.current?.cancel(); ear.current = null; stopSpeaking() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -78,7 +91,7 @@ export function VoiceMode({ onClose, respond }: {
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#F7F8FA', paddingTop: insets.top + 12, paddingBottom: Math.max(16, insets.bottom + 10), paddingHorizontal: 18 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable focusable={false} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 34 }} onPress={mode === 'speaking' ? () => { stopSpeaking() } : undefined}
           accessibilityLabel={mode === 'speaking' ? 'Breeze is speaking. Tap to skip.' : undefined}>
-          <SkyOrb size={250} mode={ORB[mode]} level={level} />
+          <SkyOrb size={250} mode={ORB[mode]} level={level} mood={mood} />
           <View style={{ minHeight: 120, maxWidth: 340, gap: 10, alignItems: 'center' }}>
             {mode === 'thinking' ? (
               // Breeze's thinking, shown as it happens
