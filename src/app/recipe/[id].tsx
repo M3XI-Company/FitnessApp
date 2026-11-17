@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useStore } from '../../lib/store'
@@ -10,6 +10,8 @@ import { SOURCES } from '../../lib/sources'
 import { todayKey, uid } from '../../lib/date'
 import { C, T } from '../../theme'
 import { Button, Card, Icon, IconButton, Pill, Segmented, Stepper, success, tap } from '../../components/ui'
+import { cookingVideoUrl } from '../../lib/links'
+import { Photo } from '../../components/Photo'
 import { RecipeCover } from '../../components/RecipeCover'
 import { RestTimer } from '../../components/RestTimer'
 import { MealImpact } from '../../components/MealImpact'
@@ -91,6 +93,7 @@ export default function RecipeScreen() {
               {scaledGrams(c, cookServings).map((i, idx) => (
                 <Pressable key={idx} onPress={() => { tap(); setChecked({ ...checked, [idx]: !checked[idx] }) }} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
                   <Icon name={checked[idx] ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={checked[idx] ? C.night : C.text3} />
+                  <Photo id={i.food.id} style={[{ width: 44, height: 44, borderRadius: 12 }, checked[idx] && { opacity: 0.45 }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={[T.body, { fontWeight: '600' }, checked[idx] && { color: C.text3, textDecorationLine: 'line-through' }]}>{i.label}</Text>
                     {i.note ? <Text style={T.caption}>{i.note}</Text> : null}
@@ -101,6 +104,7 @@ export default function RecipeScreen() {
             </Card>
           ) : (
             <View style={{ gap: 10 }}>
+              <Button small variant="tinted" icon="play" title="Watch it being cooked on YouTube" onPress={() => Linking.openURL(cookingVideoUrl(c.recipe.title))} />
               {c.recipe.steps.map((s, i) => (
                 <Card key={i} style={{ gap: 8 }}>
                   <Text style={T.title3}>Step {i + 1}</Text>

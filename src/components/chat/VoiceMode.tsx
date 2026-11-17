@@ -16,7 +16,7 @@ const spoken = (m: ChatMessage) => m.text.split('\n\n')[0].trim()
 const hasCard = (m: ChatMessage) => !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders || m.details)
 
 /**
- * Talking to Breeze: the sky and nothing else. Breeze listens, shows what it
+ * Talking to Breeze: the breeze and nothing else. Breeze listens, shows what it
  * is thinking while it works, says its answer, and listens again. Everything
  * said is also written into the chat, where any plan or card it made waits.
  */

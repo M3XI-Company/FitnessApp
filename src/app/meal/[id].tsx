@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { eatenOn, mealPlanText, mealsFor, thinkingLine } from '../../lib/chat'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { prettyDate, todayKey, uid } from '../../lib/date'
-import { makeEntry } from '../../lib/nutrition'
+import { cookingVideoUrl, mealKitUrl } from '../../lib/links'
+import { fmt, makeEntry } from '../../lib/nutrition'
 import { recipeById } from '../../lib/recipes'
 import { useStore } from '../../lib/store'
 import type { ChatMessage } from '../../lib/types'
 import { C, T, shadow } from '../../theme'
 import { MealPlanCard } from '../../components/coach/PlanCard'
 import { CopyButton } from '../../components/chat/DayCard'
+import { FoodIcon } from '../../components/foodIcons'
+import { Photo } from '../../components/Photo'
 import { RecipeCover } from '../../components/RecipeCover'
 import { Button, Icon, IconButton, success, tap } from '../../components/ui'
 
@@ -83,12 +86,36 @@ export default function MealChat() {
       </View>
 
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10 }} keyboardShouldPersistTaps="handled">
+        <Photo id={c.recipe.id} label={`A photo of ${c.recipe.title}`} style={{ width: '100%', height: 190, borderRadius: 22 }} />
         <Bubble role="coach" text={opening} />
+        {/* what goes in it, as you would see it on the worktop */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14, flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}>
+          {c.ingredients.map((i, idx) => (
+            <View key={idx} style={{ width: 78, gap: 5 }}>
+              <Photo id={i.food.id} style={{ width: 78, height: 78, borderRadius: 20 }}>
+                <FoodIcon name={i.food.name} size={78} bg={C.card} />
+              </Photo>
+              <Text style={[T.caption, { color: C.text, fontWeight: '600', lineHeight: 15 }]} numberOfLines={2}>{i.label}</Text>
+              <Text style={[T.caption, T.num, { marginTop: -3 }]}>{fmt.g0((i.grams / c.recipe.servings) * portion)} g</Text>
+            </View>
+          ))}
+        </ScrollView>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button small icon="book-outline" title="Cook it" style={{ flex: 1 }} onPress={() => router.push(`/recipe/${c.recipe.id}`)} />
           {isToday
             ? <Button small variant={eaten ? 'tinted' : 'ghost'} icon={eaten ? 'checkmark' : 'add'} title={eaten ? 'Eaten' : 'I ate this'} style={{ flex: 1 }} onPress={toggleEaten} />
             : <CopyButton label="Ingredients" text={() => mealPlanText([{ date, recipes: [c], portion }])} />}
+        </View>
+        <View style={{ gap: 2 }}>
+          <Pressable onPress={() => { tap(); Linking.openURL(cookingVideoUrl(c.recipe.title)) }} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 4 }, pressed && { opacity: 0.6 }]}>
+            <Icon name="play" size={16} color={C.accent} />
+            <Text style={{ color: C.accent, fontWeight: '600', fontSize: 14 }}>Watch it being cooked on YouTube</Text>
+          </Pressable>
+          {/* kept quiet on purpose: there for the days cooking is not going to happen */}
+          <Pressable onPress={() => { tap(); Linking.openURL(mealKitUrl(c.recipe.title)) }} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 4 }, pressed && { opacity: 0.6 }]}>
+            <Icon name="open-outline" size={14} color={C.text3} />
+            <Text style={[T.caption, { color: C.text2 }]}>Short on time? See ready-to-cook kits like this at HelloFresh</Text>
+          </Pressable>
         </View>
         {msgs.map((m) => (
           <View key={m.id} style={{ gap: 8, alignSelf: m.role === 'user' ? 'flex-end' : m.meals ? 'stretch' : 'flex-start', maxWidth: m.meals ? '100%' : '86%' }}>

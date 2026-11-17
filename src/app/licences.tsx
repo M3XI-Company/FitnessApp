@@ -2,6 +2,7 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { SOURCES } from '../lib/sources'
 import { cofidCount } from '../lib/foodDb'
+import { photoCredits } from '../lib/photos'
 import { C, T } from '../theme'
 import { Card, Icon, SheetHeader } from '../components/ui'
 
@@ -43,6 +44,17 @@ export default function Licences() {
         <Card style={{ gap: 6 }}>
           <Text style={T.title3}>Software and artwork</Text>
           <Text style={[T.body, { lineHeight: 21 }]}>Icons: Lucide (ISC licence). Muscle maps: react-native-body-highlighter (MIT). Pose detection: Google MediaPipe (Apache 2.0). 3D: three.js and React Three Fiber (MIT).</Text>
+        </Card>
+        <Card style={{ gap: 6 }}>
+          <Text style={T.title3}>Food photographs</Text>
+          <Text style={T.headline}>Wikimedia Commons</Text>
+          <Text style={[T.body, { lineHeight: 21 }]}>The photos of meals and ingredients are openly licensed pictures from Wikimedia Commons, shown cropped and resized to fit. They show the kind of dish or ingredient, not this exact recipe. Tap one to see its author and full licence.</Text>
+          {photoCredits().map((p) => (
+            <Pressable key={p.page} onPress={() => Linking.openURL(p.page)} accessibilityRole="link" style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: C.sep }}>
+              <Text style={[T.sub, { color: C.text }]} numberOfLines={1}>{p.title}</Text>
+              <Text style={T.caption} numberOfLines={1}>{p.by || 'Unknown author'} · {p.licence}</Text>
+            </Pressable>
+          ))}
         </Card>
         <Card style={{ gap: 6, backgroundColor: C.accentSoft }}>
           <Text style={T.headline}>Nutrition values are estimates</Text>

@@ -117,7 +117,7 @@ export function Chat() {
               <SkyOrb size={200} />
               <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text style={[T.title2, { textAlign: 'center' }]}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
-                <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}Tap the sky to talk, or type below.</Text>
+                <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}Tap the breeze to talk, or type below.</Text>
               </View>
             </Pressable>
             <DayCard date={today} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
