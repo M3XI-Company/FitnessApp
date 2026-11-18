@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
-import { cookingVideoUrl, kitQuery, mealKitUrl } from '../src/lib/links'
+import { SHOPS, cookingVideoUrl, kitQuery, shopUrl, similarRecipesUrl } from '../src/lib/links'
 import { hasPhoto, photoCredits } from '../src/lib/photos'
 import { allRecipes } from '../src/lib/recipes'
 import PHOTOS from '../src/data/photos.json'
@@ -55,5 +55,7 @@ test('the meal kit link searches for the dish in a few plain words', () => {
   assert.equal(kitQuery('Lean beef chilli with rice'), 'beef chilli rice')
   assert.equal(kitQuery('Protein overnight oats'), 'overnight oats')
   assert.equal(kitQuery('Chicken & houmous wrap'), 'chicken houmous wrap')
-  assert.equal(mealKitUrl('Roast salmon, sweet potato & green beans'), 'https://www.hellofresh.co.uk/recipes/search?q=salmon%20sweet%20potato')
+  assert.equal(similarRecipesUrl('Roast salmon, sweet potato & green beans'), 'https://www.bbcgoodfood.com/search?q=salmon%20sweet%20potato')
+  assert.equal(shopUrl('tesco', 'Semi-skimmed milk'), 'https://www.tesco.com/groceries/en-GB/search?query=semi-skimmed%20milk')
+  for (const s of SHOPS) assert.ok(shopUrl(s.id, 'Greek-style yoghurt').startsWith('https://') && shopUrl(s.id, 'Greek-style yoghurt').includes('greek-style%20yoghurt'))
 })

@@ -7,18 +7,20 @@ import { Mannequin } from './Mannequin'
 import { useStore } from '../../lib/store'
 import { worksFor } from '../../data/exercises'
 import { patternFor } from './poses'
-import { C, G } from '../../theme'
+import { C } from '../../theme'
 import { Icon, tap } from '../ui'
 
 export class GLBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
   render() {
-    if (this.state.failed) return <View style={st.fallback}><Text style={{ color: C.cloud }}>3D isn&apos;t available on this device.</Text></View>
+    if (this.state.failed) return <View style={st.fallback}><Text style={{ color: C.text2 }}>3D isn&apos;t available on this device.</Text></View>
     return this.props.children
   }
 }
 
+/** the white studio the gym charts are drawn in */
+const STAGE = ['#FFFFFF', '#E6EFF8'] as const
 const VIEWS = [{ label: 'Front', yaw: 0 }, { label: '¾', yaw: 0.65 }, { label: 'Side', yaw: Math.PI / 2 }]
 
 // orbit limits: pitch is the camera's elevation above the figure's centre (radians)
@@ -99,22 +101,19 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
 
   return (
     <View style={{ borderRadius: 24, overflow: 'hidden' }}>
-      <LinearGradient colors={G.night} style={{ height }}>
+      <LinearGradient colors={STAGE} style={{ height }}>
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <GLBoundary>
             <Canvas shadows camera={{ position: [0, target + Math.sin(PITCH_DEFAULT) * dist, Math.cos(PITCH_DEFAULT) * dist], fov: 38 }} gl={{ alpha: true, antialias: true }} onCreated={(s) => s.camera.lookAt(0, target, 0)}>
-              <hemisphereLight args={['#FFF6EC', '#3A2E24', 0.55]} />
-              <ambientLight intensity={0.3} />
+              <hemisphereLight args={['#FFFFFF', '#C4D6E8', 0.9]} />
+              <ambientLight intensity={0.45} />
               <directionalLight position={[2.5, 4, 3]} intensity={1.6} castShadow />
               <directionalLight position={[-3, 2, -2]} intensity={0.55} color={C.skyLight} />
               <directionalLight position={[0, 1.5, -3.5]} intensity={0.45} />
               <Orbit view={view} target={target} dist={dist}>
                 <Mannequin pattern={pattern} speedRef={speedRef} playingRef={playingRef} onPhase={(l) => setLabel(l)} works={works} female={state.profile.sex === 'female'} />
                 <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
-                  <circleGeometry args={[1.25, 64]} /><meshStandardMaterial color="#1C3557" roughness={0.9} />
-                </mesh>
-                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]}>
-                  <ringGeometry args={[1.22, 1.25, 96]} /><meshBasicMaterial color={C.sky} />
+                  <circleGeometry args={[1.6, 64]} /><shadowMaterial transparent opacity={0.16} />
                 </mesh>
               </Orbit>
             </Canvas>
@@ -124,7 +123,7 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
         <View style={StyleSheet.absoluteFill} {...pan.panHandlers} accessibilityLabel="3D trainer. Drag to orbit, pinch to zoom." />
         <View style={st.topRow} pointerEvents="box-none">
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <View style={st.badge}><Icon name="sync-outline" size={13} color={C.skyLight} /><Text style={st.badgeText}>Drag to orbit</Text></View>
+            <View style={st.badge}><Icon name="sync-outline" size={13} color={C.text2} /><Text style={st.badgeText}>Drag to orbit</Text></View>
           </View>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {VIEWS.map((vw) => (
@@ -136,12 +135,12 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
           <Text style={st.phase} numberOfLines={1}>{label}</Text>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             {[0.5, 1].map((s) => (
-              <Pressable key={s} onPress={() => { tap(); speedRef.current = s; setSpeed(s) }} style={[st.chip, speed === s && { backgroundColor: C.sky }]}>
-                <Text style={[st.chipText, speed === s && { color: C.night }]}>{s === 0.5 ? '½×' : '1×'}</Text>
+              <Pressable key={s} onPress={() => { tap(); speedRef.current = s; setSpeed(s) }} style={[st.chip, speed === s && { backgroundColor: C.accent }]}>
+                <Text style={[st.chipText, speed === s && { color: '#fff' }]}>{s === 0.5 ? '½×' : '1×'}</Text>
               </Pressable>
             ))}
             <Pressable accessibilityLabel={playing ? 'Pause' : 'Play'} onPress={() => { tap(); playingRef.current = !playing; setPlaying(!playing) }} style={st.play}>
-              <Icon name={playing ? 'pause' : 'play'} size={20} color={C.night} />
+              <Icon name={playing ? 'pause' : 'play'} size={20} color="#fff" />
             </Pressable>
           </View>
         </View>
@@ -153,11 +152,11 @@ export function Trainer3D({ exerciseId, height = 340 }: { exerciseId: string; he
 const st = StyleSheet.create({
   fallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topRow: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 28, borderRadius: 99, backgroundColor: 'rgba(255,255,255,.08)' },
-  badgeText: { color: C.skyLight, fontSize: 12, fontWeight: '600' },
-  chip: { paddingHorizontal: 11, height: 30, borderRadius: 99, justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.1)' },
-  chipText: { color: C.cloud, fontSize: 13, fontWeight: '700' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 28, borderRadius: 99, backgroundColor: 'rgba(15,36,64,.06)' },
+  badgeText: { color: C.text2, fontSize: 12, fontWeight: '600' },
+  chip: { paddingHorizontal: 11, height: 30, borderRadius: 99, justifyContent: 'center', backgroundColor: 'rgba(15,36,64,.07)' },
+  chipText: { color: C.text, fontSize: 13, fontWeight: '700' },
   bottom: { position: 'absolute', left: 14, right: 12, bottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  phase: { flex: 1, color: C.cloud, fontWeight: '800', fontSize: 19 },
-  play: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.skyLight, alignItems: 'center', justifyContent: 'center' },
+  phase: { flex: 1, color: C.text, fontWeight: '800', fontSize: 19 },
+  play: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
 })

@@ -1,2 +1,2 @@
 // Web: React Three Fiber on WebGL
-export { Canvas, useFrame } from '@react-three/fiber'
+export { Canvas, useFrame, useThree } from '@react-three/fiber'

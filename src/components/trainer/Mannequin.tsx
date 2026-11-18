@@ -2,16 +2,19 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { useFrame } from './r3f'
 import { sample, type Pattern } from './poses'
-import { HEAT } from './heat'
 import { BODY_MUSCLES, type BodyData } from './body/types'
 import { MALE } from './body/male'
 import { FEMALE } from './body/female'
 
 const D = Math.PI / 180
-const METAL = '#1C3557'
-const PLATE = '#5BB3EA'
-/** neutral anatomical body between the muscle panels */
-const BODY = '#3A414C'
+// The look of the charts on gym equipment: a pale, glassy blue body with the
+// working muscles glowing red and the helping ones orange, steel and black iron.
+const METAL = '#AEB6C0'
+const PLATE = '#1E2024'
+const PROP = '#C9D3DE'
+/** the body between the muscle panels */
+const BODY = '#CFE3F3'
+const LOOK = { idle: '#A6D0F0', assist: '#F08A24', main: '#E5352B' }
 
 /** Five skin tones (kept for the profile setting; the anatomical figure itself is neutral) */
 export const SKIN_TONES = ['#F3D5C0', '#E4B896', '#C98F68', '#965F3F', '#5C3A26']
@@ -98,7 +101,15 @@ function buildBody(data: BodyData): Body {
     return bone
   })
   const parent = data.bones.map((b) => b.p)
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.05 })
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.34, metalness: 0.02 })
+  // a bright rim where the surface turns away, like glass, and a glow on the warm (working) muscles
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      float rimEdge = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.4);
+      totalEmissiveRadiance += vec3(0.78, 0.9, 1.0) * rimEdge * 0.55;
+      float warmth = clamp((vColor.r - vColor.b) * 1.4, 0.0, 1.0);
+      totalEmissiveRadiance += vColor.rgb * warmth * 0.42;`)
+  }
   const mesh = new THREE.SkinnedMesh(geo, material)
   bones.forEach((bone, i) => { if (parent[i] >= 0) bones[parent[i]].add(bone); else mesh.add(bone) })
   mesh.updateMatrixWorld(true)
@@ -161,7 +172,7 @@ function buildBody(data: BodyData): Body {
 
 /** Paint the heat map: every vertex takes the colour of its muscle's role in this exercise. */
 function paint(body: Body, works: Works) {
-  const neutral = new THREE.Color(BODY), cool = new THREE.Color(HEAT.idle), warm = new THREE.Color(HEAT.assist), hot = new THREE.Color(HEAT.main)
+  const neutral = new THREE.Color(BODY), cool = new THREE.Color(LOOK.idle), warm = new THREE.Color(LOOK.assist), hot = new THREE.Color(LOOK.main)
   const byId = BODY_MUSCLES.map((slug) => (!slug ? neutral : works.primary.includes(slug) ? hot : works.secondary.includes(slug) ? warm : cool))
   const color = body.mesh.geometry.getAttribute('color') as THREE.BufferAttribute
   for (let v = 0; v < body.muscle.length; v++) { const c = byId[body.muscle[v]]; color.setXYZ(v, c.r, c.g, c.b) }
@@ -282,7 +293,11 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { pr
     if (len > 0.0001) v.q.setFromUnitVectors(v.up, dir.clone().normalize())
     const show = (g: P, on: boolean) => { if (g) g.visible = on }
     show(r.barbell, pattern.load === 'barbell'); show(r.dbL, pattern.load === 'dumbbell'); show(r.dbR, pattern.load === 'dumbbell'); show(r.kb, pattern.load === 'kettlebell')
-    if (pattern.load === 'barbell') { r.barbell!.position.copy(mid3); r.barbell!.quaternion.copy(v.q) }
+    if (pattern.load === 'barbell') {
+      r.barbell!.position.copy(mid3); r.barbell!.quaternion.copy(v.q)
+      // on the back the bar sits behind the neck, a little behind the hands that steady it
+      if (pattern.barOnBack) r.barbell!.position.add(v.a.set(0, -0.015, -0.075).applyQuaternion(q.spine).applyQuaternion(r.root.quaternion))
+    }
     if (pattern.load === 'dumbbell') { r.dbL!.position.copy(hl); r.dbR!.position.copy(hr); r.dbL!.quaternion.copy(v.q); r.dbR!.quaternion.copy(v.q) }
     if (pattern.load === 'kettlebell') r.kb!.position.copy(mid3).add(new THREE.Vector3(0, -0.1, 0))
 
@@ -305,7 +320,7 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { pr
       {/* equipment (positioned every frame) */}
       <group ref={set('barbell')} visible={false}>
         <mesh><cylinderGeometry args={[0.014, 0.014, 1.6, 10]} /><meshStandardMaterial color={METAL} metalness={0.8} roughness={0.3} /></mesh>
-        {[-0.68, 0.68].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.2, 0.2, 0.05, 28]} /><meshStandardMaterial color={PLATE} metalness={0.3} roughness={0.4} /></mesh>)}
+        {[-0.68, 0.68].map((y) => <mesh key={y} position={[0, y, 0]}><cylinderGeometry args={[0.225, 0.225, 0.06, 36]} /><meshStandardMaterial color={PLATE} metalness={0.35} roughness={0.45} /></mesh>)}
       </group>
       {(['dbL', 'dbR'] as const).map((k) => (
         <group key={k} ref={set(k)} visible={false}>
@@ -316,8 +331,8 @@ export function Mannequin({ pattern, speedRef, onPhase, playingRef, works = { pr
       <group ref={set('kb')} visible={false}>
         <mesh><sphereGeometry args={[0.1, 18, 14]} /><meshStandardMaterial color={METAL} metalness={0.6} roughness={0.4} /></mesh>
       </group>
-      <group ref={set('bench')} visible={false}><mesh><boxGeometry args={[0.32, 0.47, 1.25]} /><meshStandardMaterial color="#3A332B" roughness={0.8} /></mesh></group>
-      <group ref={set('seat')} visible={false}><mesh><boxGeometry args={[0.42, 0.48, 0.42]} /><meshStandardMaterial color="#3A332B" roughness={0.8} /></mesh></group>
+      <group ref={set('bench')} visible={false}><mesh><boxGeometry args={[0.32, 0.47, 1.25]} /><meshStandardMaterial color={PROP} roughness={0.8} /></mesh></group>
+      <group ref={set('seat')} visible={false}><mesh><boxGeometry args={[0.42, 0.48, 0.42]} /><meshStandardMaterial color={PROP} roughness={0.8} /></mesh></group>
       <group ref={set('bar')} visible={false}><mesh rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.018, 0.018, 1.3, 10]} /><meshStandardMaterial color={METAL} metalness={0.8} /></mesh></group>
       {(['dipL', 'dipR'] as const).map((k) => (
         <group key={k} ref={set(k)} visible={false}><mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.02, 0.02, 0.9, 10]} /><meshStandardMaterial color={METAL} metalness={0.8} /></mesh></group>

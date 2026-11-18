@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { eatenOn, mealPlanText, mealsFor, thinkingLine } from '../../lib/chat'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { prettyDate, todayKey, uid } from '../../lib/date'
-import { cookingVideoUrl, mealKitUrl } from '../../lib/links'
+import { SHOPS, cookingVideoUrl, shopUrl, similarRecipesUrl, type ShopId } from '../../lib/links'
 import { fmt, makeEntry } from '../../lib/nutrition'
 import { recipeById } from '../../lib/recipes'
 import { useStore } from '../../lib/store'
@@ -38,6 +38,8 @@ export default function MealChat() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [thought, setThought] = useState('')
+  const [showIngredients, setShowIngredients] = useState(false)
+  const [shop, setShop] = useState<ShopId>('tesco')
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null)
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [msgs.length, busy, thought])
   if (!c) return <View style={{ flex: 1, backgroundColor: C.bg, padding: 20 }}><Text style={T.title2}>Meal not found</Text></View>
@@ -88,18 +90,44 @@ export default function MealChat() {
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10 }} keyboardShouldPersistTaps="handled">
         <Photo id={c.recipe.id} label={`A photo of ${c.recipe.title}`} style={{ width: '100%', height: 190, borderRadius: 22 }} />
         <Bubble role="coach" text={opening} />
-        {/* what goes in it, as you would see it on the worktop */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14, flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}>
-          {c.ingredients.map((i, idx) => (
-            <View key={idx} style={{ width: 78, gap: 5 }}>
-              <Photo id={i.food.id} style={{ width: 78, height: 78, borderRadius: 20 }}>
-                <FoodIcon name={i.food.name} size={78} bg={C.card} />
-              </Photo>
-              <Text style={[T.caption, { color: C.text, fontWeight: '600', lineHeight: 15 }]} numberOfLines={2}>{i.label}</Text>
-              <Text style={[T.caption, T.num, { marginTop: -3 }]}>{fmt.g0((i.grams / c.recipe.servings) * portion)} g</Text>
+        {/* what goes in it: folded away until asked for, every item on the same tile, each with where to buy it */}
+        <View style={{ backgroundColor: '#fff', borderRadius: 20, ...shadow }}>
+          <Pressable onPress={() => { tap(); setShowIngredients(!showIngredients) }} accessibilityRole="button" accessibilityState={{ expanded: showIngredients }}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 15 }, pressed && { opacity: 0.6 }]}>
+            <Icon name="cart-outline" size={18} color={C.accent} />
+            <Text style={[T.headline, { flex: 1, fontSize: 15 }]}>Ingredients</Text>
+            <Text style={[T.caption, T.num]}>{c.ingredients.length} items</Text>
+            <View style={{ transform: [{ rotate: showIngredients ? '-90deg' : '90deg' }] }}><Icon name="chevron-forward" size={18} color={C.text3} /></View>
+          </Pressable>
+          {showIngredients && (
+            <View style={{ paddingHorizontal: 15, paddingBottom: 13, gap: 10 }}>
+              {c.ingredients.map((i, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <FoodIcon name={i.food.name} size={42} bg={C.card} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontWeight: '600', fontSize: 14 }} numberOfLines={1}>{i.label}</Text>
+                    <Text style={[T.caption, T.num]}>{fmt.g0((i.grams / c.recipe.servings) * portion)} g</Text>
+                  </View>
+                  <Pressable onPress={() => { tap(); Linking.openURL(shopUrl(shop, i.label)) }} accessibilityRole="link" accessibilityLabel={`Shop ${i.label} at ${SHOPS.find((s) => s.id === shop)?.name}`} hitSlop={6}
+                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 14, backgroundColor: C.card }, pressed && { opacity: 0.6 }]}>
+                    <Text style={{ color: C.accent, fontWeight: '700', fontSize: 13 }}>Shop</Text>
+                    <Icon name="open-outline" size={13} color={C.accent} />
+                  </Pressable>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <Text style={T.caption}>Shop at</Text>
+                {SHOPS.map((s) => (
+                  <Pressable key={s.id} onPress={() => { tap(); setShop(s.id) }} accessibilityRole="button" accessibilityState={{ selected: shop === s.id }}
+                    style={{ paddingVertical: 5, paddingHorizontal: 10, borderRadius: 13, backgroundColor: shop === s.id ? C.night : C.card }}>
+                    <Text style={{ color: shop === s.id ? C.cloud : C.text2, fontWeight: '600', fontSize: 12 }}>{s.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={T.caption}>Each link opens that item at the shop, where you see the price and check out.</Text>
             </View>
-          ))}
-        </ScrollView>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button small icon="book-outline" title="Cook it" style={{ flex: 1 }} onPress={() => router.push(`/recipe/${c.recipe.id}`)} />
           {isToday
@@ -111,10 +139,10 @@ export default function MealChat() {
             <Icon name="play" size={16} color={C.accent} />
             <Text style={{ color: C.accent, fontWeight: '600', fontSize: 14 }}>Watch it being cooked on YouTube</Text>
           </Pressable>
-          {/* kept quiet on purpose: there for the days cooking is not going to happen */}
-          <Pressable onPress={() => { tap(); Linking.openURL(mealKitUrl(c.recipe.title)) }} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 4 }, pressed && { opacity: 0.6 }]}>
+          {/* our recipes are written for the app, so this is further reading rather than a source */}
+          <Pressable onPress={() => { tap(); Linking.openURL(similarRecipesUrl(c.recipe.title)) }} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 4 }, pressed && { opacity: 0.6 }]}>
             <Icon name="open-outline" size={14} color={C.text3} />
-            <Text style={[T.caption, { color: C.text2 }]}>Short on time? See ready-to-cook kits like this at HelloFresh</Text>
+            <Text style={[T.caption, { color: C.text2 }]}>Compare with similar recipes on BBC Good Food</Text>
           </Pressable>
         </View>
         {msgs.map((m) => (

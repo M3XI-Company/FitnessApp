@@ -44,6 +44,9 @@ function buildWorkout(s: AppState, key: string, home: boolean) {
 
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 
+/** What `reply` says when the message is about none of the things it knows. */
+export const NOTHING_MATCHED = 'I can build workouts ("push day at home"), coach an exercise ("bench press form"), check your calories and protein, review your progress, or plan your water. What do you need?'
+
 export function reply(s: AppState, input: string): ChatMessage {
   const q = input.toLowerCase()
   const msg = (text: string, workout?: ChatMessage['workout']): ChatMessage => ({ id: uid(), role: 'coach', text, workout })
@@ -124,7 +127,7 @@ export function reply(s: AppState, input: string): ChatMessage {
     ]))
   }
 
-  return msg('I can build workouts ("push day at home"), coach an exercise ("bench press form"), check your calories and protein, review your progress, or plan your water. What do you need?')
+  return msg(NOTHING_MATCHED)
 }
 
 export const SUGGESTIONS = ['Build me a push workout', 'How am I doing this week?', 'What should I eat for dinner?', 'Squat form tips', 'Full body at home', 'I feel sore today']

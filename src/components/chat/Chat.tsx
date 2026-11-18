@@ -3,14 +3,13 @@ import { AppState as PhoneState, KeyboardAvoidingView, Platform, Pressable, Scro
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { yesterdayLine } from '../../lib/achievements'
-import { CHAT_FULL_TEXT, chatFull, chatIsOld, checkinMessage, localAnswer, localIntent, needsCheckin, thinkingLine } from '../../lib/chat'
-import { reply } from '../../lib/coach'
+import { CHAT_FULL_TEXT, chatFull, chatIsOld, checkinMessage, needsCheckin, thinkingLine } from '../../lib/chat'
 import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { todayKey, uid } from '../../lib/date'
 import { chatMood } from '../../lib/mood'
+import { elizaFallback, elizaHandle } from '../../lib/eliza'
 import { easingIn } from '../../lib/progress'
 import { syncReminders } from '../../lib/notify'
-import { remindersMessage } from '../../lib/reminders'
 import { buildRoutine, dayProgress, routineStreak } from '../../lib/routine'
 import { useStore } from '../../lib/store'
 import type { ChatMessage } from '../../lib/types'
@@ -75,21 +74,19 @@ export function Chat() {
     // a full chat takes no more: said out loud in voice mode, and shown in place of the message box
     if (full) { resolve({ id: uid(), role: 'coach', text: CHAT_FULL_TEXT }); return }
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
-    const intent = localIntent(m)
-    if (intent) {
-      const a = intent === 'reminders' ? remindersMessage(state) : localAnswer(state, intent, today)
-      dispatch({ type: 'chat', messages: [user, a] }); resolve(a); return
-    }
+    // ELIZA takes the plain jobs itself, on the phone and at once; what needs understanding goes on to the AI coach
+    const done = elizaHandle(state, m, today)
+    if (done) { dispatch({ type: 'chat', messages: [user, done] }); resolve(done); return }
     dispatch({ type: 'chat', messages: [user] })
     setTyping(true); setThought('')
     const answer = (message: ChatMessage) => { dispatch({ type: 'chat', messages: [message] }); setTyping(false); resolve(message) }
-    // built-in coach: rule-based, used when the AI coach is not set up or cannot be reached
+    // when the AI coach is not set up or cannot be reached, ELIZA carries the conversation on its own
     const local = (notice?: string) => {
       const q = m.toLowerCase()
       const wantsRoutine = /\b(routine|plan|programme|program|schedule|week)\b/.test(q) && !/\b(meal|meals|food|eat|diet|dinner|lunch|breakfast)\b/.test(q)
       const message: ChatMessage = wantsRoutine
         ? { id: uid(), role: 'coach', text: 'Here is a weekly routine built from your goal and activity level. Weights are set for you from your own sessions and go up gradually.', routine: buildRoutine(state.profile) }
-        : reply(state, m)
+        : elizaFallback(state, m)
       answer(notice ? { ...message, text: `${notice}\n\n${message.text}` } : message)
     }
     if (!coachConfigured()) { setTimeout(() => local(), 500); return }
@@ -101,7 +98,7 @@ export function Chat() {
         return answer(res.message)
       }
       if (res.error === 'declined') return answer({ id: uid(), role: 'coach', text: 'I can\u2019t help with that one. If it is about your health, your GP is the right person to ask.' })
-      local(res.error === 'monthly_limit' ? 'You have used this month\u2019s AI coach messages, so this answer comes from the built-in coach.' : 'I couldn\u2019t reach the AI coach just now, so this answer comes from the built-in coach.')
+      local(res.error === 'monthly_limit' ? 'You have used this month\u2019s AI coach messages, so this is the offline coach answering.' : 'I couldn\u2019t reach the AI coach just now, so this is the offline coach answering.')
     })
   })
 

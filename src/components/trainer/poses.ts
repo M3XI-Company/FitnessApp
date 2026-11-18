@@ -30,14 +30,16 @@ export interface Pattern {
   keys: Pose[]; seconds: number[]; ground: Ground; prop?: Prop; load?: Load; hangHeight?: number
   /** presses and pulls bend the elbow in the frontal plane */
   elbowPlane?: 'side'
+  /** the bar rests across the upper back, behind the neck, rather than in front of the hands */
+  barOnBack?: boolean
 }
 
 const STAND: Pose = { pelvis: 0, lean: 0, hip: 0, knee: 0, toe: 0, shFlex: 0, shAbd: 8, elbow: 8, pitch: 0, lift: 0 }
 const p = (pose: Pose): Pose => ({ ...STAND, ...pose })
 
 export const PATTERNS: Record<string, Pattern> = {
-  backSquat: { ground: 'feet', load: 'barbell', seconds: [1.6, 1.2, 0.6],
-    keys: [p({ shAbd: 70, elbow: 120, label: 'Brace and breathe' }), p({ pelvis: 42, hip: 132, knee: 120, shAbd: 70, elbow: 120, label: 'Sit down and back' }), p({ shAbd: 70, elbow: 120, label: 'Drive up through mid-foot' })] },
+  backSquat: { ground: 'feet', load: 'barbell', elbowPlane: 'side', barOnBack: true, seconds: [1.6, 1.2, 0.6],
+    keys: [p({ hipAbd: 9, shFlex: -18, shAbd: 46, elbow: 134, label: 'Brace and breathe' }), p({ pelvis: 42, hip: 132, knee: 120, hipAbd: 40, neck: -22, shFlex: -18, shAbd: 46, elbow: 134, label: 'Sit down, knees out' }), p({ hipAbd: 9, shFlex: -18, shAbd: 46, elbow: 134, label: 'Drive up through mid-foot' })] },
   frontSquat: { ground: 'feet', load: 'barbell', seconds: [1.6, 1.2, 0.6],
     keys: [p({ shFlex: 90, elbow: 150, label: 'Elbows high' }), p({ pelvis: 25, hip: 120, knee: 125, shFlex: 90, elbow: 150, label: 'Stay upright' }), p({ shFlex: 90, elbow: 150, label: 'Drive up' })] },
   gobletSquat: { ground: 'feet', load: 'kettlebell', seconds: [1.6, 1.2, 0.6],
