@@ -7,6 +7,26 @@ export type Level = 'Beginner' | 'Intermediate' | 'Advanced'
 /** Muscles as named on the anatomical map */
 export type MuscleSlug = Extract<Slug, 'abs' | 'adductors' | 'biceps' | 'calves' | 'chest' | 'deltoids' | 'forearm' | 'gluteal' | 'hamstring' | 'lower-back' | 'obliques' | 'quadriceps' | 'tibialis' | 'trapezius' | 'triceps' | 'upper-back'>
 
+/** Where each muscle is, what it does, and what working it feels like, in a line. */
+export const MUSCLE_ROLE: Record<MuscleSlug, string> = {
+  abs: 'The front of your stomach. Bends the trunk and braces it so your back stays still under load.',
+  adductors: 'The inside of your thighs. Pulls the legs together and steadies the knees in squats and lunges.',
+  biceps: 'The front of the upper arm. Bends the elbow, so it works in every pull and curl.',
+  calves: 'The back of the lower leg. Pushes you up onto your toes and steadies the ankle.',
+  chest: 'Across the front of the ribs. Pushes the arms forward and brings them together in front of you.',
+  deltoids: 'The cap of the shoulder. Lifts the arm to the front, side and back, and steadies it overhead.',
+  forearm: 'Between wrist and elbow. Grips the bar or handle; often the first thing to tire on pulls.',
+  gluteal: 'Your buttocks. Drives the hips forward to stand up, climb and push off, and keeps the pelvis level.',
+  hamstring: 'The back of the thigh. Bends the knee and helps the glutes extend the hip.',
+  'lower-back': 'Either side of the lower spine. Holds your back straight when you hinge or carry; it should feel worked, never pinched.',
+  obliques: 'The sides of your waist. Twists and side-bends the trunk and stops it twisting when it should not.',
+  quadriceps: 'The front of the thigh. Straightens the knee: standing up, stepping up and squatting.',
+  tibialis: 'The front of the shin. Lifts the foot and controls it as it lands.',
+  trapezius: 'From the neck across the upper back. Lifts, squeezes and steadies the shoulder blades.',
+  triceps: 'The back of the upper arm. Straightens the elbow, so it finishes every press and push.',
+  'upper-back': 'The lats run down the sides of your back and pull the arms down and in; the rhomboids between the shoulder blades squeeze them together.',
+}
+
 export const MUSCLE_NAME: Record<MuscleSlug, string> = {
   abs: 'Abdominals', adductors: 'Adductors (inner thigh)', biceps: 'Biceps', calves: 'Calves', chest: 'Chest (pectorals)', deltoids: 'Shoulders (deltoids)',
   forearm: 'Forearms', gluteal: 'Glutes', hamstring: 'Hamstrings', 'lower-back': 'Lower back (erectors)', obliques: 'Obliques', quadriceps: 'Quadriceps',

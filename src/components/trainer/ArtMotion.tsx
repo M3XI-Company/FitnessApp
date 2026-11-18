@@ -182,21 +182,34 @@ function Net({ art, rig, playingRef, onDrawn }: { art: number; rig: MotionRig; p
 }
 
 /** Shows the still picture instead if the phone cannot start the moving one. */
-class StillOnFailure extends Component<{ still: ReactNode; children: ReactNode }, { failed: boolean }> {
+class StillOnFailure extends Component<{ still: ReactNode; onFail: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch() { this.props.onFail() }
   render() { return this.state.failed ? this.props.still : this.props.children }
 }
+
+/** How many times the moving picture is started again when the phone's graphics do not come up. */
+const TRIES = 3
 
 /** The picture of an exercise, moving. Fills its parent, which sets the size. */
 export function ArtMotion({ art, rig }: { art: number; rig: MotionRig }) {
   const playingRef = useRef(true)
   const [drawn, setDrawn] = useState(false)
+  // a phone's graphics sometimes fail to start, most often straight after another screen let go of them:
+  // rather than leave a picture that never moves, start again a moment later, and again if nothing has been drawn
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (drawn || attempt >= TRIES - 1) return
+    const t = setTimeout(() => setAttempt((n) => n + 1), 2500)
+    return () => clearTimeout(t)
+  }, [drawn, attempt])
+  const again = () => { if (attempt < TRIES - 1) setTimeout(() => setAttempt((n) => n + 1), 500) }
   // given its size outright: left to itself a picture is drawn at its own, larger than the screen
   const still = <Image source={art} resizeMode="contain" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }} />
   return (
     <View style={StyleSheet.absoluteFill}>
-      <StillOnFailure still={still}>
+      <StillOnFailure key={attempt} still={still} onFail={again}>
         <Canvas orthographic linear flat gl={{ antialias: true }}>
           <Net art={art} rig={rig} playingRef={playingRef} onDrawn={() => setDrawn(true)} />
         </Canvas>

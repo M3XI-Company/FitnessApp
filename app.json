@@ -50,7 +50,9 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-web-browser"
     ],
     "scheme": "breeze",
     "splash": {

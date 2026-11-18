@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { localAnswer, localIntent, mealPlanText, mealsFor, portionFor, restSeconds, sessionMinutes, suggestMeals } from '../src/lib/chat'
-import { coachContext, toChatMessage } from '../src/lib/coachApi'
+import { clockTime, coachContext, toChatMessage } from '../src/lib/coachApi'
 import { addDays, todayKey } from '../src/lib/date'
 import { effectiveTargets } from '../src/lib/nutrition'
 import { allRecipes } from '../src/lib/recipes'
@@ -130,4 +130,12 @@ test('what the coach is told stays inside the function’s size limit', () => {
   assert.equal(ctx.meals_today.length, 3)
   assert.equal(ctx.todays_workout.exercises_total, 2)
   assert.ok(JSON.stringify(ctx).length < 16000, `context is ${JSON.stringify(ctx).length} chars`)
+})
+
+test('the coach is told the user\'s own date, weekday and clock time', () => {
+  const c = coachContext(state())
+  assert.equal(c.date, todayKey())
+  assert.equal(c.today, weekdayOf(todayKey()))
+  assert.match(c.time, /^\d\d:\d\d$/)
+  assert.equal(clockTime(new Date(2026, 0, 5, 7, 4)), '07:04')
 })

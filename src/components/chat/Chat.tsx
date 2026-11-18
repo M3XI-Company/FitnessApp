@@ -18,10 +18,12 @@ import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { SkyOrb } from '../SkyOrb'
 import { Button, Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
+import { LiftingDumbbell } from './LiftingDumbbell'
 import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
 import { VoiceMode } from './VoiceMode'
 import { WorkoutGuide } from './WorkoutGuide'
+import { WorkoutPreview } from './WorkoutPreview'
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 
@@ -75,7 +77,10 @@ export function Chat() {
     if (full) { resolve({ id: uid(), role: 'coach', text: CHAT_FULL_TEXT }); return }
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
     // ELIZA takes the plain jobs itself, on the phone and at once; what needs understanding goes on to the AI coach
-    const done = elizaHandle(state, m, today)
+    // the day is read off the clock each time, so a chat left open past midnight is not a day behind
+    const now = todayKey()
+    if (now !== today) setToday(now)
+    const done = elizaHandle(state, m, now)
     if (done) { dispatch({ type: 'chat', messages: [user, done] }); resolve(done); return }
     dispatch({ type: 'chat', messages: [user] })
     setTyping(true); setThought('')
@@ -145,7 +150,7 @@ export function Chat() {
         )}
         {shown.map((m) => {
           const mine = m.role === 'user'
-          const wide = !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders || m.details)
+          const wide = !!(m.day || m.guide || m.preview || m.routine || m.meals || m.workout || m.reminders || m.details)
           return (
             <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : wide ? 'stretch' : 'flex-start', maxWidth: wide ? '100%' : '86%', gap: 8 }}>
               {!!m.text && (
@@ -161,6 +166,7 @@ export function Chat() {
               )}
               {m.details && <DetailsCard change={m.details} />}
               {m.day && <DayCard date={m.day} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />}
+              {m.preview && <WorkoutPreview date={m.preview} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} />}
               {m.guide && <WorkoutGuide date={m.guide} active={m.id === liveGuide} />}
               {m.workout && <WorkoutCard workout={m.workout} />}
               {m.routine && <RoutineCard routine={m.routine} />}
@@ -172,9 +178,8 @@ export function Chat() {
         {typing && (
           <View accessibilityLabel={thought ? `Breeze is thinking: ${thought}` : 'Breeze is thinking'} style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 11, paddingHorizontal: 15, gap: 4, ...shadow }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="sparkles" size={13} color={C.accent} />
+              <LiftingDumbbell />
               <Text style={{ color: C.accent, fontWeight: '700', fontSize: 12, letterSpacing: 0.6 }}>THINKING</Text>
-              <Text style={{ color: C.text3, fontWeight: '800', letterSpacing: 2 }}>•••</Text>
             </View>
             {!!thought && <Text style={{ fontSize: 14, lineHeight: 19, color: C.text2, fontStyle: 'italic' }}>{thought}</Text>}
           </View>

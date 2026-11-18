@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { elizaFallback, elizaHandle, elizaSay, elizaTask, reflect } from '../src/lib/eliza'
-import { todayKey } from '../src/lib/date'
+import { elizaFallback, elizaHandle, elizaSay, elizaTask, previewDate, reflect } from '../src/lib/eliza'
+import { addDays, todayKey } from '../src/lib/date'
 import { effectiveTargets } from '../src/lib/nutrition'
 import { WEEKDAYS, buildRoutine } from '../src/lib/routine'
 import type { AppState, Profile, RoutineDay, Weekday } from '../src/lib/types'
@@ -63,4 +63,17 @@ test('without the AI coach, numbers come from the app and matters of safety get 
   assert.ok(elizaFallback(s, 'what should I eat, I am hungry').text.includes('kcal'))
   assert.ok(elizaFallback(s, 'I feel a sharp pain in my back when I eat').text.includes('GP'))
   assert.equal(elizaFallback(s, "I can't face the gym").text, 'What makes you feel you can’t face the gym?')
+})
+
+test('asking to see a workout lays that day out, and other asks are left alone', () => {
+  const s = state()
+  const today = todayKey()
+  assert.equal(previewDate(s, 'show me my workout', today), today)
+  assert.equal(previewDate(s, "Show me tomorrow's workout", today), addDays(today, 1))
+  assert.equal(previewDate(s, 'Can I see what the full body will look like before hand.', today), today)
+  assert.equal(previewDate(s, 'show me my meals', today), null)
+  assert.equal(previewDate(s, 'should I change my workout?', today), null)
+  const shown = elizaHandle(s, 'what does my workout look like today?', today)
+  assert.equal(shown?.preview, today)
+  assert.ok(shown?.text.includes('Full body'))
 })

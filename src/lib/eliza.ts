@@ -6,17 +6,19 @@
  * reply. It does not understand anything, and it does not need to for the
  * jobs it is given.
  *
- * Its jobs are the plain ones: start the workout, show a day's plan, show the
- * reminders, say how much water or how many calories are left. Anything that
+ * Its jobs are the plain ones: start the workout, show a day's plan, lay a
+ * workout out to look through, show the reminders, say how much water or how
+ * many calories are left. Anything that
  * takes understanding (a change of plan, a question about the body, a long
  * message) it hands to the AI coach, which also reads ELIZA's turns in the
  * conversation and so can put right anything it got wrong. When the AI coach
  * cannot be reached, ELIZA keeps the conversation going in its own way.
  */
-import { localAnswer, localIntent, type LocalIntent } from './chat'
+import { localAnswer, localIntent, sessionMinutes, type LocalIntent } from './chat'
 import { NOTHING_MATCHED, reply } from './coach'
-import { todayKey, uid } from './date'
+import { addDays, prettyDate, todayKey, uid } from './date'
 import { remindersMessage } from './reminders'
+import { WEEKDAYS, dayProgress, weekdayOf } from './routine'
 import type { AppState, ChatMessage } from './types'
 
 /** A job ELIZA does itself. */
@@ -33,8 +35,45 @@ export function elizaTask(text: string): ElizaTask | null {
   return null
 }
 
+const DAY_WORDS: Record<string, string[]> = { mon: ['monday', 'mon'], tue: ['tuesday', 'tues', 'tue'], wed: ['wednesday', 'wed'], thu: ['thursday', 'thurs', 'thu'], fri: ['friday', 'fri'], sat: ['saturday', 'sat'], sun: ['sunday', 'sun'] }
+/** Words in a workout's title that people use to name it. */
+const KINDS = ['upper', 'lower', 'push', 'pull', 'legs', 'leg', 'full', 'core', 'cardio', 'chest', 'back', 'arms', 'shoulders', 'glutes']
+
+/**
+ * The day whose workout a message asks to look at ("show me tomorrow's
+ * workout", "can I see what the upper body will look like"), or null when
+ * it is not asking to see one. A day named in the message wins, then a kind
+ * of session, then the next workout still to be done.
+ */
+export function previewDate(s: AppState, text: string, today = todayKey()): string | null {
+  const q = text.toLowerCase().trim()
+  if (q.length > 90) return null
+  const wantsToSee = /\b(show|preview|see|look at|looks? like|walk me through|what(?:'s| is) in)\b/.test(q)
+  const aboutWorkout = /\b(workout|session|training|exercises?|routine)\b/.test(q) || KINDS.some((k) => new RegExp(`\\b${k}\\b`).test(q))
+  if (!wantsToSee || !aboutWorkout || /\b(meal|meals|food|eat|recipe)\b/.test(q)) return null
+  const week = Array.from({ length: 7 }, (_, i) => addDays(today, i))
+  if (/\btomorrow\b/.test(q)) return week[1]
+  if (/\b(today|tonight|now)\b/.test(q)) return today
+  const named = WEEKDAYS.find((d) => DAY_WORDS[d].some((w) => new RegExp(`\\b${w}\\b`).test(q)))
+  if (named) return week.find((d) => weekdayOf(d) === named) ?? null
+  const kind = KINDS.find((k) => new RegExp(`\\b${k}\\b`).test(q))
+  const byKind = kind && week.find((d) => { const p = dayProgress(s, d); return p.status !== 'rest' && p.status !== 'done' && `${p.day.title} ${p.day.focus}`.toLowerCase().includes(kind.replace(/s$/, '')) })
+  if (byKind) return byKind
+  return week.find((d) => ['todo', 'started'].includes(dayProgress(s, d).status)) ?? today
+}
+
+/** The answer that lays a day's workout out to look through. */
+export function previewAnswer(s: AppState, date: string, today = todayKey()): ChatMessage {
+  const p = dayProgress(s, date)
+  const when = date === today ? 'Today' : date === addDays(today, 1) ? 'Tomorrow' : prettyDate(date)
+  const text = p.status === 'rest' ? `${when} is a rest day.` : `${when} is ${p.day.title}: ${p.items.length} exercises, about ${sessionMinutes(p.items)} minutes. Tap any exercise to see it move.`
+  return { id: uid(), role: 'coach', text, preview: date }
+}
+
 /** Does the job a message asks for and answers, or returns null when the message needs understanding. */
 export function elizaHandle(s: AppState, text: string, today = todayKey()): ChatMessage | null {
+  const look = previewDate(s, text, today)
+  if (look) return previewAnswer(s, look, today)
   const task = elizaTask(text)
   if (!task) return null
   if (task === 'reminders') return remindersMessage(s)

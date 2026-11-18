@@ -13,6 +13,7 @@ import type { ChatMessage } from '../../lib/types'
 import { C, T, shadow } from '../../theme'
 import { MealPlanCard } from '../../components/coach/PlanCard'
 import { CopyButton } from '../../components/chat/DayCard'
+import { LiftingDumbbell } from '../../components/chat/LiftingDumbbell'
 import { FoodIcon } from '../../components/foodIcons'
 import { Photo } from '../../components/Photo'
 import { RecipeCover } from '../../components/RecipeCover'
@@ -155,7 +156,7 @@ export default function MealChat() {
         {busy && (
           <View style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 11, paddingHorizontal: 15, gap: 4, ...shadow }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="sparkles" size={13} color={C.accent} />
+              <LiftingDumbbell />
               <Text style={{ color: C.accent, fontWeight: '700', fontSize: 12, letterSpacing: 0.6 }}>THINKING</Text>
             </View>
             {!!thought && <Text style={{ fontSize: 14, lineHeight: 19, color: C.text2, fontStyle: 'italic' }}>{thought}</Text>}

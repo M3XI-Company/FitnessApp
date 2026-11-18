@@ -125,6 +125,8 @@ export interface ChatMessage {
   meals?: Record<string, string[]>
   /** date whose plan (workout and meals) is shown as a card under the message */
   day?: string
+  /** date of a workout laid out to look through before doing it */
+  preview?: string
   /** date of the workout the coach is walking the user through */
   guide?: string
   /** reminder times the coach suggests; nothing is scheduled until the user turns them on */

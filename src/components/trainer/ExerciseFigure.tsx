@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import { EXERCISE_ART } from '../../data/exerciseArt'
-import { exerciseById } from '../../data/exercises'
+import { exerciseById, worksFor } from '../../data/exercises'
 import { C } from '../../theme'
 import { tap } from '../ui'
 import { artMotion } from '../../lib/artMotion'
+import { MuscleMap } from '../MuscleMap'
 import { ArtMotion } from './ArtMotion'
-import { Trainer3D } from './Trainer3D'
 
 /** Which build's figure an exercise is shown with: the user's own, or the other when only that exists. */
 function artBuild(exerciseId: string, sex?: string): 'male' | 'female' | undefined {
@@ -26,19 +26,19 @@ export function exerciseArt(exerciseId: string, sex?: string): number | undefine
  * How an exercise is shown: a figure in the style of the charts on gym
  * equipment, a man or a woman to match the user, with the muscles doing the
  * work lit in red and the ones helping in orange. A button sets the picture
- * itself moving where it has been given joints, and otherwise swaps it for the
- * moving 3D figure. Exercises that have no chart figure yet show the 3D one.
+ * itself moving. Exercises that have no chart figure yet show the muscles
+ * they work on the body chart instead.
  */
 export function ExerciseFigure({ exerciseId, sex, height }: { exerciseId: string; sex?: string; height?: number }) {
   const art = exerciseArt(exerciseId, sex)
   const [moving, setMoving] = useState(false)
   const build = artBuild(exerciseId, sex)
   const rig = build && artMotion(exerciseId, build)
-  if (!art || (moving && !rig)) {
+  if (!art) {
+    const works = worksFor(exerciseId)
     return (
-      <View>
-        <Trainer3D exerciseId={exerciseId} height={height} />
-        {!!art && <Swap label="Chart" onPress={() => setMoving(false)} top />}
+      <View style={{ backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 14, height }}>
+        <MuscleMap primary={works.primary} secondary={works.secondary} gender={sex === 'female' ? 'female' : 'male'} />
       </View>
     )
   }
@@ -51,7 +51,7 @@ export function ExerciseFigure({ exerciseId, sex, height }: { exerciseId: string
         <Key color="#E5352B" label="Working" />
         <Key color="#F08A24" label="Helping" />
       </View>
-      <Swap label={moving ? 'Still' : 'See it move'} onPress={() => setMoving(!moving)} />
+      {!!rig && <Swap label={moving ? 'Still' : 'See it move'} onPress={() => setMoving(!moving)} />}
     </View>
   )
 }
@@ -65,10 +65,10 @@ function Key({ color, label }: { color: string; label: string }) {
   )
 }
 
-function Swap({ label, onPress, top }: { label: string; onPress: () => void; top?: boolean }) {
+function Swap({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable onPress={() => { tap(); onPress() }} hitSlop={8} accessibilityRole="button"
-      style={({ pressed }) => [{ position: 'absolute', right: 10, paddingHorizontal: 12, height: 30, borderRadius: 15, justifyContent: 'center', backgroundColor: C.fill }, top ? { top: 50 } : { bottom: 8 }, pressed && { opacity: 0.6 }]}>
+      style={({ pressed }) => [{ position: 'absolute', right: 10, paddingHorizontal: 12, height: 30, borderRadius: 15, justifyContent: 'center', backgroundColor: C.fill }, { bottom: 8 }, pressed && { opacity: 0.6 }]}>
       <Text style={{ fontSize: 12.5, fontWeight: '700', color: C.accent }}>{label}</Text>
     </Pressable>
   )

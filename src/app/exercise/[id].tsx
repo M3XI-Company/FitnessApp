@@ -8,15 +8,22 @@ import { MuscleMap } from '../../components/MuscleMap'
 import { exerciseHistory, nextTarget } from '../../lib/progress'
 import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
-import { C, T, G } from '../../theme'
-import { Button, Card, Icon, LineChart, Pill, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
-import { ExerciseFigure } from '../../components/trainer/ExerciseFigure'
-import { FormSteps } from '../../components/trainer/FormSteps'
+import { C, T, G, shadow } from '../../theme'
+import { Button, Card, Icon, LineChart, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
+import { ExerciseFigure, exerciseArt } from '../../components/trainer/ExerciseFigure'
 import { RestTimer } from '../../components/RestTimer'
 import { supportsForm } from '../../lib/form/engine'
 
 /** sets advised per exercise per session */
 const ADVISED_SETS = 3
+
+/** How Breeze calls a set: said differently as the sets go by, so three sets do not read as the same line three times. */
+function setLine(i: number, total: number, amount: string): string {
+  if (i >= ADVISED_SETS) return `One more if you have it: ${amount}.`
+  if (i === 0) return `First set: ${amount}. Go when you are ready.`
+  if (i === total - 1 || i === ADVISED_SETS - 1) return `Last one: ${amount}. Make it count.`
+  return `Good. Same again: ${amount}.`
+}
 
 export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
@@ -55,21 +62,23 @@ export default function ExerciseDetail() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title={ex.name} onClose={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
-          <Pill color={MUSCLE_COLOR[ex.muscle]} bg={MUSCLE_COLOR[ex.muscle] + '1A'}>{ex.muscle}</Pill>
-          <Pill color={C.text2} bg={C.fill}>{ex.equipment}</Pill>
-          <Pill color={C.text2} bg={C.fill}>{ex.level}</Pill>
-        </View>
+        {/* facts about the exercise, written as a plain line so they are not mistaken for buttons */}
+        <Text style={[T.caption, { marginBottom: 14, lineHeight: 18 }]} accessibilityLabel={`Works the ${ex.muscle.toLowerCase()}. Equipment: ${ex.equipment}. Level: ${ex.level}.`}>
+          Works <Text style={{ color: MUSCLE_COLOR[ex.muscle], fontWeight: '700' }}>{ex.muscle}</Text>  ·  Equipment <Text style={{ color: C.text, fontWeight: '600' }}>{ex.equipment}</Text>  ·  Level <Text style={{ color: C.text, fontWeight: '600' }}>{ex.level}</Text>
+        </Text>
 
-        <View style={{ borderRadius: 22, overflow: 'hidden' }}><ExerciseFigure exerciseId={ex.id} sex={state.profile.sex} /></View>
-        <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
+        {/* the picture of the exercise, where there is one; the body chart below covers the rest */}
+        {!!exerciseArt(ex.id, state.profile.sex) && (
+          <>
+            <View style={{ borderRadius: 22, overflow: 'hidden' }}><ExerciseFigure exerciseId={ex.id} sex={state.profile.sex} /></View>
+            <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
+          </>
+        )}
         <Card style={{ marginBottom: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
-          <MuscleMap primary={worksFor(ex.id).primary} secondary={worksFor(ex.id).secondary} gender={state.profile.sex} />
+          <MuscleMap detail primary={worksFor(ex.id).primary} secondary={worksFor(ex.id).secondary} gender={state.profile.sex} />
         </Card>
-        {/* Form: pictures of each key position, then the cues */}
         <SectionHeader title="Form" />
-        <FormSteps exerciseId={ex.id} />
         <Card style={{ gap: 10, marginTop: 10, marginBottom: 14 }}>
           {ex.cues.map((c, i) => (
             <View key={c} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
@@ -99,30 +108,48 @@ export default function ExerciseDetail() {
           </Card>
         )}
 
-        {/* Logger */}
-        {/* Logger: a checklist of the advised sets. Ticking a set logs it at the advised weight and reps. */}
+        {/* Logger: a short back-and-forth instead of a checklist. Breeze calls each set, the user answers Done, and it is logged at the advised weight and reps. */}
         <SectionHeader title="Today's sets" />
-        <Card style={{ gap: 0, paddingVertical: 6 }}>
-          {Array.from({ length: rows }, (_, i) => {
+        <View style={{ gap: 8 }}>
+          {Array.from({ length: Math.min(rows, today.length + 1) }, (_, i) => {
             const done = today[i]
-            const label = done
+            const amount = done
               ? `${done.weight ? `${done.weight} kg × ` : ''}${done.reps}${isTimed ? ' s' : ' reps'}`
               : `${ex.step > 0 ? `${weight} kg × ` : ''}${reps}${isTimed ? ' s' : ' reps'}`
             return (
-              <Pressable key={done?.id ?? `todo${i}`} accessibilityRole="checkbox" accessibilityState={{ checked: !!done }} accessibilityLabel={`Set ${i + 1}, ${label}`}
-                onPress={() => { if (done) { tap(); dispatch({ type: 'removeSet', id: done.id }) } else logSet() }}
-                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: C.sep }, pressed && { opacity: 0.6 }]}>
-                <Icon name={done ? 'checkbox' : 'square-outline'} size={26} color={done ? C.accent : C.text2} />
-                <Text style={[T.headline, { width: 52, color: done ? C.text3 : C.text }]}>Set {i + 1}</Text>
-                <Text style={[T.headline, T.num, { flex: 1, color: done ? C.text3 : C.text, textDecorationLine: done ? 'line-through' : 'none' }]}>{label}</Text>
-                {done && <Text style={[T.caption, T.num]}>e1RM {round(e1rm(done.weight, done.reps), 1)}</Text>}
-              </Pressable>
+              <View key={done?.id ?? `todo${i}`} style={{ gap: 8 }}>
+                <View style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 10, paddingHorizontal: 14, ...shadow }}>
+                  <Text style={[T.body, T.num, { lineHeight: 21 }]}>{setLine(i, rows, amount)}</Text>
+                </View>
+                {done ? (
+                  <Pressable onPress={() => { tap(); dispatch({ type: 'removeSet', id: done.id }) }} accessibilityRole="button" accessibilityLabel={`Set ${i + 1} done, ${amount}. Undo.`}
+                    style={({ pressed }) => [{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.night, borderRadius: 20, borderBottomRightRadius: 6, paddingVertical: 9, paddingHorizontal: 14 }, pressed && { opacity: 0.6 }]}>
+                    <Icon name="checkmark" size={15} color={C.cloud} />
+                    <Text style={[T.num, { color: C.cloud, fontSize: 15 }]}>Done{done.weight ? ` · e1RM ${round(e1rm(done.weight, done.reps), 1)}` : ''}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={logSet} accessibilityRole="button" accessibilityLabel={`Set ${i + 1} done, ${amount}`}
+                    style={({ pressed }) => [{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.card, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 16 }, pressed && { opacity: 0.6 }]}>
+                    <Icon name="checkmark" size={15} color={C.accent} />
+                    <Text style={{ color: C.accent, fontWeight: '700', fontSize: 15 }}>Done</Text>
+                  </Pressable>
+                )}
+              </View>
             )
           })}
-          {today.length >= rows && <Button title="Add another set" icon="add" variant="ghost" small onPress={() => setExtra(extra + 1)} style={{ marginVertical: 8 }} />}
-          {rest && <View style={{ paddingBottom: 8 }}><RestTimer endsAt={rest.endsAt} total={rest.total} onChange={(endsAt, total) => setRest({ endsAt, total })} onDone={() => setRest(null)} /></View>}
-        </Card>
-        <Text style={[T.caption, { marginTop: 6, marginLeft: 4 }]}>{today.length >= ADVISED_SETS ? 'All advised sets done. Nice work.' : `Tick each set as you finish it. ${today.length} of ${ADVISED_SETS} done.`}</Text>
+          {rest && <RestTimer endsAt={rest.endsAt} total={rest.total} onChange={(endsAt, total) => setRest({ endsAt, total })} onDone={() => setRest(null)} />}
+          {today.length >= rows && (
+            <>
+              <View style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 10, paddingHorizontal: 14, ...shadow }}>
+                <Text style={[T.body, { lineHeight: 21 }]}>That is all {today.length}. Nice work.</Text>
+              </View>
+              <Pressable onPress={() => { tap(); setExtra(extra + 1) }} accessibilityRole="button"
+                style={({ pressed }) => [{ alignSelf: 'flex-end', backgroundColor: C.card, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 16 }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: C.accent, fontWeight: '700', fontSize: 15 }}>One more set</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
 
         {/* Stats */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>

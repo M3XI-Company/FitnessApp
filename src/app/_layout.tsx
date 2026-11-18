@@ -15,6 +15,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="diary" options={{ presentation: 'modal' }} />
           <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
           <Stack.Screen name="add-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="edit-food" options={{ presentation: 'modal' }} />
           <Stack.Screen name="targets" options={{ presentation: 'modal' }} />

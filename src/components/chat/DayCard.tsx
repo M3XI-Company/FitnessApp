@@ -98,7 +98,7 @@ export function DayCard({ date, onStart, onAsk }: { date: string; onStart: () =>
                 big={rest ? 'Rest' : i.done ? 'Done' : `${sessionMinutes(workout.items)} min`}
                 small={rest ? 'walk or stretch' : workout.status === 'started' ? `${workout.doneItems} of ${workout.items.length} done` : `${workout.items.length} moves`}
                 action={!isToday || rest ? undefined : i.done ? { icon: 'checkmark', on: true, label: 'Workout done' } : { icon: 'play', on: false, label: workout.status === 'started' ? 'Continue workout' : 'Start workout', onPress: onStart }}
-                onPress={isToday && !rest && !i.done ? onStart : undefined} />
+                onPress={rest ? undefined : () => onAsk(isToday ? 'Show me today\u2019s workout' : date === addDays(todayKey(), 1) ? 'Show me tomorrow\u2019s workout' : `Show me ${new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })}\u2019s workout`)} />
             )
           }
           const r = i.recipe!

@@ -44,7 +44,9 @@ interface ServerResult {
   update_meal_plan: boolean
   meal_days: { day: Weekday; recipe_ids: string[] }[]
   /** a card to show under the reply; absent from older deployments of the function */
-  show?: 'none' | 'today' | 'tomorrow' | 'workout'
+  show?: 'none' | 'today' | 'tomorrow' | 'workout' | 'preview'
+  /** with show "preview": the day whose workout to lay out */
+  preview_day?: Weekday | 'none'
   /** reminder times the coach suggests, as "HH:MM" */
   set_reminders?: boolean
   reminder_times?: { breakfast: string; lunch: string; dinner: string; workout: string }
@@ -61,6 +63,9 @@ interface ServerResult {
 export interface MemoryChange { remember: string[]; forget: string[] }
 
 /** What the coach is told about the user. Deliberately leaves out the name and anything free-text. */
+/** The time on the user's clock, as 24-hour HH:MM. */
+export const clockTime = (now = new Date()) => `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
 export function coachContext(s: AppState) {
   const p = s.profile
   const routine = routineFor(s)
@@ -71,7 +76,10 @@ export function coachContext(s: AppState) {
     eaten_today: { kcal: Math.round(today.kcal), protein_g: Math.round(today.protein) },
     current_routine: WEEKDAYS.map((d) => ({ day: d, title: routine.days[d].title, ...(routine.days[d].style ? { style: routine.days[d].style } : {}), exercises: routine.days[d].items.map((i) => `${i.exerciseId} ${i.sets}x${i.reps}`) })),
     consistency: { workouts_last_7_days: workoutsThisWeek(s), routine_streak_days: routineStreak(s), sessions_logged: new Set(s.sets.map((x) => x.date)).size },
+    // the user's own day and clock, so "today", "tomorrow" and "tonight" mean what they mean to them
+    date: todayKey(),
     today: weekdayOf(todayKey()),
+    time: clockTime(),
     todays_workout: (() => { const d = dayProgress(s); return { title: d.day.title, ...(d.day.style ? { style: d.day.style } : {}), status: d.status, exercises_done: d.doneItems, exercises_total: d.items.length } })(),
     // the first few sessions are kept light, and each ends with the user saying how it felt
     easing_in: easingIn(s) ? { sessions_done: sessionsDone(s), light_sessions_in_total: EASE_IN_SESSIONS } : false,
@@ -130,6 +138,11 @@ export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
   if (isMood(r.mood)) msg.mood = r.mood
   if (r.show === 'today') msg.day = todayKey()
   else if (r.show === 'tomorrow') msg.day = addDays(todayKey(), 1)
+  else if (r.show === 'preview') {
+    // the next time that weekday comes round, today included; without a day, the next workout still to do
+    const week = Array.from({ length: 7 }, (_, i) => addDays(todayKey(), i))
+    msg.preview = week.find((d) => weekdayOf(d) === r.preview_day) ?? (s && week.find((d) => ['todo', 'started'].includes(dayProgress(s, d).status))) ?? todayKey()
+  }
   // only when there is a workout left to do today
   else if (r.show === 'workout' && s && ['todo', 'started'].includes(dayProgress(s).status)) msg.guide = todayKey()
   const remember = (r.remember ?? []).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim().slice(0, MAX_MEMORY_CHARS)).slice(0, 4)

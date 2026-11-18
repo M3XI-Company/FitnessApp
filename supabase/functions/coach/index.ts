@@ -84,7 +84,7 @@ const BodySchema = z.object({
 // ---- output contract ---------------------------------------------------------
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 /** cards the app can show under the reply */
-const SHOW = ['none', 'today', 'tomorrow', 'workout'] as const
+const SHOW = ['none', 'today', 'tomorrow', 'workout', 'preview'] as const
 /** how the conversation is going, which sets the look of Breeze's face in the app */
 const MOODS = ['calm', 'upbeat', 'fired_up', 'gentle', 'proud'] as const
 const ResultSchema = z.object({
@@ -97,6 +97,7 @@ const ResultSchema = z.object({
   update_meal_plan: z.boolean(),
   meal_days: z.array(z.object({ day: z.enum(DAYS), recipe_ids: z.array(z.string()) })),
   show: z.enum(SHOW).optional(),
+  preview_day: z.enum([...DAYS, 'none']).optional(),
   mood: z.enum(MOODS).optional(),
   set_reminders: z.boolean().optional(),
   reminder_times: z.object({ breakfast: z.string(), lunch: z.string(), dinner: z.string(), workout: z.string() }).optional(),
@@ -110,11 +111,12 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'mood', 'show', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'mood', 'show', 'preview_day', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
     reply: { type: 'string', description: 'What the coach says to the user. Plain text, no markdown. Usually one to three short sentences; at most about 120 words when explaining something.' },
     mood: { type: 'string', enum: MOODS, description: 'How the conversation is going right now, which the app shows in the look and movement of Breeze\'s face. calm: ordinary questions and planning. upbeat: things are going well, friendly chat, thanks. fired_up: the user is starting or in the middle of a workout, or is motivated and wants a push. gentle: the user is tired, low, in pain, struggling, disappointed or has missed sessions. proud: the user has finished a workout, hit a target, kept a streak or set a personal best.' },
-    show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "none" otherwise.' },
+    show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "preview": one day\'s workout laid out to look through, with a picture of each exercise. "none" otherwise.' },
+    preview_day: { type: 'string', enum: [...DAYS, 'none'], description: 'When show is "preview": the weekday whose workout to lay out. "none" otherwise.' },
     remember: { type: 'array', items: { type: 'string' }, description: 'New facts worth remembering about this user for future conversations, each one short plain sentence (at most 25 words) that will still make sense weeks from now. Usually empty; at most three.' },
     forget: { type: 'array', items: { type: 'string' }, description: 'ids of memory entries that the user has just said are no longer true. Usually empty.' },
     update_details: {
@@ -174,8 +176,17 @@ const SYSTEM = `You are Breeze, the coach in a UK fitness and nutrition app. The
 
 Keep it simple and quick. People read this on a phone, often in the gym or the kitchen. Answer in one to three short sentences unless they ask you to explain, give one clear next step, and never bury them in numbers or options.
 
+Match how they wrote to you.
+- A short, direct message ("what's my meal plan", "what's next", "move legs to Friday") is a request, not a conversation. Answer it in one sentence, or show the card and say only what the card does not already show, then stop. Do not add advice, observations, praise or encouragement they did not ask for. Raise something they did not ask about only when it is a matter of safety, and then in one sentence.
+- A chatty or personal message (how they feel, something about their day, a worry, a win) is a conversation. Reply in the same register, warmly and still briefly, and you may ask one question back.
+- When you are telling them how to do something, give numbered steps, each on its own line and one short line long, five at most, with no introduction before them and no summary after.
+- Never restate what they said, never open with a compliment or a filler phrase, and never end by offering more help.
+
+The day and the time: the context gives the user's own date, weekday and clock time as date, today and time. Use them for anything about days or times: what today is, how many days until something, whether it is morning or late evening. Do not work out the date any other way.
+
 Cards, set with the show field:
 - "today" or "tomorrow" shows that day's workout and meals. Use it when the user asks what is on, what to eat, or what is next. The card lists the details, so do not repeat them in your reply.
+- "preview" lays one day's workout out to look through before doing it: every exercise with its picture, sets and reps, each opening a page where the picture moves through the rep, and a note of what happens when the workout is finished. Use it whenever the user asks to see, be shown, preview or look at a workout or what a session will look like, for any day, and set preview_day to that day's weekday (work it out from the context's date and today). Say one short sentence; the card shows the rest. Do not use "today" or "tomorrow" for this, since those show meals as well.
 - "workout" starts the step-by-step guide for today's workout, with a 3D figure showing the form and the muscles worked. Use it when the user says they are starting, continuing or ready to train. If todays_workout says it is a rest day or already done, say so instead and use "none".
 - A routine or meal plan you propose is shown as its own card with a button to use it and, for meals, a button to copy it with ingredients.
 
@@ -212,6 +223,10 @@ Building a routine:
 - Fit it to the goal, the activity level and anything the user tells you: days available, equipment, time per session, exercises they dislike or cannot do.
 - Keep it sustainable. Two to five training days with at least one full rest day, four to seven exercises per session, two to four sets each. Beginners and people returning after a break get fewer days, simpler exercises and fewer sets. Train each major muscle group across the week and do not put the same muscles on consecutive days.
 - Every training day works different parts of the body from the day before and the day after, so nothing is trained hard two days running: for example chest and triceps, then back and biceps, then legs, then shoulders and core. Name each day after its body part.
+- The order of the exercises in a day is part of the plan, and the app does them in the order you list them. Choose one of two shapes for each person and keep to it across their days:
+  - Hardest first: the most demanding lift (the heaviest compound, such as squat, deadlift, bench or overhead press) comes first while they are fresh, and each exercise after it asks less, ending with the lightest isolation or core work. This suits most people who have trained before and anyone whose goal is strength.
+  - Building up: the session starts with the lightest, simplest movements and climbs to the most demanding one, then finishes easy. Use it for someone new or returning, during easing_in, for anyone older or with a joint they are careful with, and for anyone whose check-ins say the first heavy lift felt rough, stiff or painful until they had warmed up.
+  Decide from what they told you at the start (experience, age, injuries, goal) and from memory of how their body has reacted: if check-ins say they fade badly by the end, put the hardest work earlier; if they say they need time to get going, build up. When a check-in gives you a reason to switch, propose the routine in the new order and say why in one sentence. Remember which shape suits them.
 - Give every training day a style and alternate them through the week, with at least one strength day and one volume day. On a strength day the big lifts are 4-6 reps and the rest 6-10; on a volume day weighted exercises are 12-15.
 - Compound lifts come first in a session. Use rep ranges of roughly 5 to 10 for heavy compounds, 8 to 15 for accessories, and seconds for holds.
 - Only set update_routine when you are actually proposing a routine. When the user is only asking a question, answer it and leave the routine alone. If you need one or two facts before you can build a good plan, ask for them first, briefly.
@@ -333,6 +348,7 @@ Deno.serve(async (req) => {
     const result: CoachResult = {
       reply: r.reply.slice(0, 4000),
       show: r.show ?? 'none',
+      preview_day: r.show === 'preview' ? r.preview_day ?? 'none' : 'none',
       mood: r.mood ?? 'calm',
       remember: (r.remember ?? []).slice(0, 3).map((t) => t.slice(0, 200)),
       forget: (r.forget ?? []).slice(0, 10),

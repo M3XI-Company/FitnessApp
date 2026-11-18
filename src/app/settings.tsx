@@ -8,6 +8,7 @@ import { memoryOf } from '../lib/memory'
 import { remindersOf } from '../lib/reminders'
 import { ReminderCard } from '../components/chat/ReminderCard'
 import { C, T } from '../theme'
+import { signOut, useSession } from '../lib/auth'
 import { Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader } from '../components/ui'
 
 const chevron = <Icon name="chevron-forward" size={16} color={C.text3} />
@@ -17,6 +18,7 @@ export default function Settings() {
   const { state, dispatch } = useStore()
   const p = state.profile
   const [erasing, setErasing] = useState(false)
+  const { session } = useSession()
   const [tested, setTested] = useState(false)
   const reminders = remindersOf(state)
   const remembered = memoryOf(state).length
@@ -75,9 +77,12 @@ export default function Settings() {
         </List>
 
         <SectionHeader title="Account and subscription" />
-        <Card style={{ gap: 6 }}>
-          <Text style={T.headline}>Stored on this phone</Text>
-          <Text style={[T.sub, { lineHeight: 19 }]}>Breeze does not have accounts yet, so there is nothing to sign in to and nothing is charged. Your diary, workouts and plan stay on this phone.</Text>
+        <Card style={{ gap: 8 }}>
+          <Text style={T.headline}>{session ? 'Signed in' : 'Not signed in'}</Text>
+          <Text style={[T.sub, { lineHeight: 19 }]}>{session ? `${session.user.email ?? 'Your Google account'}. Nothing is charged. Your diary, workouts and plan are still kept on this phone.` : 'Nothing is charged. Your diary, workouts and plan stay on this phone.'}</Text>
+          {session
+            ? <Button small variant="ghost" title="Sign out" onPress={() => signOut()} />
+            : <Button small variant="tinted" title="Sign in" onPress={() => router.push('/sign-in')} />}
         </Card>
 
         <SectionHeader title="Data" />
