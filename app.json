@@ -11,6 +11,9 @@
       "bundleIdentifier": "com.m3xi.breeze",
       "infoPlist": {
         "NSCameraUsageDescription": "Breeze uses the camera to scan food barcodes and product labels."
+      },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {
@@ -52,7 +55,17 @@
         }
       ],
       "expo-sqlite",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#068AFF",
+          "sounds": [
+            "./assets/sounds/breeze_alarm.wav"
+          ]
+        }
+      ],
+      "expo-audio"
     ],
     "scheme": "breeze",
     "splash": {

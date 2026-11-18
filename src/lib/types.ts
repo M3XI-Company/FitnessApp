@@ -163,6 +163,8 @@ export interface ReminderSettings {
   on: boolean
   /** ping again every few minutes until the app is opened */
   repeat: boolean
+  /** ring and buzz like an alarm clock rather than arrive as a quiet notification; on unless switched off */
+  alarm?: boolean
   times: ReminderTimes
 }
 
@@ -227,6 +229,12 @@ export interface AppState {
   memory?: MemoryItem[]
   /** meal and workout reminders; off until the user turns them on */
   reminders?: ReminderSettings
+  /** the voice Breeze speaks with (lib/voices); the default when not chosen */
+  voice?: string
+  /** the plan the person is on (lib/plan); free when absent */
+  subscription?: import('./plan').Subscription
+  /** a free user's answer about sharing their data; absent until they are asked */
+  dataChoice?: import('./plan').DataChoice
   /** the weekly workout routine in use; when absent one is built from the profile */
   routine?: WeeklyRoutine
   /** latest body scan description, if the user chose to do one */

@@ -46,7 +46,8 @@ export function RoutineCard({ routine }: { routine: NonNullable<ChatMessage['rou
 export function MealPlanCard({ meals }: { meals: NonNullable<ChatMessage['meals']> }) {
   const { state, dispatch } = useStore()
   const dates = Object.keys(meals).sort()
-  const inUse = dates.every((d) => meals[d].every((id) => (state.boxedPlan[d] ?? []).includes(id)))
+  // the same meals and no others: a day rebuilt with fewer meals is a different plan from the one it came from
+  const inUse = dates.every((d) => { const now = state.boxedPlan[d] ?? []; return now.length === meals[d].length && meals[d].every((id) => now.includes(id)) })
   return (
     <Card style={{ padding: 0, overflow: 'hidden' }}>
       <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>

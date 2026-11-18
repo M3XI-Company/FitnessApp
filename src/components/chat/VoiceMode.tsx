@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Mood } from '../../lib/mood'
 import type { ChatMessage } from '../../lib/types'
+import { plainText } from '../../lib/chat'
 import { canListen, listen, speak, stopSpeaking, type Listening } from '../../lib/voice'
 import { C, T } from '../../theme'
 import { SkyOrb, type OrbMode } from '../SkyOrb'
@@ -12,7 +13,7 @@ type Mode = 'waiting' | 'listening' | 'thinking' | 'speaking'
 const ORB: Record<Mode, OrbMode> = { waiting: 'idle', listening: 'listening', thinking: 'thinking', speaking: 'speaking' }
 
 /** The part of a reply that is said out loud: its first paragraph. */
-const spoken = (m: ChatMessage) => m.text.split('\n\n')[0].trim()
+const spoken = (m: ChatMessage) => plainText(m.text).split('\n\n')[0].trim()
 /** True when a reply carries something to look at (a plan, a card), which stays in the chat. */
 const hasCard = (m: ChatMessage) => !!(m.day || m.guide || m.routine || m.meals || m.workout || m.reminders || m.details)
 

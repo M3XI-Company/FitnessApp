@@ -1,15 +1,30 @@
 /**
- * Talking and listening for the spoken onboarding.
+ * Talking and listening.
  *
- * Speaking uses the phone's own text-to-speech (expo-speech) and works
- * everywhere, including Expo Go. It picks the most natural voice the phone
- * has installed (an enhanced British English one where there is one). Listening uses the phone's speech recogniser
+ * Breeze speaks with the voice the user chose (lib/voices). The natural
+ * voices come from a speech server (Kokoro, scripts/voice-server.py): the
+ * app sends the words, gets a sound file back and plays it. When no server
+ * is set up, it cannot be reached, or the user chose "Phone voice", the
+ * phone's own text-to-speech (expo-speech) is used instead, with the most
+ * natural voice the phone has installed. Listening uses the phone's speech recogniser
  * (expo-speech-recognition), which is native code that only exists in a
  * development or release build: where it is missing, `canListen()` is false
  * and the screen falls back to typed answers.
  */
 import { Platform } from 'react-native'
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
+import { File, Paths } from 'expo-file-system'
 import * as Speech from 'expo-speech'
+import { DEFAULT_VOICE, PHONE_VOICE, forSpeech, voiceOf } from './voices'
+
+/** Where the speech server is, e.g. http://10.0.2.2:8790 for one on this computer seen from the Android emulator. */
+const VOICE_URL = process.env.EXPO_PUBLIC_VOICE_URL?.replace(/\/+$/, '')
+/** True when this build knows of a speech server, so the natural voices can be offered. */
+export const naturalVoices = () => !!VOICE_URL
+
+let current = DEFAULT_VOICE
+/** Set the voice Breeze speaks with from now on (the user's choice, from Settings). */
+export const setSpeakingVoice = (id: string | undefined) => { current = voiceOf(id).id }
 
 type Recognition = typeof import('expo-speech-recognition')
 
@@ -54,8 +69,72 @@ function bestVoice(): Promise<string | undefined> {
   return chosen
 }
 
-/** Say something aloud. Resolves when it has finished, was stopped, or could not be said. */
-export function speak(text: string): Promise<void> {
+/** The sound that is playing, so it can be stopped. */
+let playing: { player: AudioPlayer; file: File; done: () => void } | null = null
+let spoken = 0
+/** Each request to speak takes a number; a later one, or a stop, makes an earlier one give up. */
+let turn = 0
+
+/**
+ * Say it with one of the natural voices. Resolves true when it was said (or
+ * stopped part-way), false when the server could not provide the sound, in
+ * which case the caller falls back to the phone's voice.
+ */
+async function speakNaturally(text: string, voice: string, mine: number): Promise<boolean> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 25000)
+  let file: File | undefined
+  try {
+    const res = await fetch(`${VOICE_URL}/speak`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice }), signal: ctrl.signal })
+    if (!res.ok) return false
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    if (bytes.length < 1000) return false
+    // stopped, or something newer was asked for, while the sound was being made
+    if (mine !== turn) return true
+    file = new File(Paths.cache, `breeze-voice-${++spoken}.wav`)
+    if (file.exists) file.delete()
+    file.create()
+    file.write(bytes)
+    const sound = file
+    await new Promise<void>((resolve) => {
+      const player = createAudioPlayer(sound.uri)
+      const giveUp = setTimeout(() => done(), 90000)
+      const sub = player.addListener('playbackStatusUpdate', (status) => { if (status.didJustFinish) done() })
+      function done() {
+        clearTimeout(giveUp)
+        sub.remove()
+        if (playing?.player === player) playing = null
+        try { player.remove() } catch { /* already gone */ }
+        try { if (sound.exists) sound.delete() } catch { /* cleared with the cache */ }
+        resolve()
+      }
+      playing = { player, file: sound, done }
+      player.play()
+    })
+    return true
+  } catch {
+    try { if (file?.exists) file.delete() } catch { /* cleared with the cache */ }
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Say something aloud, in the chosen voice unless one is named. Resolves
+ * when it has finished, was stopped, or could not be said.
+ */
+export async function speak(text: string, voice: string = current): Promise<void> {
+  const say = forSpeech(text)
+  if (!say) return
+  stopSpeaking()
+  const mine = ++turn
+  if (VOICE_URL && voice !== PHONE_VOICE && (await speakNaturally(say, voice, mine))) return
+  if (mine !== turn) return
+  return speakWithPhone(say)
+}
+
+function speakWithPhone(text: string): Promise<void> {
   return new Promise((resolve) => {
     if (!text.trim()) { resolve(); return }
     // never leave the conversation waiting on a callback that does not come
@@ -72,7 +151,11 @@ export function speak(text: string): Promise<void> {
   })
 }
 
-export const stopSpeaking = () => { Speech.stop().catch(() => {}) }
+export const stopSpeaking = () => {
+  turn++
+  playing?.done()
+  Speech.stop().catch(() => {})
+}
 
 export interface Listening {
   /** finish now and use what has been heard so far */

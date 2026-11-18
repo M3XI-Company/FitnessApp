@@ -18,8 +18,9 @@ import { addDays, todayKey, uid } from './date'
 import { deviceId } from './foodPhoto'
 import { EASE_IN_SESSIONS, dayMacros, easingIn, sessionsDone, workoutsThisWeek } from './progress'
 import { allRecipes, recipeById } from './recipes'
-import { mealsFor } from './chat'
+import { daySchedule, mealsFor } from './chat'
 import { LIMITS } from './interview'
+import { tierOf } from './plan'
 import { postForOutcome } from './stream'
 import { MAX_MEMORY_CHARS, memoryForCoach, memoryOf } from './memory'
 import { isMood } from './mood'
@@ -73,6 +74,8 @@ export function coachContext(s: AppState) {
   return {
     profile: { sex: p.sex, age: p.age, height_cm: p.heightCm, weight_kg: p.weightKg, target_weight_kg: p.targetWeightKg, goal: p.goal, activity: p.activity },
     daily_targets: s.targets,
+    // free or plus: sets how hard the coach pushes
+    plan: tierOf(s),
     eaten_today: { kcal: Math.round(today.kcal), protein_g: Math.round(today.protein) },
     current_routine: WEEKDAYS.map((d) => ({ day: d, title: routine.days[d].title, ...(routine.days[d].style ? { style: routine.days[d].style } : {}), exercises: routine.days[d].items.map((i) => `${i.exerciseId} ${i.sets}x${i.reps}`) })),
     consistency: { workouts_last_7_days: workoutsThisWeek(s), routine_streak_days: routineStreak(s), sessions_logged: new Set(s.sets.map((x) => x.date)).size },
@@ -83,6 +86,9 @@ export function coachContext(s: AppState) {
     todays_workout: (() => { const d = dayProgress(s); return { title: d.day.title, ...(d.day.style ? { style: d.day.style } : {}), status: d.status, exercises_done: d.doneItems, exercises_total: d.items.length } })(),
     // the first few sessions are kept light, and each ends with the user saying how it felt
     easing_in: easingIn(s) ? { sessions_done: sessionsDone(s), light_sessions_in_total: EASE_IN_SESSIONS } : false,
+    // today against the clock: what is done, what was missed, and the one thing to do now
+    today_plan: daySchedule(s, todayKey()).items.filter((i) => i.slot !== 'rest').map((i) => ({ step: i.slot, time: i.time, state: i.state, ...(i.recipe ? { recipe_id: i.recipe.recipe.id } : {}) })),
+    left_today: { kcal: Math.max(0, Math.round(s.targets.kcal - today.kcal)), protein_g: Math.max(0, Math.round(s.targets.protein - today.protein)) },
     // what the day cards in the chat currently show
     meals_today: mealsFor(s, todayKey()).recipes.map((r) => r.recipe.id),
     meals_tomorrow: mealsFor(s, addDays(todayKey(), 1)).recipes.map((r) => r.recipe.id),

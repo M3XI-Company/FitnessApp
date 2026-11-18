@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { daySchedule, mealsFor, thinkingLine } from '../src/lib/chat'
+import { daySchedule, mealsFor, plainText, thinkingLine } from '../src/lib/chat'
 import { todayKey } from '../src/lib/date'
 import { gymDistance, gymLabel, gymWhere } from '../src/lib/gyms'
 import { heardTags } from '../src/lib/interview'
@@ -57,9 +57,11 @@ const state = (rest: Weekday[] = [], extra: Partial<AppState> = {}): AppState =>
   ...extra,
 })
 const today = todayKey()
+/** A moment today at the given 24-hour time. */
+const at = (time: string) => new Date(`${today}T${time}:00`)
 
 test('the day is a schedule in time order, with the next thing to do', () => {
-  const { items, next } = daySchedule(state(), today, today)
+  const { items, next } = daySchedule(state(), today, today, at('07:00'))
   assert.deepEqual(items.map((i) => i.slot), ['breakfast', 'lunch', 'workout', 'dinner'])
   assert.deepEqual(items.map((i) => i.time), [DEFAULT_TIMES.breakfast, DEFAULT_TIMES.lunch, DEFAULT_TIMES.workout, DEFAULT_TIMES.dinner])
   assert.equal(next, 0)
@@ -74,7 +76,7 @@ test('eating breakfast and finishing the workout move "up next" along', () => {
   const ate = state([], {
     food: [{ id: 'f', date: today, meal: 'breakfast', name: breakfast.recipe.title, serving: '1', qty: 1, kcal: 1, protein: 1, carbs: 1, fat: 1, source: 'search', dataSource: 'recipe' }],
   })
-  const after = daySchedule(ate, today, today)
+  const after = daySchedule(ate, today, today, at('09:00'))
   assert.equal(after.items[0].done, true)
   assert.equal(after.items[after.next].slot, 'lunch')
   // another day has nothing "up next"
@@ -82,8 +84,36 @@ test('eating breakfast and finishing the workout move "up next" along', () => {
 })
 
 test('a rest day leads the row and is never "up next"', () => {
-  const { items, next } = daySchedule(state([weekdayOf(today)]), today, today)
+  const { items, next } = daySchedule(state([weekdayOf(today)]), today, today, at('07:00'))
   assert.equal(items[0].slot, 'rest')
   assert.equal(items[0].time, '')
   assert.notEqual(items[next].slot, 'rest')
+})
+
+test('by lunchtime an uneaten breakfast is missed and lunch is the thing to do now', () => {
+  // breakfast 08:00, lunch 12:30, workout 17:00, dinner 18:30
+  const morning = daySchedule(state(), today, today, at('07:00'))
+  assert.deepEqual(morning.items.map((i) => i.state), ['next', 'later', 'later', 'later'])
+  const breakfastTime = daySchedule(state(), today, today, at('08:40'))
+  assert.deepEqual(breakfastTime.items.map((i) => i.state), ['now', 'later', 'later', 'later'])
+  const lunchtime = daySchedule(state(), today, today, at('13:21'))
+  assert.equal(lunchtime.items[lunchtime.next].slot, 'lunch')
+  assert.deepEqual(lunchtime.items.map((i) => i.state), ['missed', 'now', 'later', 'later'])
+})
+
+test('a workout whose time has passed is never missed, and gives way to a meal that is due', () => {
+  const evening = daySchedule(state(), today, today, at('18:10'))
+  assert.equal(evening.items[evening.next].slot, 'dinner')
+  assert.deepEqual(evening.items.map((i) => i.state), ['missed', 'missed', 'later', 'now'])
+  // with only the workout due, the workout is the thing to do
+  const s = state()
+  const eaten = mealsFor(s, today).recipes.slice(0, 2).map((r, i) => ({ id: `f${i}`, date: today, meal: 'lunch' as const, name: r.recipe.title, serving: '1', qty: 1, kcal: 1, protein: 1, carbs: 1, fat: 1, source: 'search' as const, dataSource: 'recipe' as const }))
+  const afternoon = daySchedule(state([], { food: eaten }), today, today, at('17:05'))
+  assert.equal(afternoon.items[afternoon.next].slot, 'workout')
+  assert.equal(afternoon.items[afternoon.next].state, 'now')
+})
+
+test('markup is taken out of a reply before it is read aloud', () => {
+  assert.equal(plainText('# Right now\nEat the **lemon garlic chicken** now.\nDinner at **6:30 pm**.'), 'Right now\nEat the lemon garlic chicken now.\nDinner at 6:30 pm.')
+  assert.equal(plainText('Nothing to change here.'), 'Nothing to change here.')
 })

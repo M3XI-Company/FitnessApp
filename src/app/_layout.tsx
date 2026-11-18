@@ -25,6 +25,7 @@ export default function RootLayout() {
           <Stack.Screen name="form-check/[id]" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#0F2440' } }} />
           <Stack.Screen name="scanner" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#0F2440' } }} />
           <Stack.Screen name="plans" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="subscribe" options={{ presentation: 'modal' }} />
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />

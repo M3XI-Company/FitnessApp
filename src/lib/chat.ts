@@ -87,13 +87,24 @@ export function mealsFor(s: AppState, date: string): DayMeals {
 }
 
 export type ScheduleSlot = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'workout' | 'rest'
+/**
+ * How a step stands against the clock. `now` is the one thing to do at this
+ * moment and `next` is the first thing coming up when nothing is due yet;
+ * a `missed` meal is one whose time went by before a later step came due.
+ */
+export type StepState = 'done' | 'missed' | 'now' | 'next' | 'later'
 export interface ScheduleItem {
   slot: ScheduleSlot
   /** "HH:MM", or "" for a rest day, which has no time */
   time: string
   done: boolean
+  /** set for today only; every other day is `done` or `later` */
+  state: StepState
   recipe?: ComputedRecipe
 }
+
+/** A step counts as due from this many minutes before its time. */
+export const DUE_EARLY_MIN = 30
 
 /** Which meal slots a day's recipes fill, by how many there are. */
 const MEAL_SLOTS: Record<number, ScheduleSlot[]> = { 1: ['dinner'], 2: ['lunch', 'dinner'], 3: ['breakfast', 'lunch', 'dinner'], 4: ['breakfast', 'lunch', 'snack', 'dinner'] }
@@ -104,22 +115,38 @@ export const eatenOn = (s: AppState, date: string, r: ComputedRecipe) => s.food.
 /**
  * The day in the order it happens: each meal and the workout at its time
  * (the user's reminder times, or the defaults), with what is done ticked off.
- * `next` is the first thing still to do today, or -1 when everything is done
- * or the day is not today.
+ * `next` is the one step to do now: the latest step that has come due and is
+ * not done, or, when nothing is due yet, the first one coming up. It is -1
+ * when everything is done or the day is not today. A meal left undone before
+ * it is marked missed rather than still being asked for hours later.
  */
-export function daySchedule(s: AppState, date: string, today = todayKey()): { items: ScheduleItem[]; next: number } {
+export function daySchedule(s: AppState, date: string, today = todayKey(), now = new Date()): { items: ScheduleItem[]; next: number } {
   const times = sanitiseTimes(remindersOf(s).times)
   const meals = mealsFor(s, date)
   const workout = dayProgress(s, date)
   const slots = MEAL_SLOTS[Math.min(4, meals.recipes.length)] ?? []
   const at = (slot: ScheduleSlot) => (slot === 'snack' ? '16:00' : slot === 'rest' ? '' : times[slot])
-  const items: ScheduleItem[] = meals.recipes.slice(0, 4).map((recipe, i) => ({ slot: slots[i], time: at(slots[i]), done: eatenOn(s, date, recipe), recipe }))
-  items.push(workout.status === 'rest' ? { slot: 'rest', time: '', done: true } : { slot: 'workout', time: times.workout, done: workout.status === 'done' })
+  const state = (done: boolean): StepState => (done ? 'done' : 'later')
+  const items: ScheduleItem[] = meals.recipes.slice(0, 4).map((recipe, i) => { const done = eatenOn(s, date, recipe); return { slot: slots[i], time: at(slots[i]), done, state: state(done), recipe } })
+  items.push(workout.status === 'rest' ? { slot: 'rest', time: '', done: true, state: 'done' } : { slot: 'workout', time: times.workout, done: workout.status === 'done', state: state(workout.status === 'done') })
   // a rest day leads the row; everything else in time order
   items.sort((a, b) => (a.slot === 'rest' ? -1 : b.slot === 'rest' ? 1 : (parseTime(a.time) ?? 0) - (parseTime(b.time) ?? 0)))
-  const next = date === today ? items.findIndex((i) => !i.done && i.slot !== 'rest') : -1
+  if (date !== today) return { items, next: -1 }
+  const clock = now.getHours() * 60 + now.getMinutes()
+  const open = items.map((i, n) => (!i.done && i.slot !== 'rest' ? n : -1)).filter((n) => n >= 0)
+  const due = open.filter((n) => (parseTime(items[n].time) ?? 0) <= clock + DUE_EARLY_MIN)
+  // a meal that has come due takes over from an earlier one; a workout only leads when no meal is due
+  const dueMeals = due.filter((n) => items[n].slot !== 'workout')
+  const next = dueMeals.length ? dueMeals[dueMeals.length - 1] : due.length ? due[due.length - 1] : open.length ? open[0] : -1
+  if (next >= 0) {
+    items[next].state = due.includes(next) ? 'now' : 'next'
+    for (const n of dueMeals) if (n < next) items[n].state = 'missed'
+  }
   return { items, next }
 }
+
+/** Reply text with the light markup taken out, for reading aloud, copying and one-line previews. */
+export const plainText = (text: string) => text.replace(/^#{1,3}\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1')
 
 /** A meal plan as plain text with the ingredients for the portion to eat, ready to paste into notes or a message. */
 export function mealPlanText(days: Pick<DayMeals, 'date' | 'recipes' | 'portion'>[]): string {

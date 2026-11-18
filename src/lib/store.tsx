@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import type { Subscription } from './plan'
+import { setSpeakingVoice } from './voice'
 import type { AppState, ChatMessage, ChatThread, ReminderSettings, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
 import { addDays, todayKey, uid } from './date'
@@ -116,6 +118,9 @@ type Action =
   | { type: 'openChat'; id: string }
   | { type: 'deleteChat'; id: string }
   | { type: 'reminders'; reminders: ReminderSettings }
+  | { type: 'voice'; id: string }
+  | { type: 'subscription'; subscription?: Subscription }
+  | { type: 'dataChoice'; share: boolean }
   | { type: 'remember'; texts: string[] }
   | { type: 'forget'; ids: string[] }
   | { type: 'clearMemory' }
@@ -168,6 +173,9 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case 'deleteChat': return { ...s, threads: (s.threads ?? []).filter((t) => t.id !== a.id) }
     case 'reminders': return { ...s, reminders: a.reminders }
+    case 'voice': return { ...s, voice: a.id }
+    case 'subscription': return { ...s, subscription: a.subscription }
+    case 'dataChoice': return { ...s, dataChoice: { share: a.share, at: new Date().toISOString() } }
     case 'remember': return { ...s, memory: addMemories(s.memory ?? [], a.texts) }
     case 'forget': return { ...s, memory: forgetMemories(s.memory ?? [], a.ids) }
     case 'clearMemory': return { ...s, memory: [] }
@@ -213,6 +221,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true))
   }, [])
   useEffect(() => { if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {}) }, [state, ready])
+  // Breeze speaks in the voice the user chose, wherever in the app it speaks
+  useEffect(() => { setSpeakingVoice(state.voice) }, [state.voice])
 
   return <Ctx.Provider value={{ state, dispatch, ready }}>{children}</Ctx.Provider>
 }

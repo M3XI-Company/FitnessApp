@@ -8,6 +8,7 @@ import { askCoach, coachConfigured } from '../../lib/coachApi'
 import { todayKey, uid } from '../../lib/date'
 import { chatMood } from '../../lib/mood'
 import { elizaFallback, elizaHandle } from '../../lib/eliza'
+import { isPlus } from '../../lib/plan'
 import { easingIn } from '../../lib/progress'
 import { syncReminders } from '../../lib/notify'
 import { buildRoutine, dayProgress, routineStreak } from '../../lib/routine'
@@ -21,11 +22,15 @@ import { DayCard } from './DayCard'
 import { LiftingDumbbell } from './LiftingDumbbell'
 import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
+import { RichText } from './RichText'
 import { VoiceMode } from './VoiceMode'
 import { WorkoutGuide } from './WorkoutGuide'
 import { WorkoutPreview } from './WorkoutPreview'
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
+
+/** A plain ask to photograph food: "snap my meal", "take a picture of my lunch". */
+const SNAP = /\b(snap|photo|photograph|picture|pic|scan)\b.{0,24}\b(meal|food|plate|breakfast|lunch|dinner|snack)\b/i
 
 /** Older messages stay saved; only the recent ones are drawn. */
 const SHOWN = 60
@@ -47,6 +52,9 @@ export function Chat() {
   // what the coach is working out, shown while it works
   const [thought, setThought] = useState('')
   const [voice, setVoice] = useState(false)
+  // talking to Breeze out loud is part of Plus; on the free plan the same buttons show what Plus is
+  const plus = isPlus(state)
+  const talk = () => { tap(); if (plus) setVoice(true); else router.push({ pathname: '/subscribe', params: { why: 'voice' } }) }
   // the debrief after a session is spoken: the newest check-in opens the voice conversation once, and not again after it is closed or the app restarts
   const checkin = [...state.chat].reverse().find((m) => m.checkin)
   const [heard, setHeard] = useState(() => checkin?.id)
@@ -112,6 +120,8 @@ export function Chat() {
     if (!m || typing) return
     tap()
     setText('')
+    // asking to photograph a meal goes straight to the camera, with nothing to read on the way
+    if (SNAP.test(m) && !/^(can|could|how|why|what|does|do|is|will)\b/i.test(m)) { router.push('/food-photo'); return }
     respond(m)
   }
 
@@ -124,7 +134,7 @@ export function Chat() {
         <View style={{ flex: 1, alignItems: 'center' }}>
           {/* Breeze stays in view through the chat, its mood following the conversation */}
           {shown.length > 0 && (
-            <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" hitSlop={6}>
+            <Pressable onPress={talk} accessibilityLabel="Talk to Breeze" hitSlop={6}>
               <SkyOrb size={44} mode={typing ? 'thinking' : 'idle'} mood={mood} />
             </Pressable>
           )}
@@ -137,12 +147,12 @@ export function Chat() {
         {/* a new chat is empty: a greeting and today at a glance, nothing posted */}
         {!shown.length && (
           <View style={{ flex: 1, justifyContent: 'center', gap: 26, paddingBottom: 20 }}>
-            <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" style={{ alignItems: 'center', gap: 18 }}>
+            <Pressable onPress={talk} accessibilityLabel="Talk to Breeze" style={{ alignItems: 'center', gap: 18 }}>
               <SkyOrb size={200} mood={mood} />
               <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text style={[T.title2, { textAlign: 'center' }]}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
                 {!!yesterdayLine(state, today) && <Text style={[T.sub, { textAlign: 'center', color: C.text }]}>{yesterdayLine(state, today)}</Text>}
-                <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}Tap the breeze to talk, or type below.</Text>
+                <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}{plus ? 'Tap the breeze to talk, or type below.' : 'Type below to talk to Breeze.'}</Text>
               </View>
             </Pressable>
             <DayCard date={today} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
@@ -155,7 +165,9 @@ export function Chat() {
             <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : wide ? 'stretch' : 'flex-start', maxWidth: wide ? '100%' : '86%', gap: 8 }}>
               {!!m.text && (
                 <View style={[{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: wide ? '86%' : '100%', paddingVertical: 11, paddingHorizontal: 15, borderRadius: 20 }, mine ? { backgroundColor: C.night, borderBottomRightRadius: 6 } : { backgroundColor: '#fff', borderBottomLeftRadius: 6, ...shadow }]}>
-                  <Text selectable style={{ fontSize: 15, lineHeight: 21, color: mine ? C.cloud : C.text }}>{m.text}</Text>
+                  {mine
+                    ? <Text selectable style={{ fontSize: 15, lineHeight: 21, color: C.cloud }}>{m.text}</Text>
+                    : <RichText text={m.text} color={C.text} strong={C.night} />}
                 </View>
               )}
               {!!m.noted?.length && (
@@ -205,7 +217,7 @@ export function Chat() {
             </Pressable>
           )}
         </View>
-        <Pressable onPress={() => { tap(); setVoice(true) }} accessibilityLabel="Talk to Breeze" style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={talk} accessibilityLabel="Talk to Breeze" style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
           <Icon name="voice" size={24} color="#fff" />
         </Pressable>
       </View>

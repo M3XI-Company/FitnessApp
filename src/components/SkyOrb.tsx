@@ -7,15 +7,15 @@ import { MOODS, type Mood } from '../lib/mood'
 
 export type OrbMode = 'idle' | 'thinking' | 'speaking' | 'listening'
 
-/** The gusts in the orb: how high up each blows (0 top to 1 bottom), how long it is against the orb, which way its hook curls, and whether it is far off. */
+/** The streaks of wind in the orb: how high up each blows (0 top to 1 bottom), how long it is against the orb, and whether it is far off. */
 const GUSTS = [
-  { lane: 0.22, length: 0.56, up: true, far: false },
-  { lane: 0.5, length: 0.68, up: true, far: false },
-  { lane: 0.76, length: 0.54, up: false, far: false },
-  { lane: 0.36, length: 0.36, up: false, far: true },
-  { lane: 0.63, length: 0.4, up: true, far: true },
-  { lane: 0.88, length: 0.32, up: false, far: true },
-  { lane: 0.1, length: 0.3, up: true, far: true },
+  { lane: 0.3, length: 0.82, far: false },
+  { lane: 0.52, length: 1.05, far: false },
+  { lane: 0.72, length: 0.76, far: false },
+  { lane: 0.16, length: 0.6, far: true },
+  { lane: 0.42, length: 0.7, far: true },
+  { lane: 0.62, length: 0.64, far: true },
+  { lane: 0.86, length: 0.56, far: true },
 ]
 
 /** How hard the wind blows in each mode: it calms to listen and picks up to think and to speak. */
@@ -50,12 +50,10 @@ function launch(index: number, size: number, spread?: number): Flying {
   const scale = between(0.88, 1.14)
   const shape: Gust = {
     length: size * g.length * scale,
-    width: size * (g.far ? 0.026 : 0.046) * scale,
-    hook: size * (g.far ? 0.04 : 0.066) * scale,
-    turn: (g.up ? 1 : -1) * between(3.2, 3.9),
-    bend: between(0.42, 0.7),
-    swerve: size * between(0.03, 0.07),
-    ripples: between(0.8, 1.5),
+    width: size * (g.far ? 0.03 : 0.058) * scale,
+    bend: between(0.16, 0.3),
+    swerve: size * between(0.012, 0.03),
+    ripples: between(0.35, 0.6),
     phase: between(0, Math.PI * 2),
   }
   const start = -gustReach(shape)
@@ -64,15 +62,15 @@ function launch(index: number, size: number, spread?: number): Flying {
     x: spread === undefined ? start : start + (size - start) * spread,
     y: size * (g.lane + between(-0.06, 0.06)),
     // orb widths a second; far gusts are slower
-    speed: size * between(0.2, 0.36) * (g.far ? 0.55 : 1),
+    speed: size * between(0.26, 0.42) * (g.far ? 0.55 : 1),
   }
 }
 
 /**
- * Breeze's face: the app icon come to life. A round of clear blue with gusts
- * of wind blowing through it, and a mind of its own. The gusts are drawn
- * afresh every frame, so each one snakes and veers as it blows across and its
- * hook curls and uncurls; every crossing is a new gust; the wind keeps
+ * Breeze's face: the app icon come to life. A round of clear blue with long
+ * soft streaks of wind blowing through it, and a mind of its own. The streaks
+ * are drawn afresh every frame, so each one lies on the wind in a slow curve
+ * as it blows across; every crossing is a new streak; the wind keeps
  * changing direction; and the whole orb drifts about and now and then perks
  * up. It also says what is happening in a conversation: it calms and holds
  * still to listen and swells with the user's voice, whirls round while Breeze
@@ -199,8 +197,8 @@ export function SkyOrb({ size = 240, mode = 'idle', level = 0, mood = 'calm' }: 
         <Animated.View style={{ width: size, height: size, transform: [{ rotate: lean.interpolate({ inputRange: [-1, 1], outputRange: ['-16deg', '16deg'] }) }] }}>
           <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             {/* far gusts first, so the near ones pass in front */}
-            {GUSTS.map((g, i) => g.far && paths[i] ? <Path key={i} d={paths[i]} fill="#fff" opacity={0.34} /> : null)}
-            {GUSTS.map((g, i) => !g.far && paths[i] ? <Path key={i} d={paths[i]} fill="#fff" /> : null)}
+            {GUSTS.map((g, i) => g.far && paths[i] ? <Path key={i} d={paths[i]} fill="#fff" opacity={0.3} /> : null)}
+            {GUSTS.map((g, i) => !g.far && paths[i] ? <Path key={i} d={paths[i]} fill="#fff" opacity={0.95} /> : null)}
           </Svg>
         </Animated.View>
       </Animated.View>

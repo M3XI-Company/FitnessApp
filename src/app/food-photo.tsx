@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
@@ -68,6 +68,15 @@ export default function FoodPhoto() {
     }
   }
 
+  // the camera opens at once: someone logging a meal mid-session should not have to read a page and press a button first
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current || Platform.OS === 'web' || !photoScanConfigured()) return
+    opened.current = true
+    choose('camera')
+    // only ever on arrival
+  }, [])
+
   const update = (key: string, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)))
   const valueOf = (r: Row) => {
     const f = r.options[r.pick]
@@ -94,7 +103,7 @@ export default function FoodPhoto() {
           <>
             <Card style={{ alignItems: 'center', gap: 10, paddingVertical: 26 }}>
               <Icon name="camera-outline" size={44} color={C.accent} />
-              <Text style={[T.title3, { textAlign: 'center' }]}>Take a photo from above</Text>
+              <Text style={[T.title3, { textAlign: 'center' }]}>Photo from above</Text>
               <Text style={[T.sub, { textAlign: 'center', lineHeight: 19 }]}>Good light, the whole plate in frame, and a fork or hand nearby for scale helps the estimate.</Text>
             </Card>
             <Button title="Take photo" icon="camera" onPress={() => choose('camera')} disabled={!photoScanConfigured()} />
