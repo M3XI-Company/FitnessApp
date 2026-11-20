@@ -13,7 +13,7 @@ import { computeTargets } from '../lib/nutrition'
 import { WEEKDAYS, buildRoutine } from '../lib/routine'
 import { useStore } from '../lib/store'
 import type { Activity, GoalType, Profile, WeeklyRoutine } from '../lib/types'
-import { canListen, listen, speak, stopSpeaking, type Listening } from '../lib/voice'
+import { canListen, listen, listenOver, pause, speak, stopSpeaking, type Listening, type Overhearing } from '../lib/voice'
 import { C, T, shadow } from '../theme'
 import { SkyOrb, type OrbMode } from '../components/SkyOrb'
 import { VoiceBar } from '../components/VoiceBar'
@@ -56,6 +56,8 @@ export default function Welcome() {
   const turns = useRef<InterviewTurn[]>([])
   const alive = useRef(true)
   const ear = useRef<Listening | null>(null)
+  // the microphone left open while Breeze talks, so the person can cut in mid-question
+  const over = useRef<Overhearing | null>(null)
   const [mode, setMode] = useState<Mode>('thinking')
   const [line, setLine] = useState('')
   const [partial, setPartial] = useState('')
@@ -71,11 +73,12 @@ export default function Welcome() {
   const [draft, setDraft] = useState<Profile>(state.profile)
   const [missing, setMissing] = useState<ProfileField[]>([])
 
-  useEffect(() => () => { alive.current = false; ear.current?.cancel(); stopSpeaking() }, [])
+  useEffect(() => () => { alive.current = false; ear.current?.cancel(); over.current?.cancel(); stopSpeaking() }, [])
   useEffect(() => { typingRef.current = typing }, [typing])
 
   const toReview = useCallback((h: HeardProfile | undefined, n: string) => {
     ear.current?.cancel(); ear.current = null
+    over.current?.cancel(); over.current = null
     stopSpeaking()
     // a new user starts from a blank name, not the placeholder one
     const u = understand({ ...state.profile, name: state.profile.onboarded ? state.profile.name : '' }, h, n)
@@ -93,6 +96,7 @@ export default function Welcome() {
       say: (say) => {
         if (!alive.current || speaking) return
         setThought(''); setLine(say); setPartial(''); setMode('speaking')
+        overhear(say)
         speaking = speak(say)
       },
     })
@@ -102,10 +106,20 @@ export default function Welcome() {
     const r = res.reply
     turns.current.push({ role: 'coach', text: r.say })
     setLine(r.say); setPartial(''); setHeard(r.profile); setNotes(r.notes)
-    if (!speaking) { setMode('speaking'); speaking = speak(r.say) }
+    if (!speaking) { setMode('speaking'); overhear(r.say); speaking = speak(r.say) }
     await speaking
     if (!alive.current) return
-    if (r.done) { toReview(r.profile, r.notes); return }
+    const o = over.current
+    over.current = null
+    if (r.done) { o?.cancel(); toReview(r.profile, r.notes); return }
+    // talked over: Breeze has already stopped, and what was said is the answer
+    if (o?.cutIn()) {
+      const said = await o.said
+      if (!alive.current) return
+      if (said) answer(said); else hear()
+      return
+    }
+    if (o) { o.cancel(); await pause(250); if (!alive.current) return }
     hear()
     // `hear` and `answer` are stable for the life of the screen (they only touch refs and setters)
   }, [toReview]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,6 +130,12 @@ export default function Welcome() {
     turns.current.push({ role: 'user', text: said })
     setPartial(said); setTyped('')
     next()
+  }
+
+  /** Keep listening while Breeze says `say`: talking over it stops it mid-sentence. */
+  function overhear(say: string) {
+    over.current?.cancel()
+    over.current = typingRef.current ? null : listenOver(say, () => { stopSpeaking(); setLevel(0); setMode('listening') }, setPartial, setLevel)
   }
 
   function hear() {
@@ -202,7 +222,7 @@ export default function Welcome() {
   if (phase === 'talk') {
     return (
       <KeyboardAvoidingView style={[{ flex: 1, backgroundColor: '#F7F8FA' }, pad]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Pressable focusable={false} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 34 }} onPress={mode === 'speaking' ? interrupt : undefined} accessibilityLabel={mode === 'speaking' ? 'Breeze is speaking. Tap to skip ahead.' : undefined}>
+        <Pressable focusable={false} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 34 }} onPress={mode === 'speaking' ? interrupt : undefined} accessibilityLabel={mode === 'speaking' ? 'Breeze is speaking. Talk over it or tap to skip ahead.' : undefined}>
           <SkyOrb size={250} mode={ORB_MODE[mode]} level={level} />
           <View style={{ minHeight: 150, maxWidth: 340, gap: 12, alignItems: 'center' }}>
             {mode === 'thinking' ? (
@@ -221,7 +241,7 @@ export default function Welcome() {
         {error && error !== 'not_configured' && error !== 'monthly_limit' && (
           <Pressable onPress={() => next()} hitSlop={8} style={{ alignSelf: 'center', paddingVertical: 12 }}><Text style={{ color: C.accent, fontWeight: '600', fontSize: 15 }}>Try again</Text></Pressable>
         )}
-        <VoiceBar text={typed} onChangeText={setTyped} onSend={() => { stopSpeaking(); answer(typed) }} placeholder={hears ? 'Or type your answer' : 'Type your answer'} editable={mode !== 'thinking'}
+        <VoiceBar text={typed} onChangeText={setTyped} onSend={() => { over.current?.cancel(); over.current = null; stopSpeaking(); answer(typed) }} placeholder={hears ? 'Or type your answer' : 'Type your answer'} editable={mode !== 'thinking'}
           mic={!hears ? 'off' : mode === 'listening' ? 'listening' : mode === 'waiting' ? 'ready' : 'busy'}
           onMic={() => { setTyping(false); typingRef.current = false; if (mode === 'listening') ear.current?.stop(); else hear() }}
           onClose={() => toReview(heard, notes)} closeLabel="Finish the conversation" />
@@ -244,17 +264,31 @@ export default function Welcome() {
       <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
         <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={T.title1}>{editing ? 'Your details' : turns.current.length ? 'Here’s what I heard' : 'A few details'}</Text>
-          <Text style={[T.sub, { marginTop: -6 }]}>{editing ? 'Change anything that is out of date. Your targets are recalculated.' : !turns.current.length ? 'Set these and I will build your plan from them.' : missing.length ? 'I missed the ones marked. Set those, and fix anything I got wrong.' : 'Fix anything I got wrong.'}</Text>
+          <Text style={[T.sub, { marginTop: -6 }]}>{editing ? 'Keep your age, height and weight up to date and your targets are recalculated. Your goal and your week were set with Breeze.' : !turns.current.length ? 'Set these and I will build your plan from them.' : missing.length ? 'I missed the ones marked. Set those, and fix anything I got wrong.' : 'Fix anything I got wrong.'}</Text>
           <Field label="Name" flagged={flagged('name') || !draft.name.trim()}>
             <TextInput value={draft.name} onChangeText={(v) => set({ name: v })} placeholder="Your first name" placeholderTextColor={C.text3} autoCapitalize="words" style={{ flex: 1, textAlign: 'right', fontSize: 17, fontWeight: '600', color: C.text, minHeight: 36 }} />
           </Field>
           <Field label="Age" flagged={flagged('age')}><Stepper value={draft.age} step={1} min={MIN_AGE} suffix="yrs" onChange={(v) => set({ age: Math.max(MIN_AGE, Math.round(v)) })} /></Field>
           <Field label="Height" flagged={flagged('height')}><Stepper value={draft.heightCm} step={1} min={120} suffix="cm" onChange={(v) => set({ heightCm: v })} /></Field>
           <Field label="Weight" flagged={flagged('weight')}><Stepper value={draft.weightKg} step={0.5} min={35} suffix="kg" onChange={(v) => set({ weightKg: v })} /></Field>
-          <Field label="Calorie maths" flagged={flagged('sex')}><Choice value={draft.sex} options={[{ v: 'male', t: 'Male' }, { v: 'female', t: 'Female' }]} onChange={(sex) => set({ sex })} /></Field>
-          <Field label="Goal" flagged={flagged('goal')} stacked><Choice value={draft.goal} options={GOALS} onChange={(goal) => set({ goal, targetWeightKg: goal === 'lose' ? draft.weightKg - 5 : goal === 'gain' ? draft.weightKg + 4 : draft.weightKg })} /></Field>
-          {draft.goal !== 'maintain' && <Field label="Target weight"><Stepper value={draft.targetWeightKg} step={0.5} min={35} suffix="kg" onChange={(v) => set({ targetWeightKg: v })} /></Field>}
-          <Field label="Your week" flagged={flagged('activity')} stacked><Choice value={draft.activity} options={ACTIVITIES} onChange={(activity) => set({ activity })} /></Field>
+          {editing ? (
+            // set in the conversation with Breeze, and changed the same way, so a plan is never left built on a goal that was flipped by accident
+            <Card style={{ gap: 12 }}>
+              <Fixed label="Calorie maths" value={draft.sex === 'female' ? 'Female' : 'Male'} />
+              <Fixed label="Goal" value={GOALS.find((g) => g.v === draft.goal)?.t ?? ''} />
+              {draft.goal !== 'maintain' && <Fixed label="Target weight" value={`${draft.targetWeightKg} kg`} />}
+              <Fixed label="Your week" value={ACTIVITIES.find((a) => a.v === draft.activity)?.t ?? ''} />
+              <Text style={[T.caption, { lineHeight: 17 }]}>These were set when you talked to Breeze. To change them, talk it through again and your routine and meals are rebuilt to match.</Text>
+              <Button small variant="tinted" icon="sparkles-outline" title="Go through it again with Breeze" onPress={() => router.replace('/welcome')} />
+            </Card>
+          ) : (
+            <>
+              <Field label="Calorie maths" flagged={flagged('sex')}><Choice value={draft.sex} options={[{ v: 'male', t: 'Male' }, { v: 'female', t: 'Female' }]} onChange={(sex) => set({ sex })} /></Field>
+              <Field label="Goal" flagged={flagged('goal')} stacked><Choice value={draft.goal} options={GOALS} onChange={(goal) => set({ goal, targetWeightKg: goal === 'lose' ? draft.weightKg - 5 : goal === 'gain' ? draft.weightKg + 4 : draft.weightKg })} /></Field>
+              {draft.goal !== 'maintain' && <Field label="Target weight"><Stepper value={draft.targetWeightKg} step={0.5} min={35} suffix="kg" onChange={(v) => set({ targetWeightKg: v })} /></Field>}
+              <Field label="Your week" flagged={flagged('activity')} stacked><Choice value={draft.activity} options={ACTIVITIES} onChange={(activity) => set({ activity })} /></Field>
+            </>
+          )}
           {!!draft.notes && (
             <Card style={{ gap: 6 }}>
               <Text style={[T.caption, { fontWeight: '700', letterSpacing: 1 }]}>WHAT I&apos;LL REMEMBER</Text>
@@ -326,6 +360,15 @@ function Field({ label, flagged, stacked, children }: { label: string; flagged?:
       </View>
       {children}
     </Card>
+  )
+}
+
+function Fixed({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }} accessibilityLabel={`${label}: ${value}`}>
+      <Text style={T.headline}>{label}</Text>
+      <Text style={[T.body, { color: C.text2, fontWeight: '600' }]}>{value}</Text>
+    </View>
   )
 }
 

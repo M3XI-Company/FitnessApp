@@ -21,6 +21,7 @@ import { allRecipes, recipeById } from './recipes'
 import { daySchedule, mealsFor } from './chat'
 import { LIMITS } from './interview'
 import { tierOf } from './plan'
+import { intensityOf } from './intensity'
 import { postForOutcome } from './stream'
 import { MAX_MEMORY_CHARS, memoryForCoach, memoryOf } from './memory'
 import { isMood } from './mood'
@@ -60,6 +61,18 @@ interface ServerResult {
   mood?: string
 }
 
+/** The one thing a small chat is about: an exercise, a meal or a recipe the person has open. */
+export interface CoachTopic { kind: 'exercise' | 'meal' | 'recipe'; name: string; about: string }
+export interface AskOptions {
+  /** the thing the person has open and is asking about */
+  topic?: CoachTopic
+  /** a spoken conversation: answer at once, in a sentence or two */
+  spoken?: boolean
+}
+
+/** What the coach is told about the thing that is open, ahead of the question. */
+export const topicNote = (t: CoachTopic) => `(I have the ${t.kind} "${t.name}" open and my question is about it. Answer about this only, set out to be read: a short title, short lines, numbered steps where there is an order. Do not show a card or propose a plan. What the app says about it: ${t.about.slice(0, 700)})`
+
 /** What a reply asks the app to do to the coach's memory. Applied straight away: the user can see and delete it. */
 export interface MemoryChange { remember: string[]; forget: string[] }
 
@@ -76,6 +89,8 @@ export function coachContext(s: AppState) {
     daily_targets: s.targets,
     // free or plus: sets how hard the coach pushes
     plan: tierOf(s),
+    // the level the person chose for their training: steady, push or all_out
+    intensity: intensityOf(s),
     eaten_today: { kcal: Math.round(today.kcal), protein_g: Math.round(today.protein) },
     current_routine: WEEKDAYS.map((d) => ({ day: d, title: routine.days[d].title, ...(routine.days[d].style ? { style: routine.days[d].style } : {}), exercises: routine.days[d].items.map((i) => `${i.exerciseId} ${i.sets}x${i.reps}`) })),
     consistency: { workouts_last_7_days: workoutsThisWeek(s), routine_streak_days: routineStreak(s), sessions_logged: new Set(s.sets.map((x) => x.date)).size },
@@ -174,7 +189,7 @@ export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
 }
 
 /** Ask the connected coach. `chat` is the conversation so far, ending with the user's new message. */
-export async function askCoach(s: AppState, chat: ChatMessage[], onThinking?: (thinking: string) => void): Promise<{ ok: true; message: ChatMessage; memory: MemoryChange; remaining?: number } | { ok: false; error: CoachError; limit?: number }> {
+export async function askCoach(s: AppState, chat: ChatMessage[], onThinking?: (thinking: string) => void, opts: AskOptions = {}): Promise<{ ok: true; message: ChatMessage; memory: MemoryChange; remaining?: number } | { ok: false; error: CoachError; limit?: number }> {
   if (!coachConfigured()) return { ok: false, error: 'not_configured' }
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 120000)
@@ -183,8 +198,10 @@ export async function askCoach(s: AppState, chat: ChatMessage[], onThinking?: (t
       { 'Content-Type': 'application/json', apikey: ANON!, Authorization: `Bearer ${ANON}` },
       {
         device: await deviceId(),
-        messages: chat.slice(-HISTORY).map((m) => ({ role: m.role, text: m.text.slice(0, MAX_CHARS) })).filter((m) => m.text),
+        messages: chat.slice(-HISTORY).map((m, i, all) => ({ role: m.role, text: (i === all.length - 1 && opts.topic ? `${topicNote(opts.topic)}\n\n${m.text}` : m.text).slice(0, MAX_CHARS) })).filter((m) => m.text),
         context: coachContext(s),
+        ...(opts.topic ? { topic: { kind: opts.topic.kind, name: opts.topic.name.slice(0, 80), about: opts.topic.about.slice(0, 900) } } : {}),
+        ...(opts.spoken ? { spoken: true } : {}),
       },
       // the coach's thinking, as it happens
       (event, data) => { if (event === 'thinking' && typeof data.text === 'string') onThinking?.(data.text) },

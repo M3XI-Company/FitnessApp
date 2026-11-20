@@ -12,12 +12,19 @@ The app finds it through EXPO_PUBLIC_VOICE_URL (http://10.0.2.2:8790 from the
 Android emulator, http://<this computer's address>:8790 from a phone on the
 same Wi-Fi). The first run downloads the model (about 330 MB) and each voice.
 
+Hosted (voice/Dockerfile), it listens on $PORT and, when VOICE_KEY is set,
+answers /speak only for callers that send the same value in the x-voice-key
+header. The app does not hold that key: it asks the `speak` Supabase function,
+which does.
+
     POST /speak   {"text": "...", "voice": "bf_emma"}   ->  audio/wav
     GET  /health                                         ->  {"ok": true, "voices": [...]}
 """
 import argparse
+import hmac
 import io
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -30,6 +37,8 @@ MAX_CHARS = 1200
 # keep in step with src/lib/voices.ts
 VOICES = ['bf_emma', 'bf_isabella', 'bm_george', 'bm_fable', 'af_heart', 'af_bella', 'am_michael', 'am_puck']
 SAMPLE = "Hi, I'm Breeze. Lunch is lemon garlic chicken today, then upper body at five. Ready when you are."
+
+KEY = os.environ.get('VOICE_KEY', '')
 
 pipelines = {}
 lock = threading.Lock()  # one sentence at a time: the model is not safe to run from two threads at once
@@ -67,6 +76,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path != '/speak':
             return self.say(404, {'error': 'not_found'})
+        if KEY and not hmac.compare_digest(self.headers.get('x-voice-key', ''), KEY):
+            return self.say(401, {'error': 'unauthorised'})
         try:
             length = int(self.headers.get('Content-Length', '0'))
             if length <= 0 or length > 20000:
@@ -90,11 +101,15 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--port', type=int, default=8790)
+    ap.add_argument('--port', type=int, default=int(os.environ.get('PORT', '8790')))
+    ap.add_argument('--warm', action='store_true', help='download the model and every voice, then exit')
     ap.add_argument('--samples', help='write one clip per voice into this folder and exit')
     args = ap.parse_args()
-    if args.samples:
-        import os
+    if args.warm:
+        for v in VOICES:
+            wav('Ready.', v)
+        print('model and voices downloaded')
+    elif args.samples:
         os.makedirs(args.samples, exist_ok=True)
         for v in VOICES:
             path = os.path.join(args.samples, f'{v}.wav')

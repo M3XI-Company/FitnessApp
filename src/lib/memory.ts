@@ -44,3 +44,19 @@ export function notesToMemories(notes: string | undefined): string[] {
 
 /** What the coach is sent: the fact, the day it was noted, and an id it can use to forget it. */
 export const memoryForCoach = (s: AppState) => memoryOf(s).map((m) => ({ id: m.id, noted: m.at.slice(0, 10), text: m.text }))
+
+/** What a note is about, which is how the notes are set out for the person to read. */
+export type MemoryGroup = 'food' | 'training' | 'body' | 'life'
+export const MEMORY_GROUPS: { id: MemoryGroup; title: string; empty: string }[] = [
+  { id: 'food', title: 'Food and drink', empty: 'What you like, what you avoid and how you cook.' },
+  { id: 'training', title: 'Training', empty: 'What suits you, what you dislike and where you train.' },
+  { id: 'body', title: 'Your body', empty: 'Aches, injuries and how sessions have felt.' },
+  { id: 'life', title: 'Your life and goals', empty: 'Your week, what gets in the way and what you are aiming at.' },
+]
+const ABOUT: [MemoryGroup, RegExp][] = [
+  ['body', /\b(pain|painful|ache|aches|aching|sore|soreness|injur\w*|hurt\w*|twinge|strain\w*|sprain\w*|surgery|operation|physio\w*|posture|stiff\w*|tight\w*|shoulder|knee|knees|hip|hips|wrist|ankle|elbow|lower back|neck|asthma|diabet\w*|pregnan\w*|medication)\b/i],
+  ['food', /\b(eat|eats|eating|ate|food|foods|meal|meals|breakfast|lunch|dinner|snack\w*|cook\w*|recipe\w*|vegetarian|vegan|halal|kosher|allerg\w*|intoleran\w*|dairy|gluten|lactose|protein shake|coffee|tea|drink\w*|alcohol|sweet\w*|chocolate|dessert\w*|sugar|takeaway|fruit|vegetables?|meat|fish|chicken|rice|pasta|bread|spicy|calories)\b/i],
+  ['training', /\b(train\w*|workout\w*|session\w*|gym|exercise\w*|lift\w*|squat\w*|deadlift\w*|bench|press|curl\w*|row\w*|pull-?ups?|push-?ups?|run\w*|cardio|sets?|reps?|weights?|dumbbell\w*|barbell\w*|kettlebell\w*|machine\w*|equipment|strength|volume|warm-?up|stretch\w*|football|swim\w*|cycl\w*|yoga|too easy|too hard|too heavy)\b/i],
+]
+/** Which group a note belongs to, from its words. A note about an ache in a lift is about the body. */
+export const memoryGroup = (text: string): MemoryGroup => ABOUT.find(([, re]) => re.test(text))?.[0] ?? 'life'

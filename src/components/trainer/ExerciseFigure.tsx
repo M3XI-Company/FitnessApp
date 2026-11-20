@@ -7,6 +7,8 @@ import { tap } from '../ui'
 import { artMotion } from '../../lib/artMotion'
 import { MuscleMap } from '../MuscleMap'
 import { ArtMotion } from './ArtMotion'
+import { hasPattern } from './poses'
+import { Trainer3D } from './Trainer3D'
 
 /** Which build's figure an exercise is shown with: the user's own, or the other when only that exists. */
 function artBuild(exerciseId: string, sex?: string): 'male' | 'female' | undefined {
@@ -26,22 +28,16 @@ export function exerciseArt(exerciseId: string, sex?: string): number | undefine
  * How an exercise is shown: a figure in the style of the charts on gym
  * equipment, a man or a woman to match the user, with the muscles doing the
  * work lit in red and the ones helping in orange. A button sets the picture
- * itself moving. Exercises that have no chart figure yet show the muscles
- * they work on the body chart instead.
+ * itself moving. An exercise with no chart figure is shown by the 3D figure
+ * instead, which performs the whole rep and can be turned to any side.
  */
 export function ExerciseFigure({ exerciseId, sex, height }: { exerciseId: string; sex?: string; height?: number }) {
   const art = exerciseArt(exerciseId, sex)
   const [moving, setMoving] = useState(false)
   const build = artBuild(exerciseId, sex)
   const rig = build && artMotion(exerciseId, build)
-  if (!art) {
-    const works = worksFor(exerciseId)
-    return (
-      <View style={{ backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 14, height }}>
-        <MuscleMap primary={works.primary} secondary={works.secondary} gender={sex === 'female' ? 'female' : 'male'} />
-      </View>
-    )
-  }
+  // no poster for this one: the 3D figure does the whole movement, with the working muscles lit
+  if (!art) return hasPattern(exerciseId) ? <Trainer3D exerciseId={exerciseId} height={height ?? 300} /> : <MusclesOnly exerciseId={exerciseId} sex={sex} height={height} />
   return (
     // the box sets the size; left to itself the picture would be drawn at its own, larger than the screen
     <View style={{ width: '100%', aspectRatio: 1376 / 768, backgroundColor: '#fff' }}>
@@ -52,6 +48,15 @@ export function ExerciseFigure({ exerciseId, sex, height }: { exerciseId: string
         <Key color="#F08A24" label="Helping" />
       </View>
       {!!rig && <Swap label={moving ? 'Still' : 'See it move'} onPress={() => setMoving(!moving)} />}
+    </View>
+  )
+}
+
+function MusclesOnly({ exerciseId, sex, height }: { exerciseId: string; sex?: string; height?: number }) {
+  const works = worksFor(exerciseId)
+  return (
+    <View style={{ backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 14, height }}>
+      <MuscleMap primary={works.primary} secondary={works.secondary} gender={sex === 'female' ? 'female' : 'male'} />
     </View>
   )
 }

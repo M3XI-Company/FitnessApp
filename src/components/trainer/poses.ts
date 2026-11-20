@@ -118,6 +118,8 @@ export const EXERCISE_PATTERN: Record<string, keyof typeof PATTERNS> = {
   'kb-swing': 'kbSwing', burpee: 'burpee', goblet: 'gobletSquat', mountain: 'climbers',
 }
 
+/** True when the 3D figure has this exercise's own movement, not the stand-in. */
+export const hasPattern = (exerciseId: string) => !!EXERCISE_PATTERN[exerciseId]
 export const patternFor = (exerciseId: string): Pattern => PATTERNS[EXERCISE_PATTERN[exerciseId] ?? 'backSquat']
 
 const SIDE_KEYS: (keyof Side)[] = ['hip', 'knee', 'toe', 'shFlex', 'shAbd', 'elbow', 'hipAbd']

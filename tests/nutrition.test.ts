@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { amountFactor, computeTargets, dayTotals, fmt, makeEntry, nutritionFor, recipeNutrition, rescaleEntry, scaleMacros, sumMacros } from '../src/lib/nutrition'
+import { amountFactor, computeTargets, goalAdjustment, kcalFloor, proteinWeight, tdee, weeklyChangeKg, dayTotals, fmt, makeEntry, nutritionFor, recipeNutrition, rescaleEntry, scaleMacros, sumMacros } from '../src/lib/nutrition'
 import { searchCofid } from '../src/lib/foodDb'
 import type { FoodEntry, FoodItem, Macros, Profile } from '../src/lib/types'
 
@@ -84,8 +84,30 @@ test('targets are internally consistent and never below 1,200 kcal', () => {
   const base: Profile = { name: 'T', sex: 'female', age: 30, heightCm: 165, weightKg: 62, targetWeightKg: 58, activity: 'moderate', goal: 'lose', onboarded: true }
   for (const p of [base, { ...base, sex: 'male' as const, weightKg: 90, goal: 'gain' as const }, { ...base, weightKg: 45, heightCm: 150, activity: 'sedentary' as const, age: 60 }]) {
     const t = computeTargets(p)
-    assert.ok(t.kcal >= 1200)
+    assert.ok(t.kcal >= kcalFloor(p))
     const fromMacros = t.protein * 4 + t.carbs * 4 + t.fat * 9
     assert.ok(Math.abs(fromMacros - t.kcal) / t.kcal < 0.03 || t.carbs === 50, `macros ${fromMacros} vs ${t.kcal}`)
   }
+})
+
+test('a deficit is never a crash diet, and a man is never set below 1,500 kcal', () => {
+  const small: Profile = { name: 'T', sex: 'female', age: 62, heightCm: 150, weightKg: 46, targetWeightKg: 44, activity: 'sedentary', goal: 'lose', onboarded: true }
+  // a fifth of a small person's maintenance is less than 500
+  assert.ok(-goalAdjustment(small) < 500 && -goalAdjustment(small) <= tdee(small) * 0.2 + 1)
+  assert.equal(computeTargets(small).kcal >= 1200, true)
+  const man: Profile = { ...small, sex: 'male', heightCm: 160, weightKg: 52 }
+  assert.ok(computeTargets(man).kcal >= 1500)
+  const big: Profile = { ...small, sex: 'male', age: 30, heightCm: 180, weightKg: 95, activity: 'moderate' }
+  assert.equal(goalAdjustment(big), -500)
+  // 500 kcal a day under is about half a kilo a week
+  assert.ok(Math.abs(weeklyChangeKg(big) + 0.45) <= 0.06, String(weeklyChangeKg(big)))
+  assert.equal(weeklyChangeKg({ ...big, goal: 'maintain' }), 0)
+})
+
+test('protein follows lean mass: weight above a body mass index of 30 is not counted', () => {
+  const p: Profile = { name: 'T', sex: 'male', age: 40, heightCm: 175, weightKg: 130, targetWeightKg: 100, activity: 'light', goal: 'lose', onboarded: true }
+  assert.ok(proteinWeight(p) < 93 && proteinWeight(p) > 91)
+  assert.equal(computeTargets(p).protein, Math.round(proteinWeight(p) * 2))
+  assert.equal(proteinWeight({ weightKg: 70, heightCm: 175 }), 70)
+  assert.equal(computeTargets({ ...p, weightKg: 70, goal: 'maintain' }).protein, 112)
 })

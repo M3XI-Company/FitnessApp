@@ -80,7 +80,7 @@ export function Chat() {
   useEffect(() => { const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80); return () => clearTimeout(t) }, [state.chat.length, typing, thought])
 
   /** Send what the user said and resolve with Breeze's reply; used by typing and by voice. */
-  const respond = (m: string, onThinking?: (thought: string) => void) => new Promise<ChatMessage>((resolve) => {
+  const respond = (m: string, onThinking?: (thought: string) => void, spoken = false) => new Promise<ChatMessage>((resolve) => {
     // a full chat takes no more: said out loud in voice mode, and shown in place of the message box
     if (full) { resolve({ id: uid(), role: 'coach', text: CHAT_FULL_TEXT }); return }
     const user: ChatMessage = { id: uid(), role: 'user', text: m }
@@ -103,7 +103,7 @@ export function Chat() {
       answer(notice ? { ...message, text: `${notice}\n\n${message.text}` } : message)
     }
     if (!coachConfigured()) { setTimeout(() => local(), 500); return }
-    askCoach(state, [...state.chat, user], (thinking) => { const l = thinkingLine(thinking); setThought(l); onThinking?.(l) }).then((res) => {
+    askCoach(state, [...state.chat, user], (thinking) => { const l = thinkingLine(thinking); setThought(l); onThinking?.(l) }, { spoken }).then((res) => {
       if (res.ok) {
         // the coach's memory is updated straight away; what it noted is shown under the reply
         if (res.memory.forget.length) dispatch({ type: 'forget', ids: res.memory.forget })
@@ -143,7 +143,7 @@ export function Chat() {
         <IconButton icon="sliders" size={44} onPress={() => router.push('/settings')} label="Settings" />
       </View>
 
-      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 14, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* a new chat is empty: a greeting and today at a glance, nothing posted */}
         {!shown.length && (
           <View style={{ flex: 1, justifyContent: 'center', gap: 26, paddingBottom: 20 }}>
@@ -160,18 +160,20 @@ export function Chat() {
         )}
         {shown.map((m) => {
           const mine = m.role === 'user'
-          const wide = !!(m.day || m.guide || m.preview || m.routine || m.meals || m.workout || m.reminders || m.details)
           return (
-            <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : wide ? 'stretch' : 'flex-start', maxWidth: wide ? '100%' : '86%', gap: 8 }}>
-              {!!m.text && (
-                <View style={[{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: wide ? '86%' : '100%', paddingVertical: 11, paddingHorizontal: 15, borderRadius: 20 }, mine ? { backgroundColor: C.night, borderBottomRightRadius: 6 } : { backgroundColor: '#fff', borderBottomLeftRadius: 6, ...shadow }]}>
-                  {mine
-                    ? <Text selectable style={{ fontSize: 15, lineHeight: 21, color: C.cloud }}>{m.text}</Text>
-                    : <RichText text={m.text} color={C.text} strong={C.night} />}
+            // what the user said is a bubble on the right; what Breeze says is set out across the page to be read, not squeezed into a bubble
+            <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'stretch', maxWidth: mine ? '86%' : '100%', gap: 10, marginTop: mine ? 6 : 0 }}>
+              {!!m.text && (mine ? (
+                <View style={{ paddingVertical: 11, paddingHorizontal: 16, borderRadius: 22, borderBottomRightRadius: 6, backgroundColor: C.night }}>
+                  <Text selectable style={{ fontSize: 16, lineHeight: 23, color: C.cloud }}>{m.text}</Text>
                 </View>
-              )}
+              ) : (
+                <View style={{ paddingHorizontal: 6, paddingVertical: 4 }}>
+                  <RichText text={m.text} color={C.text} strong={C.night} />
+                </View>
+              ))}
               {!!m.noted?.length && (
-                <Pressable onPress={() => { tap(); router.push('/memory') }} accessibilityLabel={`Noted: ${m.noted.join('. ')}. Open what Breeze remembers.`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 6, maxWidth: '86%' }}>
+                <Pressable onPress={() => { tap(); router.push('/memory') }} accessibilityLabel={`Noted: ${m.noted.join('. ')}. Open what Breeze remembers.`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 6 }}>
                   <Icon name="bookmark-outline" size={14} color={C.text3} />
                   <Text style={[T.caption, { flex: 1, lineHeight: 17 }]}>Noted: {m.noted.join(' ')}</Text>
                 </Pressable>
@@ -188,12 +190,12 @@ export function Chat() {
           )
         })}
         {typing && (
-          <View accessibilityLabel={thought ? `Breeze is thinking: ${thought}` : 'Breeze is thinking'} style={{ alignSelf: 'flex-start', maxWidth: '86%', backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 6, paddingVertical: 11, paddingHorizontal: 15, gap: 4, ...shadow }}>
+          <View accessibilityLabel={thought ? `Breeze is thinking: ${thought}` : 'Breeze is thinking'} style={{ alignSelf: 'stretch', paddingHorizontal: 6, paddingVertical: 4, gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <LiftingDumbbell />
               <Text style={{ color: C.accent, fontWeight: '700', fontSize: 12, letterSpacing: 0.6 }}>THINKING</Text>
             </View>
-            {!!thought && <Text style={{ fontSize: 14, lineHeight: 19, color: C.text2, fontStyle: 'italic' }}>{thought}</Text>}
+            {!!thought && <Text style={{ fontSize: 15, lineHeight: 22, color: C.text2 }}>{thought}</Text>}
           </View>
         )}
       </ScrollView>
@@ -222,7 +224,7 @@ export function Chat() {
         </Pressable>
       </View>
       )}
-      {(voice || !!debrief) && <VoiceMode onClose={() => { setVoice(false); setHeard(checkin?.id) }} respond={respond} mood={mood} opening={debrief} />}
+      {(voice || !!debrief) && <VoiceMode onClose={() => { setVoice(false); setHeard(checkin?.id) }} respond={(said, onThinking) => respond(said, onThinking, true)} mood={mood} opening={debrief} />}
     </KeyboardAvoidingView>
   )
 }

@@ -21,16 +21,45 @@ export const bmr = (p: Profile) =>
 
 export const tdee = (p: Profile) => bmr(p) * ACTIVITY_FACTOR[p.activity]
 
+/** Energy in a kilogram of body fat, the figure the NHS and dietitians use to turn a daily deficit into a weekly loss. */
+export const KCAL_PER_KG = 7700
+/** The lowest daily intake the app will set: the NHS weight-loss plan's figures for women and men. */
+export const kcalFloor = (p: Pick<Profile, 'sex'>) => (p.sex === 'male' ? 1500 : 1200)
+
+/**
+ * How far from maintenance the goal moves the day's calories. Losing: 500 kcal
+ * under, but never more than a fifth of maintenance, so a small person is not
+ * given a crash diet. Gaining: 300 over, enough to build on without piling on fat.
+ */
+export function goalAdjustment(p: Profile): number {
+  if (p.goal === 'gain') return 300
+  if (p.goal !== 'lose') return 0
+  return -Math.min(500, Math.round(tdee(p) * 0.2))
+}
+
+/**
+ * The body weight protein is worked out from. Protein needs follow lean mass,
+ * so above a body mass index of 30 the extra weight is not counted.
+ */
+export const proteinWeight = (p: Pick<Profile, 'weightKg' | 'heightCm'>) => Math.min(p.weightKg, 30 * (p.heightCm / 100) ** 2)
+/** Grams of protein per kilogram: 1.6 covers muscle growth in people who train (Morton et al., 2018); 2.0 protects muscle in a deficit. */
+const proteinPerKg = (p: Pick<Profile, 'goal'>) => (p.goal === 'lose' ? 2.0 : p.goal === 'gain' ? 1.8 : 1.6)
+
+/** Kilograms a week the calorie target is expected to move body weight: negative when losing. */
+export const weeklyChangeKg = (p: Profile, kcal = computeTargets(p).kcal) => (Math.round((((kcal - tdee(p)) * 7) / KCAL_PER_KG) * 20) || 0) / 20
+
 /** Human-readable assumptions behind the calculated targets (shown in the app) */
 export function targetAssumptions(p: Profile) {
   const b = Math.round(bmr(p)), m = Math.round(tdee(p))
-  const adj = p.goal === 'lose' ? -500 : p.goal === 'gain' ? 300 : 0
+  const kcal = computeTargets(p).kcal
+  const adj = kcal - Math.round(m / 10) * 10
+  const weekly = Math.abs(weeklyChangeKg(p, kcal))
   return [
-    `Resting energy (Mifflin–St Jeor): ${b} kcal from your sex, age, height and weight.`,
+    `Resting energy (Mifflin–St Jeor equation): ${b} kcal from your sex, age, height and weight.`,
     `× ${ACTIVITY_FACTOR[p.activity]} for your activity level = ${m} kcal to maintain your weight.`,
-    adj ? `${adj > 0 ? '+' : '−'}${Math.abs(adj)} kcal a day to ${p.goal === 'lose' ? 'lose about 0.5 kg a week' : 'support gradual muscle gain'}${adj < 0 ? ' (never below 1,200 kcal)' : ''}.` : 'No surplus or deficit, to maintain your weight.',
-    `Protein ${p.goal === 'maintain' ? '1.6' : '2.0'} g per kg of body weight; fat about 27% of calories; carbohydrates make up the rest.`,
-    'Water: about 35 ml per kg of body weight.',
+    adj ? `${adj > 0 ? '+' : '−'}${Math.abs(adj)} kcal a day to ${p.goal === 'lose' ? `lose about ${weekly} kg a week` : `gain about ${weekly} kg a week`}${adj < 0 ? ` (never below ${kcalFloor(p).toLocaleString('en-GB')} kcal)` : ''}.` : 'No surplus or deficit, to maintain your weight.',
+    `Protein ${proteinPerKg(p).toFixed(1)} g per kg of body weight${proteinWeight(p) < p.weightKg ? ' (counted up to a body mass index of 30)' : ''}; fat about 27% of calories; carbohydrates make up the rest.`,
+    'Water: about 35 ml per kg of body weight, from drinks and food together.',
     'These are estimates for healthy adults, not medical advice. Adjust them, or ask a dietitian if you have a health condition.',
   ]
 }
@@ -39,10 +68,8 @@ export function targetAssumptions(p: Profile) {
 export const effectiveTargets = (p: Profile, custom?: Partial<Targets>): Targets => ({ ...computeTargets(p), ...custom })
 
 export const computeTargets = (p: Profile): Targets => {
-  const maintenance = tdee(p)
-  const adj = p.goal === 'lose' ? -500 : p.goal === 'gain' ? 300 : 0
-  const kcal = Math.max(1200, Math.round((maintenance + adj) / 10) * 10)
-  const protein = Math.round(p.weightKg * (p.goal === 'maintain' ? 1.6 : 2.0))
+  const kcal = Math.max(kcalFloor(p), Math.round((tdee(p) + goalAdjustment(p)) / 10) * 10)
+  const protein = Math.round(proteinWeight(p) * proteinPerKg(p))
   const fat = Math.round((kcal * 0.27) / 9)
   const carbs = Math.max(50, Math.round((kcal - protein * 4 - fat * 9) / 4))
   const waterMl = Math.round((p.weightKg * 35) / 250) * 250

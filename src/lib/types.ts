@@ -225,6 +225,10 @@ export interface AppState {
   chatDay?: string
   /** earlier conversations, newest first */
   threads?: ChatThread[]
+  /** the small conversations kept with one exercise, meal or recipe, by topic id ("exercise:squat") */
+  topicChats?: Record<string, ChatMessage[]>
+  /** how hard the plan pushes (lib/intensity); steady when absent */
+  intensity?: import('./intensity').Intensity
   /** what the coach remembers about the user between conversations, newest first */
   memory?: MemoryItem[]
   /** meal and workout reminders; off until the user turns them on */

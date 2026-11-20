@@ -7,6 +7,7 @@ import { fitFor, recipeById, scaledGrams, TAG_LABEL } from '../../lib/recipes'
 import { dayTotals, fmt, makeEntry, nutritionFor, remainingOf } from '../../lib/nutrition'
 import { defaultMeal, mealLabel, useMeals } from '../../lib/meals'
 import { SOURCES } from '../../lib/sources'
+import { TopicChat } from '../../components/chat/TopicChat'
 import { todayKey, uid } from '../../lib/date'
 import { C, T } from '../../theme'
 import { Button, Card, Icon, IconButton, Pill, Segmented, Stepper, success, tap } from '../../components/ui'
@@ -42,7 +43,7 @@ export default function RecipeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 + insets.bottom }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16 }}>
           <RecipeCover c={c} size="hero" />
           <View style={{ position: 'absolute', top: insets.top + 20, right: 28 }}><IconButton icon="close" onPress={() => router.back()} label="Close" /></View>
@@ -119,6 +120,10 @@ export default function RecipeScreen() {
             </View>
           )}
           <Text style={[T.caption, { lineHeight: 16 }]}>{SOURCES.recipe.attribution} Recipe by Breeze; not yet reviewed by a registered nutritionist.</Text>
+          <View style={{ marginTop: 18 }}>
+            <TopicChat id={`recipe:${c.recipe.id}`} topic={{ kind: 'recipe', name: c.recipe.title, about: `${c.recipe.description} One serving: ${Math.round(per.kcal)} kcal, ${Math.round(per.protein)} g protein, ${Math.round(per.carbs)} g carbohydrate, ${Math.round(per.fat)} g fat. Steps: ${c.recipe.steps.map((s) => s.text).join(' ')}` }}
+              ask={['What can I swap if I am missing an ingredient?', 'How do I make this higher in protein?', 'Can I make it ahead and keep it?']} />
+          </View>
         </View>
       </ScrollView>
 

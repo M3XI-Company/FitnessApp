@@ -10,7 +10,9 @@ import { prettyDate, todayKey, uid } from '../../lib/date'
 import { e1rm, round } from '../../lib/nutrition'
 import { C, T, G, shadow } from '../../theme'
 import { Button, Card, Icon, LineChart, SectionHeader, SheetHeader, success, tap } from '../../components/ui'
-import { ExerciseFigure, exerciseArt } from '../../components/trainer/ExerciseFigure'
+import { ExerciseFigure } from '../../components/trainer/ExerciseFigure'
+import { TopicChat } from '../../components/chat/TopicChat'
+import { guideFor } from '../../data/exerciseGuide'
 import { RestTimer } from '../../components/RestTimer'
 import { supportsForm } from '../../lib/form/engine'
 
@@ -29,6 +31,7 @@ export default function ExerciseDetail() {
   const { id, pr: prFlag } = useLocalSearchParams<{ id: string; pr?: string }>()
   const { state, dispatch } = useStore()
   const ex = exerciseById(id)
+  const guide = ex && guideFor(ex.id)
   // today's advice comes from earlier sessions only, so it stays the same while today's sets are ticked off
   const before = useMemo(() => ({ ...state, sets: state.sets.filter((x) => x.date !== todayKey()) }), [state])
   const target = ex ? nextTarget(before, ex.id) : null
@@ -61,18 +64,30 @@ export default function ExerciseDetail() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SheetHeader title={ex.name} onClose={() => router.back()} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {/* facts about the exercise, written as a plain line so they are not mistaken for buttons */}
         <Text style={[T.caption, { marginBottom: 14, lineHeight: 18 }]} accessibilityLabel={`Works the ${ex.muscle.toLowerCase()}. Equipment: ${ex.equipment}. Level: ${ex.level}.`}>
           Works <Text style={{ color: MUSCLE_COLOR[ex.muscle], fontWeight: '700' }}>{ex.muscle}</Text>  ·  Equipment <Text style={{ color: C.text, fontWeight: '600' }}>{ex.equipment}</Text>  ·  Level <Text style={{ color: C.text, fontWeight: '600' }}>{ex.level}</Text>
         </Text>
 
         {/* the picture of the exercise, where there is one; the body chart below covers the rest */}
-        {!!exerciseArt(ex.id, state.profile.sex) && (
-          <>
-            <View style={{ borderRadius: 22, overflow: 'hidden' }}><ExerciseFigure exerciseId={ex.id} sex={state.profile.sex} /></View>
-            <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only — move within a comfortable range and stop if you feel pain.</Text>
-          </>
+        <View style={{ borderRadius: 22, overflow: 'hidden' }}><ExerciseFigure exerciseId={ex.id} sex={state.profile.sex} /></View>
+        <Text style={[T.caption, { marginTop: 8, marginBottom: 14, lineHeight: 16 }]}>Demonstration only. Move within a comfortable range and stop if you feel pain.</Text>
+        {!!guide && (
+          <Card style={{ marginBottom: 14, gap: 12 }}>
+            <Text style={[T.body, { fontSize: 17, lineHeight: 26 }]}>{guide.what}</Text>
+            <Text style={T.title3}>How to do it</Text>
+            {guide.steps.map((step, i) => (
+              <View key={step} style={{ flexDirection: 'row', gap: 10 }}>
+                <Text style={[T.body, { fontSize: 17, lineHeight: 26, fontWeight: '800', color: C.night, minWidth: 20 }]}>{i + 1}.</Text>
+                <Text style={[T.body, { flex: 1, fontSize: 17, lineHeight: 26 }]}>{step}</Text>
+              </View>
+            ))}
+            <Text style={T.title3}>Watch out for</Text>
+            <Text style={[T.body, { fontSize: 17, lineHeight: 26 }]}>{guide.avoid}</Text>
+            <Text style={T.title3}>To make it easier</Text>
+            <Text style={[T.body, { fontSize: 17, lineHeight: 26 }]}>{guide.easier}</Text>
+          </Card>
         )}
         <Card style={{ marginBottom: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="muscle" size={20} color={C.accent} /><Text style={T.title3}>Muscles worked</Text></View>
@@ -169,6 +184,10 @@ export default function ExerciseDetail() {
               <Text style={[T.sub, T.num, { marginTop: 2 }]}>{all.filter((s) => s.date === d).map((s) => `${s.weight ? s.weight + '×' : ''}${s.reps}`).join('   ')}</Text>
             </Card>
           ))}
+        </View>
+        <View style={{ marginTop: 26 }}>
+          <TopicChat id={`exercise:${ex.id}`} topic={{ kind: 'exercise', name: ex.name, about: guide ? `${guide.what} Steps: ${guide.steps.join(' ')} Common mistake: ${guide.avoid} Easier: ${guide.easier}` : ex.cues.join('. ') }}
+            ask={['Where should I feel this?', 'What can I do instead if the kit is taken?', 'Is this safe for my back and knees?']} />
         </View>
       </ScrollView>
     </View>

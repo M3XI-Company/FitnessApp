@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useStore } from '../lib/store'
 import { prettyDate } from '../lib/date'
@@ -11,8 +11,10 @@ import { C, T } from '../theme'
 import { signOut, useSession } from '../lib/auth'
 import { SkyOrb } from '../components/SkyOrb'
 import { PLUS, isPlus, sharesData } from '../lib/plan'
+import { INTENSITIES, intensityNote, intensityOf } from '../lib/intensity'
+import { weeklyChangeKg } from '../lib/nutrition'
 import { VoicePicker } from '../components/VoicePicker'
-import { Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader } from '../components/ui'
+import { Button, Card, Icon, IconTile, List, Row, SectionHeader, SheetHeader, tap } from '../components/ui'
 
 const chevron = <Icon name="chevron-forward" size={16} color={C.text3} />
 
@@ -28,6 +30,8 @@ export default function Settings() {
   // changes made here reach the phone straight away, not only when the chat is next shown
   useEffect(() => { syncReminders(state) }, [state])
   const goal = p.goal === 'lose' ? 'Lose weight' : p.goal === 'gain' ? 'Build muscle' : 'Maintain'
+  // what the calorie target in use is expected to do to body weight, in kilograms a week
+  const weekly = weeklyChangeKg(p, state.targets.kcal)
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -37,16 +41,36 @@ export default function Settings() {
           <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,.14)', alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkles" size={22} color={C.skyLight} /></View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={[T.headline, { color: C.cloud, fontSize: 17 }]}>Talk it through with Breeze</Text>
-            <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 13.5, lineHeight: 18 }}>Changed goal, new schedule, something hurting, meals not working: say it and your plan is updated.</Text>
+            <Text style={{ color: 'rgba(255,255,255,.8)', fontSize: 13.5, lineHeight: 18 }}>Go through your set-up again out loud. Changed goal, new schedule, something hurting, food you like: say it and your plan is rebuilt.</Text>
           </View>
           <Icon name="chevron-forward" size={16} color={C.skyLight} />
         </Card>
 
         <List style={{ marginTop: 12 }}>
           <Row first left={<IconTile icon="bookmark-outline" />} title="What Breeze remembers" subtitle={remembered ? `${remembered} note${remembered === 1 ? '' : 's'} from your conversations` : 'Nothing yet'} onPress={() => router.push('/memory')} right={chevron} />
-          <Row left={<IconTile icon="body" />} title="Your details" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg · ${goal}`} onPress={() => router.push({ pathname: '/welcome', params: { edit: '1' } })} right={chevron} />
+          <Row left={<IconTile icon="body" />} title="Your details" subtitle={`${p.age} yrs · ${p.heightCm} cm · ${p.weightKg} kg · ${goal}. Update your age, height and weight`} onPress={() => router.push({ pathname: '/welcome', params: { edit: '1' } })} right={chevron} />
           <Row left={<IconTile icon="trophy-outline" />} title="Progress and targets" subtitle={`${state.targets.kcal} kcal · ${state.targets.protein} g protein a day`} onPress={() => router.push('/profile')} right={chevron} />
         </List>
+
+        <SectionHeader title="How hard Breeze pushes" />
+        <Card style={{ gap: 10 }}>
+          {INTENSITIES.map((level) => {
+            const on = intensityOf(state) === level.id
+            const locked = level.plus && !isPlus(state)
+            return (
+              <Pressable key={level.id} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${level.name}. ${level.note}${locked ? ' Part of Breeze Plus.' : ''}`}
+                onPress={() => { tap(); if (locked) router.push('/subscribe'); else dispatch({ type: 'intensity', level: level.id }) }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, borderWidth: 2, borderColor: on ? C.accent : 'transparent', backgroundColor: on ? C.accentSoft : C.fill }}>
+                <Icon name={on ? 'checkmark-circle' : locked ? 'lock-closed' : 'ellipse-outline'} size={22} color={on ? C.accent : C.text3} />
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={T.headline}>{level.name}{locked ? ' · Plus' : ''}</Text>
+                  <Text style={[T.caption, { lineHeight: 17 }]}>{level.note}</Text>
+                </View>
+              </Pressable>
+            )
+          })}
+          <Text style={[T.caption, { lineHeight: 17 }]}>{intensityNote(intensityOf(state))} {weekly ? `At ${state.targets.kcal} kcal a day you should ${weekly < 0 ? 'lose' : 'gain'} about ${Math.abs(weekly)} kg a week.` : `At ${state.targets.kcal} kcal a day your weight should hold steady.`} Strength usually rises week to week when you are new to it; visible muscle takes months.</Text>
+        </Card>
 
         <SectionHeader title="Home gym" />
         <List>

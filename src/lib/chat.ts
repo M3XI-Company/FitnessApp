@@ -146,7 +146,7 @@ export function daySchedule(s: AppState, date: string, today = todayKey(), now =
 }
 
 /** Reply text with the light markup taken out, for reading aloud, copying and one-line previews. */
-export const plainText = (text: string) => text.replace(/^#{1,3}\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1')
+export const plainText = (text: string) => text.replace(/^#{1,3}\s+/gm, '').replace(/^[-•]\s+/gm, '').replace(/\*\*(.+?)\*\*/g, '$1')
 
 /** A meal plan as plain text with the ingredients for the portion to eat, ready to paste into notes or a message. */
 export function mealPlanText(days: Pick<DayMeals, 'date' | 'recipes' | 'portion'>[]): string {

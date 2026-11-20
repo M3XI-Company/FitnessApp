@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Subscription } from './plan'
+import type { Intensity } from './intensity'
 import { setSpeakingVoice } from './voice'
 import type { AppState, ChatMessage, ChatThread, ReminderSettings, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
@@ -89,6 +90,9 @@ const initialState = () => (DEMO_BY_DEFAULT ? withDemo(emptyState()) : emptyStat
 
 /** How many earlier conversations are kept */
 const MAX_THREADS = 40
+/** How many exercise and meal conversations are kept, and how long each may grow */
+const MAX_TOPICS = 40
+const MAX_TOPIC_MESSAGES = 30
 
 /** The saved conversations with the one in progress put away at the front. An empty conversation is not kept. */
 function shelve(s: AppState): ChatThread[] {
@@ -117,6 +121,9 @@ type Action =
   | { type: 'newChat' }
   | { type: 'openChat'; id: string }
   | { type: 'deleteChat'; id: string }
+  | { type: 'topicChat'; id: string; messages: ChatMessage[] }
+  | { type: 'clearTopicChat'; id: string }
+  | { type: 'intensity'; level: Intensity }
   | { type: 'reminders'; reminders: ReminderSettings }
   | { type: 'voice'; id: string }
   | { type: 'subscription'; subscription?: Subscription }
@@ -172,6 +179,14 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, chat: target.messages, chatId: target.id, threads: shelve(s).filter((t) => t.id !== a.id) }
     }
     case 'deleteChat': return { ...s, threads: (s.threads ?? []).filter((t) => t.id !== a.id) }
+    case 'topicChat': {
+      // the topic just spoken in goes to the end, so when there are too many the ones left longest are let go
+      const { [a.id]: mine = [], ...others } = s.topicChats ?? {}
+      const kept = Object.entries(others).slice(-(MAX_TOPICS - 1))
+      return { ...s, topicChats: { ...Object.fromEntries(kept), [a.id]: [...mine, ...a.messages].slice(-MAX_TOPIC_MESSAGES) } }
+    }
+    case 'clearTopicChat': { const { [a.id]: _gone, ...others } = s.topicChats ?? {}; return { ...s, topicChats: others } }
+    case 'intensity': return { ...s, intensity: a.level }
     case 'reminders': return { ...s, reminders: a.reminders }
     case 'voice': return { ...s, voice: a.id }
     case 'subscription': return { ...s, subscription: a.subscription }

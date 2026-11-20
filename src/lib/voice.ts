@@ -15,11 +15,21 @@ import { Platform } from 'react-native'
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
 import * as Speech from 'expo-speech'
+import { isEcho, isInterruption } from './echo'
+import { deviceId } from './foodPhoto'
 import { DEFAULT_VOICE, PHONE_VOICE, forSpeech, voiceOf } from './voices'
 
-/** Where the speech server is, e.g. http://10.0.2.2:8790 for one on this computer seen from the Android emulator. */
-const VOICE_URL = process.env.EXPO_PUBLIC_VOICE_URL?.replace(/\/+$/, '')
-/** True when this build knows of a speech server, so the natural voices can be offered. */
+/** A speech server on the developer's own computer, e.g. http://10.0.2.2:8790 seen from the Android emulator. Unset in released builds. */
+const LOCAL_URL = process.env.EXPO_PUBLIC_VOICE_URL?.replace(/\/+$/, '')
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '')
+const ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+/**
+ * Where the natural voices come from: the hosted speech server, reached
+ * through the app's own `speak` function (which holds the server's key and
+ * limits how much one phone can ask for), or a server on the developer's computer.
+ */
+const VOICE_URL = LOCAL_URL ? `${LOCAL_URL}/speak` : SUPABASE_URL && ANON ? `${SUPABASE_URL}/functions/v1/speak` : undefined
+/** True when this build can reach a speech server, so the natural voices can be offered. */
 export const naturalVoices = () => !!VOICE_URL
 
 let current = DEFAULT_VOICE
@@ -85,7 +95,13 @@ async function speakNaturally(text: string, voice: string, mine: number): Promis
   const timer = setTimeout(() => ctrl.abort(), 25000)
   let file: File | undefined
   try {
-    const res = await fetch(`${VOICE_URL}/speak`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice }), signal: ctrl.signal })
+    const hosted = !LOCAL_URL
+    const res = await fetch(VOICE_URL!, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(hosted ? { apikey: ANON!, Authorization: `Bearer ${ANON}` } : {}) },
+      body: JSON.stringify({ text, voice, ...(hosted ? { device: await deviceId() } : {}) }),
+      signal: ctrl.signal,
+    })
     if (!res.ok) return false
     const bytes = new Uint8Array(await res.arrayBuffer())
     if (bytes.length < 1000) return false
@@ -170,7 +186,7 @@ export interface Listening {
  * Listen for one answer. `onPartial` gets the words as they are recognised and
  * `onLevel` the microphone level from 0 to 1, for the animation.
  */
-export function listen(onPartial: (text: string) => void, onLevel?: (level: number) => void): Listening {
+export function listen(onPartial: (text: string) => void, onLevel?: (level: number) => void, over = false): Listening {
   const sr = recognition?.ExpoSpeechRecognitionModule
   if (!sr || !canListen()) return { stop: () => {}, cancel: () => {}, result: Promise.resolve(null) }
   let heard = ''
@@ -195,6 +211,8 @@ export function listen(onPartial: (text: string) => void, onLevel?: (level: numb
         volumeChangeEventOptions: { enabled: true, intervalMillis: 120 },
         // people pause while they think about an answer: do not cut them off after a second
         androidIntentOptions: { EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2200 },
+        // listening over Breeze's own voice: the phone takes its speaker's sound back out of the microphone
+        ...(over ? { iosVoiceProcessingEnabled: true } : {}),
       })
     })
     .catch(() => finish())
@@ -204,3 +222,35 @@ export function listen(onPartial: (text: string) => void, onLevel?: (level: numb
     result,
   }
 }
+
+export interface Overhearing {
+  /** true once the person has started talking over Breeze */
+  cutIn: () => boolean
+  /** what the person said after cutting in, or null when they did not, or nothing was caught */
+  said: Promise<string | null>
+  /** stop listening: Breeze finished without being interrupted */
+  cancel: () => void
+}
+
+/**
+ * Listen while Breeze is speaking `line`, the way a person listens while they
+ * talk. When the person starts to speak, `onCutIn` is called at once so Breeze
+ * can stop mid-sentence, and what they go on to say is the result. Breeze's
+ * own voice coming back through the microphone is not taken for the person.
+ */
+export function listenOver(line: string, onCutIn: () => void, onPartial: (text: string) => void, onLevel?: (level: number) => void): Overhearing {
+  if (!canListen()) return { cutIn: () => false, said: Promise.resolve(null), cancel: () => {} }
+  let cut = false
+  const ear = listen((heard) => {
+    if (!cut && isInterruption(heard, line)) { cut = true; onCutIn() }
+    if (cut) onPartial(heard)
+  }, (level) => { if (cut) onLevel?.(level) }, true)
+  return {
+    cutIn: () => cut,
+    said: ear.result.then((text) => (cut && text && !isEcho(text, line) ? text : null)),
+    cancel: () => ear.cancel(),
+  }
+}
+
+/** A short wait: the recogniser needs a moment between being stopped and started again. */
+export const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
