@@ -3,14 +3,16 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BodyScanStep } from '../components/onboarding/BodyScanStep'
+import { PlanPoster } from '../components/onboarding/PlanPoster'
 import { MIN_AGE } from '../lib/age'
 import { askCoach } from '../lib/coachApi'
 import { uid } from '../lib/date'
 import { thinkingLine } from '../lib/chat'
+import { plainReply } from '../lib/reply'
 import { askInterview, heardTags, interviewConfigured, knownFrom, understand, type HeardProfile, type InterviewError, type InterviewTurn, type ProfileField } from '../lib/interview'
 import { addMemories, memoryOf, notesToMemories } from '../lib/memory'
 import { computeTargets } from '../lib/nutrition'
-import { WEEKDAYS, buildRoutine } from '../lib/routine'
+import { buildRoutine } from '../lib/routine'
 import { useStore } from '../lib/store'
 import type { Activity, GoalType, Profile, WeeklyRoutine } from '../lib/types'
 import { canListen, listen, listenOver, pause, speak, stopSpeaking, type Listening, type Overhearing } from '../lib/voice'
@@ -30,6 +32,8 @@ const ERRORS: Record<InterviewError, string> = {
   busy: 'Breeze is busy right now. Try again in a moment.',
   failed: 'Something went wrong on my side. Try again.',
 }
+const FIELD_WORDS: Record<ProfileField, string> = { name: 'your first name', age: 'your age', sex: 'whether to use male or female figures for the calorie maths', height: 'your height', weight: 'your weight', goal: 'your main goal', activity: 'how active your week is' }
+const listWords = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
 const GOALS: { v: GoalType; t: string }[] = [{ v: 'lose', t: 'Lose weight' }, { v: 'maintain', t: 'Stay the same' }, { v: 'gain', t: 'Build muscle' }]
 const ACTIVITIES: { v: Activity; t: string }[] = [{ v: 'sedentary', t: 'Mostly sitting' }, { v: 'light', t: 'Lightly active' }, { v: 'moderate', t: 'Moderately active' }, { v: 'active', t: 'Very active' }, { v: 'athlete', t: 'Athlete' }]
 
@@ -72,6 +76,8 @@ export default function Welcome() {
   const [thought, setThought] = useState('')
   const [draft, setDraft] = useState<Profile>(state.profile)
   const [missing, setMissing] = useState<ProfileField[]>([])
+  // how many times Breeze has had to ask again for something it still needs
+  const chased = useRef(0)
 
   useEffect(() => () => { alive.current = false; ear.current?.cancel(); over.current?.cancel(); stopSpeaking() }, [])
   useEffect(() => { typingRef.current = typing }, [typing])
@@ -111,7 +117,7 @@ export default function Welcome() {
     if (!alive.current) return
     const o = over.current
     over.current = null
-    if (r.done) { o?.cancel(); toReview(r.profile, r.notes); return }
+    if (r.done) { o?.cancel(); afterTalk(r.profile, r.notes); return }
     // talked over: Breeze has already stopped, and what was said is the answer
     if (o?.cutIn()) {
       const said = await o.said
@@ -150,12 +156,37 @@ export default function Welcome() {
     })
   }
 
+  /**
+   * The conversation is over. There is no form to check: it goes straight on
+   * to the photo. If something the plan cannot be built without was never
+   * said, Breeze asks for it in the conversation; the form is only the last
+   * resort, for someone who stopped talking before it was said.
+   */
+  function afterTalk(h: HeardProfile | undefined, n: string, chase = true) {
+    const u = understand({ ...state.profile, name: state.profile.onboarded ? state.profile.name : '' }, h, n)
+    if (u.underAge) { toReview(h, n); return }
+    if (u.missing.length && chase && chased.current < 2) {
+      chased.current += 1
+      const say = `Before I build your plan I still need ${listWords(u.missing.map((f) => FIELD_WORDS[f]))}. Can you tell me?`
+      turns.current.push({ role: 'coach', text: say })
+      setLine(say); setPartial(''); setMode('speaking')
+      speak(say).then(() => { if (alive.current) hear() })
+      return
+    }
+    if (u.missing.length) { toReview(h, n); return }
+    ear.current?.cancel(); ear.current = null
+    over.current?.cancel(); over.current = null
+    stopSpeaking()
+    setDraft(u.profile); setMissing([]); setPhase('scan')
+  }
+
   const start = () => { tap(); setPhase('talk'); next() }
   const interrupt = () => { stopSpeaking() }
 
   // ---- the plan ----
   const [routine, setRoutine] = useState<WeeklyRoutine | null>(null)
   const [planNote, setPlanNote] = useState('')
+  const [planMeals, setPlanMeals] = useState<Record<string, string[]>>()
   const buildPlan = async (p: Profile) => {
     setPhase('plan'); setRoutine(null)
     speak('Give me a moment while I build your plan.')
@@ -164,24 +195,27 @@ export default function Welcome() {
     if (learned.length) dispatch({ type: 'remember', texts: learned })
     const draftState = { ...state, profile: p, targets: computeTargets(p), chat: [], memory: addMemories(memoryOf(state), learned) }
     const ask = returning
-      ? 'We have just talked things through. Update my weekly routine and my meals for the coming week for what has changed, and keep what is working.'
-      : 'Build my first weekly routine and a meal plan for the coming week around everything you know about me.'
+      ? 'We have just talked things through. Update my weekly routine and my meals for the coming week for what has changed, and keep what is working. Start your reply with a short title, then say in a few lines what you changed and why.'
+      : 'Build my first weekly routine and a meal plan for the coming week around everything you know about me: what I told you, what I have done before, how much time I have, where I train, and what you saw in my photo if I gave one. Do not ask me anything more. Start your reply with a short title, then say in a few lines what you are prioritising for me and why, so I can see the plan is mine.'
     const res = await askCoach(draftState, [{ id: uid(), role: 'user', text: ask }])
     if (!alive.current) return
     if (res.ok && res.memory.remember.length) dispatch({ type: 'remember', texts: res.memory.remember })
     const made = res.ok && res.message.routine ? res.message.routine : buildRoutine(p)
-    if (res.ok && res.message.meals) dispatch({ type: 'mealPlan', days: res.message.meals })
+    if (res.ok && res.message.meals) { dispatch({ type: 'mealPlan', days: res.message.meals }); setPlanMeals(res.message.meals) }
     dispatch({ type: 'routine', routine: made })
     setRoutine(made)
     // the first paragraph is the summary; the rest is detail the chat can give later
-    const say = res.ok && res.message.routine ? res.message.text.split('\n\n')[0].trim() : 'Here is a starting routine built from your goal and activity level. You can change any of it by asking me.'
-    setPlanNote(say)
-    speak(say)
+    const note = res.ok && res.message.routine ? res.message.text.trim() : 'Here is a starting routine built from your goal and activity level. You can change any of it by asking me.'
+    setPlanNote(note)
+    // out loud, only the opening: the rest is there to read
+    speak(plainReply(note).split('\n').filter(Boolean).slice(0, 2).join('. '))
   }
   const finish = () => {
     stopSpeaking()
     dispatch({ type: 'profile', profile: { ...draft, notes: undefined, age: Math.max(MIN_AGE, draft.age), onboarded: true, healthNoticeAt: draft.healthNoticeAt ?? new Date().toISOString() } })
     dispatch({ type: 'newChat' })
+    // the plan is the first thing in the chat, so it is there to come back to
+    dispatch({ type: 'chat', messages: [{ id: uid(), role: 'coach', text: planNote || 'Your plan is ready.', routine: routine ?? undefined }] })
     success()
     router.replace('/')
   }
@@ -244,7 +278,7 @@ export default function Welcome() {
         <VoiceBar text={typed} onChangeText={setTyped} onSend={() => { over.current?.cancel(); over.current = null; stopSpeaking(); answer(typed) }} placeholder={hears ? 'Or type your answer' : 'Type your answer'} editable={mode !== 'thinking'}
           mic={!hears ? 'off' : mode === 'listening' ? 'listening' : mode === 'waiting' ? 'ready' : 'busy'}
           onMic={() => { setTyping(false); typingRef.current = false; if (mode === 'listening') ear.current?.stop(); else hear() }}
-          onClose={() => toReview(heard, notes)} closeLabel="Finish the conversation" />
+          onClose={() => afterTalk(heard, notes, false)} closeLabel="Finish the conversation" />
       </KeyboardAvoidingView>
     )
   }
@@ -312,41 +346,29 @@ export default function Welcome() {
     return (
       <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
         <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}><BodyScanStep age={draft.age} /></ScrollView>
-        <Button variant="dark" title={returning ? 'Update my plan' : state.bodyScan ? 'Build my plan' : 'Skip and build my plan'} onPress={() => buildPlan(draft)} />
+        <Button variant="dark" icon="sparkles" title="Generate my plan" onPress={() => buildPlan(draft)} />
       </View>
     )
   }
 
-  // plan
-  const targets = computeTargets(draft)
-  const training = routine ? WEEKDAYS.filter((d) => routine.days[d].items.length) : []
+  // the finished plan, as a poster to look through before the chat
+  if (routine) {
+    return (
+      <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
+        <View style={{ flex: 1 }}><PlanPoster profile={draft} routine={routine} note={planNote} meals={planMeals} /></View>
+        <Button variant="dark" title="Start" onPress={finish} />
+      </View>
+    )
+  }
+
+  // the plan is being built
   return (
     <View style={[{ flex: 1, backgroundColor: C.bg }, pad]}>
       <View style={{ flex: 1, justifyContent: 'center', gap: 22 }}>
-        <View style={{ alignItems: 'center' }}><SkyOrb size={150} mode={routine ? 'idle' : 'thinking'} /></View>
-        {!routine ? (
-          <Text style={[T.title2, { textAlign: 'center' }]}>{returning ? 'Updating' : 'Building'} your plan{draft.name ? `, ${draft.name}` : ''}</Text>
-        ) : (
-          <>
-            <Text style={[T.title1, { textAlign: 'center' }]}>Your plan is ready</Text>
-            {!!planNote && <Text style={[T.body, { color: C.text2, textAlign: 'center', lineHeight: 22 }]}>{planNote}</Text>}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {([[`${training.length}`, 'training days'], [`${targets.kcal}`, 'kcal a day'], [`${targets.protein} g`, 'protein']] as const).map(([big, small]) => (
-                <Card key={small} tight style={{ flex: 1, alignItems: 'center' }}><Text style={[T.title2, T.num]}>{big}</Text><Text style={T.caption}>{small}</Text></Card>
-              ))}
-            </View>
-            <Card tight style={{ gap: 6 }}>
-              {training.map((d) => (
-                <View key={d} style={{ flexDirection: 'row', gap: 12 }}>
-                  <Text style={[T.caption, { width: 34, fontWeight: '700', color: C.text, textTransform: 'capitalize' }]}>{d}</Text>
-                  <Text style={[T.sub, { flex: 1, color: C.text }]} numberOfLines={1}>{routine.days[d].title}</Text>
-                </View>
-              ))}
-            </Card>
-          </>
-        )}
+        <View style={{ alignItems: 'center' }}><SkyOrb size={170} mode="thinking" /></View>
+        <Text style={[T.title2, { textAlign: 'center' }]}>{returning ? 'Updating' : 'Building'} your plan{draft.name ? `, ${draft.name}` : ''}</Text>
+        <Text style={[T.sub, { textAlign: 'center', lineHeight: 20 }]}>Going through what you told me: your goal, your week, where you train and what you eat.</Text>
       </View>
-      <Button variant="dark" title="Let&apos;s go" disabled={!routine} onPress={finish} />
     </View>
   )
 }

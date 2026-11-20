@@ -54,3 +54,20 @@ export function forSpeech(text: string, max = MAX_SPOKEN_CHARS): string {
   const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '))
   return end > max * 0.4 ? cut.slice(0, end + 1) : cut
 }
+
+/**
+ * A reply cut into the pieces it is spoken in: whole sentences, with short
+ * ones joined to their neighbour so the voice is not asked for a single word.
+ * The opening piece is kept short so talking starts quickly.
+ */
+export function spokenParts(text: string, first = 90, rest = 220): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g)?.map((x) => x.trim()).filter(Boolean) ?? []
+  const out: string[] = []
+  for (const sentence of sentences) {
+    const last = out[out.length - 1]
+    const limit = out.length <= 1 ? first : rest
+    if (last !== undefined && (last.length < 25 || last.length + sentence.length + 1 <= limit)) out[out.length - 1] = `${last} ${sentence}`
+    else out.push(sentence)
+  }
+  return out.length ? out : [text]
+}

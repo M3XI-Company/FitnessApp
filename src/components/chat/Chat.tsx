@@ -19,6 +19,9 @@ import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { SkyOrb } from '../SkyOrb'
 import { Button, Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
+import { PlanDrawer } from './PlanDrawer'
+import { QuestionCard } from './QuestionCard'
+import { ProgressCard } from '../stats/ProgressCharts'
 import { LiftingDumbbell } from './LiftingDumbbell'
 import { DetailsCard } from './DetailsCard'
 import { ReminderCard } from './ReminderCard'
@@ -52,6 +55,8 @@ export function Chat() {
   // what the coach is working out, shown while it works
   const [thought, setThought] = useState('')
   const [voice, setVoice] = useState(false)
+  // today's plan sits at the top: open on a new chat, put away once the conversation is going, and wherever the person last left it
+  const [planOpen, setPlanOpen] = useState<boolean | null>(null)
   // talking to Breeze out loud is part of Plus; on the free plan the same buttons show what Plus is
   const plus = isPlus(state)
   const talk = () => { tap(); if (plus) setVoice(true); else router.push({ pathname: '/subscribe', params: { why: 'voice' } }) }
@@ -140,33 +145,35 @@ export function Chat() {
           )}
         </View>
         {shown.length > 0 && <IconButton icon="create-outline" size={44} onPress={() => { tap(); dispatch({ type: 'newChat' }) }} label="New chat" />}
+        <IconButton icon="activity" size={44} onPress={() => router.push('/stats')} label="Your progress" />
+        <IconButton icon="people" size={44} onPress={() => router.push('/buddies')} label="Training partners" />
         <IconButton icon="sliders" size={44} onPress={() => router.push('/settings')} label="Settings" />
       </View>
+
+      <PlanDrawer open={planOpen ?? !shown.length} onChange={setPlanOpen} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
 
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 14, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         {/* a new chat is empty: a greeting and today at a glance, nothing posted */}
         {!shown.length && (
           <View style={{ flex: 1, justifyContent: 'center', gap: 26, paddingBottom: 20 }}>
             <Pressable onPress={talk} accessibilityLabel="Talk to Breeze" style={{ alignItems: 'center', gap: 18 }}>
-              <SkyOrb size={200} mood={mood} />
+              <SkyOrb size={(planOpen ?? true) ? 120 : 200} mood={mood} />
               <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text style={[T.title2, { textAlign: 'center' }]}>{greeting()}{state.profile.name ? `, ${state.profile.name.split(' ')[0]}` : ''}</Text>
                 {!!yesterdayLine(state, today) && <Text style={[T.sub, { textAlign: 'center', color: C.text }]}>{yesterdayLine(state, today)}</Text>}
                 <Text style={[T.sub, { textAlign: 'center' }]}>{streak > 1 ? `${streak} days in a row. ` : ''}{plus ? 'Tap the breeze to talk, or type below.' : 'Type below to talk to Breeze.'}</Text>
               </View>
             </Pressable>
-            <DayCard date={today} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />
           </View>
         )}
         {shown.map((m) => {
           const mine = m.role === 'user'
           return (
-            // what the user said is a bubble on the right; what Breeze says is set out across the page to be read, not squeezed into a bubble
+            // nothing is in a bubble: what the person said sits to the right, what Breeze says is set out across the page to be read
             <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'stretch', maxWidth: mine ? '86%' : '100%', gap: 10, marginTop: mine ? 6 : 0 }}>
               {!!m.text && (mine ? (
-                <View style={{ paddingVertical: 11, paddingHorizontal: 16, borderRadius: 22, borderBottomRightRadius: 6, backgroundColor: C.night }}>
-                  <Text selectable style={{ fontSize: 16, lineHeight: 23, color: C.cloud }}>{m.text}</Text>
-                </View>
+                // what the person said: no bubble either, set to the right in their own colour
+                <Text selectable style={{ fontSize: 17, lineHeight: 25, fontWeight: '600', color: C.accent, textAlign: 'right', paddingHorizontal: 6 }}>{m.text}</Text>
               ) : (
                 <View style={{ paddingHorizontal: 6, paddingVertical: 4 }}>
                   <RichText text={m.text} color={C.text} strong={C.night} />
@@ -178,6 +185,8 @@ export function Chat() {
                   <Text style={[T.caption, { flex: 1, lineHeight: 17 }]}>Noted: {m.noted.join(' ')}</Text>
                 </Pressable>
               )}
+              {m.questions && m.id === shown[shown.length - 1]?.id && <QuestionCard questions={m.questions} onSend={send} busy={typing} />}
+              {m.progress && <ProgressCard />}
               {m.details && <DetailsCard change={m.details} />}
               {m.day && <DayCard date={m.day} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} onAsk={send} />}
               {m.preview && <WorkoutPreview date={m.preview} onStart={() => send(workout.status === 'started' ? 'Continue my workout' : 'Start my workout')} />}

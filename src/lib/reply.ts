@@ -1,12 +1,13 @@
 /**
  * Reading a reply from Breeze into the pieces it is laid out in. The coach
  * writes plain text with a little markup: "# Title" on the first line,
- * "## Heading" for a part, "1." for steps, "-" for points and **bold** for
- * the words that carry the instruction. Kept apart from the screen so it can
- * be tested.
+ * "## Heading" for a part, "1." for steps, "-" for points, "> " for an aside,
+ * and inside a line **bold** for the thing to do, *italics* for the reason
+ * or a word being stressed, and ==marks== round a number that matters. Kept
+ * apart from the screen so it can be tested.
  */
 export type ReplyBlock =
-  | { kind: 'title' | 'heading' | 'text'; text: string }
+  | { kind: 'title' | 'heading' | 'text' | 'note'; text: string }
   | { kind: 'list'; ordered: boolean; items: string[] }
 
 export function replyBlocks(text: string): ReplyBlock[] {
@@ -19,7 +20,11 @@ export function replyBlocks(text: string): ReplyBlock[] {
     const head = /^(#{1,3})\s+(.+)$/.exec(line)
     const step = /^(\d{1,2})[.)]\s+(.+)$/.exec(line)
     const point = /^[-•*]\s+(.+)$/.exec(line)
-    if (head) {
+    const note = /^>\s*(.+)$/.exec(line)
+    if (note) {
+      flush()
+      out.push({ kind: 'note', text: note[1] })
+    } else if (head) {
       flush()
       // the first thing in a reply is its title; anything after is a heading for a part
       out.push({ kind: head[1].length === 1 && !out.length ? 'title' : 'heading', text: head[2] })
@@ -45,3 +50,21 @@ export const plainReply = (text: string) => replyBlocks(text)
   .map((b) => (b.kind === 'list' ? b.items.map((t, i) => (b.ordered ? `${i + 1}. ${t}` : t)).join('\n') : b.text))
   .join('\n\n')
   .replace(/\*\*(.+?)\*\*/g, '$1')
+  .replace(/==(.+?)==/g, '$1')
+  .replace(/\*([^*\s][^*]*?)\*/g, '$1')
+
+export interface Span { text: string; style: 'plain' | 'bold' | 'italic' | 'mark' }
+
+/** A line cut into its plain, bold, italic and marked runs, in order. */
+export function replySpans(line: string): Span[] {
+  const out: Span[] = []
+  let at = 0
+  const re = /\*\*(.+?)\*\*|==(.+?)==|\*([^*\s][^*]*?)\*/g
+  for (let m = re.exec(line); m; m = re.exec(line)) {
+    if (m.index > at) out.push({ text: line.slice(at, m.index), style: 'plain' })
+    out.push(m[1] !== undefined ? { text: m[1], style: 'bold' } : m[2] !== undefined ? { text: m[2], style: 'mark' } : { text: m[3], style: 'italic' })
+    at = m.index + m[0].length
+  }
+  if (at < line.length) out.push({ text: line.slice(at), style: 'plain' })
+  return out
+}

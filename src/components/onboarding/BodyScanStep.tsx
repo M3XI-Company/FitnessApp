@@ -75,8 +75,8 @@ export function BodyScanStep({ age }: { age: number }) {
 
   return (
     <View style={{ gap: 14 }}>
-      <Text style={T.title1}>Show the coach your starting point</Text>
-      <Text style={[T.sub, { marginTop: -6, lineHeight: 20 }]}>Optional. One photo in gym clothes, standing, from head to knees. It helps the coach choose where to put the emphasis.</Text>
+      <Text style={T.title1}>Show your coach your starting point</Text>
+      <Text style={[T.sub, { marginTop: -6, lineHeight: 20 }]}>One ordinary photo of you standing, from head to knees, in whatever you are wearing. Nothing has to come off. It lets your coach see where to put the emphasis.</Text>
 
       {scan ? (
         <Card style={{ gap: 12 }}>
@@ -140,7 +140,7 @@ export function BodyScanStep({ age }: { age: number }) {
           <Text style={[T.sub, { flex: 1, lineHeight: 19, color: C.text }]}>{error.reason || ERRORS[error.kind]}</Text>
         </Card>
       )}
-      {!scan && !busy && <Text style={[T.caption, { textAlign: 'center' }]}>Prefer not to? Tap Skip. You can do this later from your profile.</Text>}
+      {!scan && !busy && <Text style={[T.caption, { textAlign: 'center' }]}>Rather not? Carry on without it. Your plan is still built from what you told me.</Text>}
     </View>
   )
 }

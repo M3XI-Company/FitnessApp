@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { DEFAULT_VOICE, PHONE_VOICE, VOICES, describeVoice, forSpeech, voiceOf } from '../src/lib/voices'
+import { DEFAULT_VOICE, PHONE_VOICE, VOICES, describeVoice, forSpeech, spokenParts, voiceOf } from '../src/lib/voices'
 
 test('every voice has a name, and the phone voice is always on offer', () => {
   assert.equal(new Set(VOICES.map((v) => v.id)).size, VOICES.length)
@@ -28,4 +28,14 @@ test('a long reply is cut at the end of a sentence before it is spoken', () => {
   const long = `${'One short sentence. '.repeat(80)}`
   const said = forSpeech(long, 200)
   assert.ok(said.length <= 200 && said.endsWith('sentence.'), said.slice(-30))
+})
+
+test('a reply is spoken a sentence at a time, starting with a short piece', () => {
+  const text = 'Yes. Lunch is lemon garlic chicken today, then upper body at five. Ready when you are? Good. Tick it off once you have eaten and tell me how the session went afterwards.'
+  const parts = spokenParts(text)
+  assert.equal(parts.join(' '), text)
+  assert.ok(parts.length >= 2 && parts[0].length <= 90, parts[0])
+  // a word on its own is never sent to the voice
+  assert.ok(parts.every((p) => p.length >= 25), JSON.stringify(parts))
+  assert.deepEqual(spokenParts('Hello there'), ['Hello there'])
 })

@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { Subscription } from './plan'
+import { afterStoreCheck, type Subscription } from './plan'
+import { hasPlus, storeReady } from './purchases'
 import type { Intensity } from './intensity'
+import type { BuddySetup } from './buddyRules'
+import { syncSets } from './records'
 import { setSpeakingVoice } from './voice'
 import type { AppState, ChatMessage, ChatThread, ReminderSettings, FoodEntry, FoodItem, MealCategory, Profile, SavedMeal, SetLog, Targets, UserGoal, WaterPlan, WeeklyRoutine, BodyScan } from './types'
 import { effectiveTargets } from './nutrition'
@@ -124,9 +127,11 @@ type Action =
   | { type: 'topicChat'; id: string; messages: ChatMessage[] }
   | { type: 'clearTopicChat'; id: string }
   | { type: 'intensity'; level: Intensity }
+  | { type: 'insight'; text: string }
   | { type: 'reminders'; reminders: ReminderSettings }
   | { type: 'voice'; id: string }
   | { type: 'subscription'; subscription?: Subscription }
+  | { type: 'storeCheck'; paid: boolean }
   | { type: 'dataChoice'; share: boolean }
   | { type: 'remember'; texts: string[] }
   | { type: 'forget'; ids: string[] }
@@ -134,7 +139,8 @@ type Action =
   | { type: 'routine'; routine: WeeklyRoutine }
   | { type: 'bodyScan'; scan?: BodyScan }
   | { type: 'mealPlan'; days: Record<string, string[]> }
-  | { type: 'toggleBuddy'; id: string }
+  | { type: 'buddy'; setup: BuddySetup }
+  | { type: 'restoreSets'; sets: SetLog[] }
   | { type: 'reset' }
   | { type: 'setTargets'; custom?: Partial<Targets> }
   | { type: 'toggleFavourite'; item: FoodItem }
@@ -187,9 +193,11 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case 'clearTopicChat': { const { [a.id]: _gone, ...others } = s.topicChats ?? {}; return { ...s, topicChats: others } }
     case 'intensity': return { ...s, intensity: a.level }
+    case 'insight': return { ...s, insight: { date: todayKey(), text: a.text } }
     case 'reminders': return { ...s, reminders: a.reminders }
     case 'voice': return { ...s, voice: a.id }
     case 'subscription': return { ...s, subscription: a.subscription }
+    case 'storeCheck': return { ...s, subscription: afterStoreCheck(s.subscription, a.paid) }
     case 'dataChoice': return { ...s, dataChoice: { share: a.share, at: new Date().toISOString() } }
     case 'remember': return { ...s, memory: addMemories(s.memory ?? [], a.texts) }
     case 'forget': return { ...s, memory: forgetMemories(s.memory ?? [], a.ids) }
@@ -197,7 +205,12 @@ function reducer(s: AppState, a: Action): AppState {
     case 'routine': return { ...s, routine: a.routine }
     case 'bodyScan': return { ...s, bodyScan: a.scan }
     case 'mealPlan': return { ...s, boxedPlan: { ...s.boxedPlan, ...a.days } }
-    case 'toggleBuddy': return { ...s, buddies: s.buddies.includes(a.id) ? s.buddies.filter((x) => x !== a.id) : [...s.buddies, a.id] }
+    case 'buddy': return { ...s, buddy: a.setup }
+    case 'restoreSets': {
+      // sets brought back from the database join what is on the phone; nothing already here is replaced
+      const have = new Set(s.sets.map((x) => x.id))
+      return { ...s, sets: [...s.sets, ...a.sets.filter((x) => !have.has(x.id))].sort((x, y) => x.date.localeCompare(y.date)) }
+    }
     case 'reset': return initialState()
     case 'setTargets': return { ...s, customTargets: a.custom, targets: effectiveTargets(s.profile, a.custom) }
     case 'toggleFavourite': {
@@ -236,6 +249,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true))
   }, [])
   useEffect(() => { if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {}) }, [state, ready])
+  // each time the app opens the store is asked whether Plus is still paid for
+  useEffect(() => {
+    if (!ready || !storeReady()) return
+    hasPlus().then((paid) => { if (paid !== null) dispatch({ type: 'storeCheck', paid }) }).catch(() => {})
+  }, [ready])
+  // the record of workouts is kept in the app's database as well: sent a moment after sets change
+  useEffect(() => {
+    if (!ready) return
+    const timer = setTimeout(() => { syncSets(state.sets).catch(() => {}) }, 2500)
+    return () => clearTimeout(timer)
+  }, [state.sets, ready])
   // Breeze speaks in the voice the user chose, wherever in the app it speaks
   useEffect(() => { setSpeakingVoice(state.voice) }, [state.voice])
 

@@ -95,6 +95,14 @@
         {
           "locationWhenInUsePermission": "Breeze uses your location once to find gyms near you."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# views made by Expo modules are built by reflection; without this the release build strips their constructors and the app closes when one is shown (the 3D figure)\n-keepclassmembers class * extends android.view.View { public <init>(android.content.Context, expo.modules.kotlin.AppContext); }\n-keep class expo.modules.gl.** { *; }"
+          }
+        }
       ]
     ],
     "scheme": "breeze",

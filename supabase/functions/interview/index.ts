@@ -25,8 +25,13 @@ import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 const MODEL = 'claude-opus-5-5'
-// USD per token for claude-opus-5-5 ($4 / $20 per million) — for the cost ledger
-const PRICE = { input: 4 / 1_000_000, output: 20 / 1_000_000 }
+// the conversation is spoken, so it runs on the fast model; the main model takes over when the fast one cannot answer
+const QUICK_MODEL = 'claude-haiku-5-5'
+// USD per token, for the cost ledger
+const PRICES: Record<string, { input: number; output: number }> = {
+  [MODEL]: { input: 4 / 1_000_000, output: 20 / 1_000_000 },
+  [QUICK_MODEL]: { input: 0.1 / 1_000_000, output: 0.5 / 1_000_000 },
+}
 const MONTHLY_LIMIT = Number(Deno.env.get('INTERVIEW_MONTHLY_LIMIT') ?? '120')
 const MAX_MESSAGES = 40
 const MAX_MESSAGE_CHARS = 1200
@@ -135,6 +140,10 @@ What you need before you finish:
 
 Accept any units and convert them yourself: feet and inches to centimetres, stone or pounds to kilograms. Aim for eight to twelve questions in total; people will give several answers at once, so never ask for something they have already told you.
 
+Come prepared, and make it a conversation, not a form. You already have your questions: open with their name, then what brought them here now, then let what they say choose the order of the rest. Sound like a person who is interested in them: react to what they said in a few words of your own before the next question, use what they told you earlier ("you said mornings are the only time, so"), and vary how you ask. Never say "thanks for that", "that's noted" or "got it" as a reply on its own, never read their answer back to them as a list, and never ask a vague question such as "tell me more about what has been hard": ask something specific they can answer in a sentence. If they ask you something, answer it briefly and carry on. If what you heard is a fragment or makes no sense, say you did not catch it and ask again.
+
+Never set done to true while any of these is still unknown: first name, age, height, weight, male or female figures, main goal, and how active their week is. Ask for what is missing first, two things at a time at most.
+
 Fill in profile with everything known so far on every turn, and keep notes up to date. Leave anything unknown as "", 0 or "unknown".
 
 Finishing: when you have the numbers and a real picture of their habits, set done to true and say a short, warm closing line that tells them the next step is to check what you heard. Also finish early, kindly, if:
@@ -165,9 +174,10 @@ async function sha256(s: string) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function record(row: { device_hash: string; user_id: string | null; input_tokens: number; output_tokens: number; outcome: string }) {
-  const cost = row.input_tokens * PRICE.input + row.output_tokens * PRICE.output
-  await db.from('ai_usage').insert({ ...row, feature: 'interview', model: MODEL, cost_usd: cost })
+async function record(row: { device_hash: string; user_id: string | null; input_tokens: number; output_tokens: number; outcome: string; model: string }) {
+  const price = PRICES[row.model] ?? PRICES[MODEL]
+  const cost = row.input_tokens * price.input + row.output_tokens * price.output
+  await db.from('ai_usage').insert({ ...row, feature: 'interview', cost_usd: cost })
 }
 
 Deno.serve(async (req) => {
@@ -199,10 +209,14 @@ Deno.serve(async (req) => {
     ...messages.map((m): Anthropic.Beta.BetaMessageParam => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
   ]
 
-  const run = async (emit?: Emit): Promise<Outcome> => {
+  const format = { type: 'json_schema' as const, schema: OUTPUT_SCHEMA }
+  const run = async (emit?: Emit, quick = true): Promise<Outcome> => {
+  const model = quick ? QUICK_MODEL : MODEL
   try {
-    const stream = anthropic.beta.messages.stream({
-      model: MODEL,
+    const stream = quick
+      ? anthropic.beta.messages.stream({ model, max_tokens: 2000, thinking: { type: 'disabled' }, output_config: { effort: 'low', format }, system: SYSTEM, messages: turns })
+      : anthropic.beta.messages.stream({
+      model,
       max_tokens: 4000,
       // if a safety classifier declines, retry on Anthropic's recommended fallback model
       betas: ['server-side-fallback-2026-07-01'],
@@ -210,7 +224,7 @@ Deno.serve(async (req) => {
       // a readable summary of the reasoning, so the app can show what the coach is working out
       thinking: { type: 'adaptive', display: 'summarized' },
       // low effort: this is a live conversation, so a quick reply matters more than deep deliberation
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
+      output_config: { effort: 'low', format },
       system: SYSTEM,
       messages: turns,
     })
@@ -231,12 +245,13 @@ Deno.serve(async (req) => {
     const response = await stream.finalMessage()
     const usage = { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens }
 
+    if (quick && (response.stop_reason === 'refusal' || response.stop_reason === 'max_tokens')) return run(emit, false)
     if (response.stop_reason === 'refusal') {
-      await record({ device_hash, user_id: userId, ...usage, outcome: 'declined' })
+      await record({ device_hash, user_id: userId, ...usage, model, outcome: 'declined' })
       return out(422, { error: 'declined' })
     }
     if (response.stop_reason === 'max_tokens') {
-      await record({ device_hash, user_id: userId, ...usage, outcome: 'error' })
+      await record({ device_hash, user_id: userId, ...usage, model, outcome: 'error' })
       return out(502, { error: 'incomplete' })
     }
     const text = response.content.find((b) => b.type === 'text')
@@ -244,13 +259,15 @@ Deno.serve(async (req) => {
     try { data = text && text.type === 'text' ? JSON.parse(text.text) : null } catch { /* handled below */ }
     const parsed = ResultSchema.safeParse(data)
     if (!parsed.success) {
-      await record({ device_hash, user_id: userId, ...usage, outcome: 'error' })
+      if (quick) return run(emit, false)
+      await record({ device_hash, user_id: userId, ...usage, model, outcome: 'error' })
       return out(502, { error: 'bad_output' })
     }
     const r = parsed.data
-    await record({ device_hash, user_id: userId, ...usage, outcome: 'ok' })
+    await record({ device_hash, user_id: userId, ...usage, model, outcome: 'ok' })
     return out(200, { say: r.say.slice(0, 600), done: r.done, profile: r.profile, notes: r.notes.slice(0, 1200) })
   } catch (e) {
+    if (quick && !(e instanceof Anthropic.RateLimitError)) return run(emit, false)
     if (e instanceof Anthropic.RateLimitError) return out(503, { error: 'busy' })
     if (e instanceof Anthropic.APIError) { console.error('interview upstream error:', e.status, e.message); return out(502, { error: 'upstream', status: e.status }) }
     console.error('interview failed:', e instanceof Error ? `${e.name}: ${e.message}` : String(e))

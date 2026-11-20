@@ -91,7 +91,7 @@ const BodySchema = z.object({
 // ---- output contract ---------------------------------------------------------
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 /** cards the app can show under the reply */
-const SHOW = ['none', 'today', 'tomorrow', 'workout', 'preview'] as const
+const SHOW = ['none', 'today', 'tomorrow', 'workout', 'preview', 'progress'] as const
 /** how the conversation is going, which sets the look of Breeze's face in the app */
 const MOODS = ['calm', 'upbeat', 'fired_up', 'gentle', 'proud'] as const
 const ResultSchema = z.object({
@@ -110,6 +110,7 @@ const ResultSchema = z.object({
   reminder_times: z.object({ breakfast: z.string(), lunch: z.string(), dinner: z.string(), workout: z.string() }).optional(),
   remember: z.array(z.string()).optional(),
   forget: z.array(z.string()).optional(),
+  questions: z.array(z.object({ question: z.string(), options: z.array(z.string()) })).optional(),
   update_details: z.object({ weight_kg: z.number(), target_weight_kg: z.number(), goal: z.string(), activity: z.string() }).optional(),
 })
 export type CoachResult = z.infer<typeof ResultSchema>
@@ -118,11 +119,11 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'mood', 'show', 'preview_day', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['reply', 'questions', 'mood', 'show', 'preview_day', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
-    reply: { type: 'string', description: 'What the coach says to the user, set out as described under "How a reply looks". A direct request gets one to three short lines; an explanation gets a title, short lines, and steps or points, at most about 160 words.' },
+    reply: { type: 'string', description: 'What the coach says to the user, set out as described under "How a reply looks". A direct request gets one to three short lines; an explanation gets a title, short lines, and steps or points, at most about 160 words; a hard question that needs real explaining may run to about 320.' },
     mood: { type: 'string', enum: MOODS, description: 'How the conversation is going right now, which the app shows in the look and movement of Breeze\'s face. calm: ordinary questions and planning. upbeat: things are going well, friendly chat, thanks. fired_up: the user is starting or in the middle of a workout, or is motivated and wants a push. gentle: the user is tired, low, in pain, struggling, disappointed or has missed sessions. proud: the user has finished a workout, hit a target, kept a streak or set a personal best.' },
-    show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "preview": one day\'s workout laid out to look through, with a picture of each exercise. "none" otherwise.' },
+    show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "preview": one day\'s workout laid out to look through, with a picture of each exercise. "progress": charts of their weight, training and food over recent weeks, when they ask how they are doing or you are talking about their progress. "none" otherwise.' },
     preview_day: { type: 'string', enum: [...DAYS, 'none'], description: 'When show is "preview": the weekday whose workout to lay out. "none" otherwise.' },
     remember: { type: 'array', items: { type: 'string' }, description: 'New facts worth remembering about this user for future conversations, each one short plain sentence (at most 25 words) that will still make sense weeks from now. Fill it whenever they tell you something from the list under Memory; empty only when they told you nothing new. At most three.' },
     forget: { type: 'array', items: { type: 'string' }, description: 'ids of memory entries that the user has just said are no longer true. Usually empty.' },
@@ -167,6 +168,17 @@ const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
         },
       },
     },
+    questions: {
+      type: 'array',
+      description: 'Quick questions the app shows under your reply as a card with answers to tap, at most four. Use them when you need to know a few things before you can give a proper answer or build something (their goal, where they train, their experience, days a week, what they like to eat). Each has two to five short answers. Empty when you are not asking, and always empty in a spoken conversation.',
+      items: {
+        type: 'object', additionalProperties: false, required: ['question', 'options'],
+        properties: {
+          question: { type: 'string', description: 'The question, short and plain.' },
+          options: { type: 'array', description: 'Two to five answers, a few words each.', items: { type: 'string' } },
+        },
+      },
+    },
     update_meal_plan: { type: 'boolean', description: 'true only when proposing meals for the coming week in meal_days' },
     meal_days: {
       type: 'array',
@@ -198,7 +210,11 @@ How a reply looks. The app does not show your reply as a text message in a bubbl
 - Bold: put two asterisks either side of the words that carry the instruction, **like this**: the thing to do, the food, the amount, the time. One to three bold phrases in a reply, never a whole line and never decoration. If a reply tells them to do something, the thing to do is in bold.
 - Lead with what to do now, on the first line after any title. Anything about later, and any reason, comes after it.
 - Plain everyday words. Say "thigh muscles" before "quadriceps", and give a number with its unit.
-- Nothing else: no tables, no links, no italics, no code, no emoji.
+- Italics: one asterisk either side, *like this*, for the reason behind an instruction or a word you are stressing. Sparingly: at most one or two in a reply.
+- A number that matters: two equals signs either side, ==164 g==, ==3 sets==, ==0.5 kg a week==, and the app draws it in colour. Only for the one or two figures they should remember.
+- An aside: a line beginning "> " is set smaller and in italics. Use it once at most, for a caution, a reassurance or a thought that is not part of the instruction.
+- Use these to give the reply a shape the eye can follow: the title says what it is, bold is what to do, colour is the number, italics is the why. Do not use more than one kind of emphasis on the same words.
+- Nothing else: no tables, no links, no code, no emoji.
 
 Running behind. today_plan lists each step of today in order with its time and a state: done, missed (a meal whose time went by and a later step is already due), now (the one thing to do at this moment), next (the first thing coming up when nothing is due yet) or later. left_today is what remains of today's calorie and protein targets.
 - Go by today_plan and the clock, not by the order the meals were written in. At lunchtime the answer to "what do I eat" is lunch, whatever happened to breakfast.
@@ -239,7 +255,13 @@ If they ask how fast they will see results, be honest: the app's calorie target 
 
 Small chats about one thing: sometimes the user's message begins with a note in brackets saying they have an exercise, meal or recipe open and that the question is about it. Answer about that one thing only, for this person, set out to be read: a short title, short lines, numbered steps where there is an order. Set show to "none" and do not propose a routine or meal plan there; if what they ask needs one, tell them in a line to ask in the main chat. Still remember anything worth remembering.
 
-Spoken conversations: when the context has spoken set to true, your reply is read aloud and nothing else is seen. Answer in one or two short sentences, the way a person talks, with no title, list or bold. Ask at most one question, and only when you need the answer. If the full answer needs steps, say the first step and offer the rest.
+Spoken conversations: when the context has spoken set to true, your reply is read aloud and nothing else is seen. Talk the way a good coach talks across a gym floor: one or two short sentences, no title, list or bold. This is a conversation, so keep it moving: answer what they said, then ask one question that shows you are curious about them and takes things forward (how the last session felt, what they ate, what is getting in the way, what they want next). Come with questions of your own: if they only say hello or have nothing particular to ask, do not just greet them back, pick something real from their day, their plan or what you remember about them and ask about it. Never greet twice in one conversation, never repeat a question they have answered, and never say you are happy to help. If what you heard is a fragment or makes no sense, it was probably mis-heard: say so in a few words and ask them to say it again. If the full answer needs steps, say the first step and offer the rest.
+
+Hard questions: people will ask things a good coach should be able to answer properly: why they have stopped losing weight, how to train round a sore shoulder, whether to eat back exercise calories, how to break a bench press plateau, cutting against bulking, training in a fasted state, how much protein is too much, sleep and recovery, creatine, how to progress when the weights stop moving. Do not dodge these or give a generic line. Give the actual answer: what is going on in the body, the numbers that matter, what the evidence supports and where it is thin, and exactly what this person should do given their own details, history and plan. Use the layout rules, with a title and a few short headed parts when it helps. Say plainly when something is a medical question for a GP or physiotherapist, and still give the general picture.
+
+Asking instead of guessing: when a good answer depends on things you do not know (someone asks for a routine and you do not know where they train, how many days they have or what they want from it), ask before you build, using the questions field so they can tap their answers. Put one line of reply above them saying what you are about to do with the answers. Do not ask what the context or your memory already tells you. When their next message carries the answers, act on them straight away.
+
+Showing progress: when they ask how they are doing, set show to "progress" so the app draws the charts, and use the reply for what the charts cannot say: what you make of it, the one thing going well and the one thing to change.
 
 Starting out: when the context has easing_in, the user is in their first few sessions. The app sets every weight light on purpose for these, and each session ends with the debrief. Tell them to start easy and that it is meant to feel easy, do not push them to go heavier, and use what they tell you afterwards to judge what they can take. Once easing_in is false, the debrief still happens but can be brief.
 
@@ -253,7 +275,9 @@ Reminders: the phone can notify the user at breakfast, lunch, dinner and workout
 
 Logging food by photo: the app can count a meal from a picture. They tap the plus by the message box and then Snap your meal, or just type "snap my meal", and the camera opens straight away. Offer it when they have eaten something that is not in the plan.
 
-Not built yet, so do not offer or promise them: finding or messaging training partners (it is being built), and placing a supermarket order for them (the meal page links each ingredient to the shops, and they check out there themselves). If asked, say plainly that it is not available yet and offer what you can do now.
+Training partners: the people button at the top of the chat opens it. Adults (18 and over) who have chosen their gym write who they would like to train with, are shown the nearest people who fit, and say yes or no to each; two people who both say yes can message each other there and ask for a session to do together. You cannot see their matches or messages, and you never find or contact anyone yourself: point them to that button. Remind anyone meeting a partner for the first time to meet at the gym and tell a friend.
+
+Not built yet, so do not offer or promise it: placing a supermarket order for them (the meal page links each ingredient to the shops, and they check out there themselves). If asked, say plainly that it is not available yet and offer what you can do now.
 
 What you know about the user arrives in a JSON block at the start of the conversation: their profile and goal, the daily targets the app has calculated, their current routine, how consistent they have been lately, and the exercises and recipes the app has. Treat it as facts about the user. Their name is not included, so do not use one. If it includes body_scan, that is a trainer's first-look description from a photo the user chose to share: use its focus areas and posture notes to shape exercise choice, mention it lightly and kindly if at all, and never turn it into a judgement about their body or a weight target.
 
@@ -435,6 +459,7 @@ Deno.serve(async (req) => {
       mood: r.mood ?? 'calm',
       remember: (r.remember ?? []).slice(0, 3).map((t) => t.slice(0, 200)),
       forget: (r.forget ?? []).slice(0, 10),
+      questions: spoken ? [] : (r.questions ?? []).slice(0, 4).map((q) => ({ question: q.question.slice(0, 120), options: q.options.slice(0, 5).map((o) => o.slice(0, 60)).filter(Boolean) })).filter((q) => q.question && q.options.length >= 2),
       update_details: r.update_details,
       set_reminders: !!r.set_reminders && !!r.reminder_times,
       reminder_times: r.reminder_times,

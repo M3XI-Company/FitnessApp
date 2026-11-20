@@ -12,6 +12,7 @@
  * Configure with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.
  * Without them the app falls back to the on-device rule-based coach.
  */
+import { cleanQuestions } from './questions'
 import { EXERCISES } from '../data/exercises'
 import { achievements } from './achievements'
 import { addDays, todayKey, uid } from './date'
@@ -46,7 +47,9 @@ interface ServerResult {
   update_meal_plan: boolean
   meal_days: { day: Weekday; recipe_ids: string[] }[]
   /** a card to show under the reply; absent from older deployments of the function */
-  show?: 'none' | 'today' | 'tomorrow' | 'workout' | 'preview'
+  show?: 'none' | 'today' | 'tomorrow' | 'workout' | 'preview' | 'progress'
+  /** questions with answers to tap */
+  questions?: unknown
   /** with show "preview": the day whose workout to lay out */
   preview_day?: Weekday | 'none'
   /** reminder times the coach suggests, as "HH:MM" */
@@ -164,10 +167,13 @@ export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
     const week = Array.from({ length: 7 }, (_, i) => addDays(todayKey(), i))
     msg.preview = week.find((d) => weekdayOf(d) === r.preview_day) ?? (s && week.find((d) => ['todo', 'started'].includes(dayProgress(s, d).status))) ?? todayKey()
   }
+  else if (r.show === 'progress') msg.progress = true
   // only when there is a workout left to do today
   else if (r.show === 'workout' && s && ['todo', 'started'].includes(dayProgress(s).status)) msg.guide = todayKey()
   const remember = (r.remember ?? []).filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim().slice(0, MAX_MEMORY_CHARS)).slice(0, 4)
   if (remember.length) msg.noted = remember
+  const questions = cleanQuestions(r.questions)
+  if (questions.length) msg.questions = questions
   const details = s ? detailsChange(s, r.update_details) : undefined
   if (details) msg.details = details
   // shown as a card to adjust; nothing is scheduled until the user turns reminders on

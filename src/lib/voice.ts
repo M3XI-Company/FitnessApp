@@ -17,7 +17,7 @@ import { File, Paths } from 'expo-file-system'
 import * as Speech from 'expo-speech'
 import { isEcho, isInterruption } from './echo'
 import { deviceId } from './foodPhoto'
-import { DEFAULT_VOICE, PHONE_VOICE, forSpeech, voiceOf } from './voices'
+import { DEFAULT_VOICE, PHONE_VOICE, forSpeech, spokenParts, voiceOf } from './voices'
 
 /** A speech server on the developer's own computer, e.g. http://10.0.2.2:8790 seen from the Android emulator. Unset in released builds. */
 const LOCAL_URL = process.env.EXPO_PUBLIC_VOICE_URL?.replace(/\/+$/, '')
@@ -85,15 +85,13 @@ let spoken = 0
 /** Each request to speak takes a number; a later one, or a stop, makes an earlier one give up. */
 let turn = 0
 
-/**
- * Say it with one of the natural voices. Resolves true when it was said (or
- * stopped part-way), false when the server could not provide the sound, in
- * which case the caller falls back to the phone's voice.
- */
-async function speakNaturally(text: string, voice: string, mine: number): Promise<boolean> {
+/** One piece of speech as it came back: the sound and what kind of file it is. */
+interface Sound { bytes: Uint8Array; ext: 'wav' | 'mp3' }
+
+/** Ask the speech server for one piece of speech; null when it could not be made. */
+async function fetchSound(text: string, voice: string): Promise<Sound | null> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 25000)
-  let file: File | undefined
   try {
     const hosted = !LOCAL_URL
     const res = await fetch(VOICE_URL!, {
@@ -102,38 +100,70 @@ async function speakNaturally(text: string, voice: string, mine: number): Promis
       body: JSON.stringify({ text, voice, ...(hosted ? { device: await deviceId() } : {}) }),
       signal: ctrl.signal,
     })
-    if (!res.ok) return false
+    if (!res.ok) return null
     const bytes = new Uint8Array(await res.arrayBuffer())
-    if (bytes.length < 1000) return false
-    // stopped, or something newer was asked for, while the sound was being made
-    if (mine !== turn) return true
-    file = new File(Paths.cache, `breeze-voice-${++spoken}.wav`)
-    if (file.exists) file.delete()
-    file.create()
-    file.write(bytes)
-    const sound = file
-    await new Promise<void>((resolve) => {
-      const player = createAudioPlayer(sound.uri)
-      const giveUp = setTimeout(() => done(), 90000)
-      const sub = player.addListener('playbackStatusUpdate', (status) => { if (status.didJustFinish) done() })
-      function done() {
-        clearTimeout(giveUp)
-        sub.remove()
-        if (playing?.player === player) playing = null
-        try { player.remove() } catch { /* already gone */ }
-        try { if (sound.exists) sound.delete() } catch { /* cleared with the cache */ }
-        resolve()
-      }
-      playing = { player, file: sound, done }
-      player.play()
-    })
-    return true
+    // the kind of sound decides the file's name, which is how the phone knows how to play it
+    return bytes.length < 1000 ? null : { bytes, ext: (res.headers.get('content-type') ?? '').includes('mpeg') ? 'mp3' : 'wav' }
   } catch {
-    try { if (file?.exists) file.delete() } catch { /* cleared with the cache */ }
-    return false
+    return null
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** Play one sound file to the end, or until it is stopped. */
+function playSound({ bytes, ext }: Sound): Promise<void> {
+  const sound = new File(Paths.cache, `breeze-voice-${++spoken}.${ext}`)
+  try {
+    if (sound.exists) sound.delete()
+    sound.create()
+    sound.write(bytes)
+  } catch {
+    return Promise.resolve()
+  }
+  return new Promise<void>((resolve) => {
+    const player = createAudioPlayer(sound.uri)
+    const giveUp = setTimeout(() => done(), 90000)
+    const sub = player.addListener('playbackStatusUpdate', (status) => { if (status.didJustFinish) done() })
+    function done() {
+      clearTimeout(giveUp)
+      sub.remove()
+      if (playing?.player === player) playing = null
+      try { player.remove() } catch { /* already gone */ }
+      try { if (sound.exists) sound.delete() } catch { /* cleared with the cache */ }
+      resolve()
+    }
+    playing = { player, file: sound, done }
+    player.play()
+  })
+}
+
+/**
+ * Say it with one of the natural voices, a sentence at a time: the first
+ * sentence starts as soon as it is ready and the next is fetched while it
+ * plays, so a long reply does not mean a long silence first. Resolves true
+ * when it was said (or stopped part-way), false when the server could not
+ * provide the opening sound, in which case the caller falls back to the
+ * phone's voice.
+ */
+async function speakNaturally(text: string, voice: string, mine: number): Promise<boolean> {
+  const parts = spokenParts(text)
+  let next: Promise<Sound | null> | null = fetchSound(parts[0], voice)
+  for (let i = 0; i < parts.length && next; i++) {
+    const bytes: Sound | null = await next
+    // stopped, or something newer was asked for, while the sound was being made
+    if (mine !== turn) return true
+    next = i + 1 < parts.length ? fetchSound(parts[i + 1], voice) : null
+    if (!bytes) {
+      if (i === 0) return false
+      // the server gave out part-way: the phone's voice finishes the reply
+      await speakWithPhone(parts.slice(i).join(' '))
+      return true
+    }
+    await playSound(bytes)
+    if (mine !== turn) return true
+  }
+  return true
 }
 
 /**

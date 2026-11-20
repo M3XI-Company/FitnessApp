@@ -4,12 +4,13 @@ import { exerciseById } from '../../data/exercises'
 import { mealPlanText, portionFor, portionLabel } from '../../lib/chat'
 import { prettyDate, todayKey } from '../../lib/date'
 import { recipeById, type ComputedRecipe } from '../../lib/recipes'
-import { WEEKDAYS, WEEKDAY_LABEL } from '../../lib/routine'
+import { WEEKDAYS } from '../../lib/routine'
 import { useStore } from '../../lib/store'
 import type { ChatMessage } from '../../lib/types'
 import { C, T } from '../../theme'
 import { CopyButton } from '../chat/DayCard'
 import { Button, Card, Icon, Pill, success } from '../ui'
+import { RoutineDays } from './RoutineDays'
 
 /** A weekly routine the coach proposes. Nothing changes until the user taps the button. */
 export function RoutineCard({ routine }: { routine: NonNullable<ChatMessage['routine']> }) {
@@ -21,18 +22,9 @@ export function RoutineCard({ routine }: { routine: NonNullable<ChatMessage['rou
       <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Icon name="barbell-outline" color={C.accent} /><Text style={[T.headline, { flex: 1 }]}>Weekly routine</Text><Pill>{`${training.length} days`}</Pill>
       </View>
-      {WEEKDAYS.map((d) => {
-        const day = routine.days[d]
-        return (
-          <View key={d} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.sep }}>
-            <Text style={[T.caption, { width: 34, fontWeight: '700', color: day.items.length ? C.text : C.text3, marginTop: 2 }]}>{WEEKDAY_LABEL[d]}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[T.body, { fontWeight: '600', color: day.items.length ? C.text : C.text3 }]}>{day.title}</Text>
-              {day.items.length > 0 && <Text style={T.caption}>{day.items.map((i) => `${exerciseById(i.exerciseId)?.name} ${i.sets}×${i.reps}`).join(' · ')}</Text>}
-            </View>
-          </View>
-        )
-      })}
+      <View style={{ paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: C.sep }}>
+        <RoutineDays routine={routine} sex={state.profile.sex} />
+      </View>
       <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: C.sep }}>
         {inUse
           ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', paddingVertical: 6 }}><Icon name="checkmark-circle" size={18} color={C.green} /><Text style={[T.headline, { color: C.green }]}>This is your routine</Text></View>

@@ -131,6 +131,10 @@ export interface ChatMessage {
   guide?: string
   /** reminder times the coach suggests; nothing is scheduled until the user turns them on */
   reminders?: ReminderTimes
+  /** questions the coach asks with answers to tap (lib/questions) */
+  questions?: import('./questions').CoachQuestion[]
+  /** the progress charts are shown under the message */
+  progress?: boolean
   /** facts the coach added to its memory with this reply, shown under it as "Noted" */
   noted?: string[]
   /** a change to the user's details the coach suggests; nothing changes until the user applies it */
@@ -233,6 +237,8 @@ export interface AppState {
   memory?: MemoryItem[]
   /** meal and workout reminders; off until the user turns them on */
   reminders?: ReminderSettings
+  /** what the coach made of the person's progress, and the day it said so; asked for once a day */
+  insight?: { date: string; text: string }
   /** the voice Breeze speaks with (lib/voices); the default when not chosen */
   voice?: string
   /** the plan the person is on (lib/plan); free when absent */
@@ -243,7 +249,10 @@ export interface AppState {
   routine?: WeeklyRoutine
   /** latest body scan description, if the user chose to do one */
   bodyScan?: BodyScan
-  buddies: string[] // connected buddy ids
+  /** unused since partner matching moved to the server; kept so saved data still loads */
+  buddies: string[]
+  /** what the person wrote for their training-partner profile (lib/buddyRules), so the form opens filled in */
+  buddy?: import('./buddyRules').BuddySetup
   blocked: string[]
   reports: { id: string; targetId: string; reason: string; at: string }[]
   /** ISO time the user accepted the meeting-safety guidelines */

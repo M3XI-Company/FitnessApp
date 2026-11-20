@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { COMPARE, PLUS, billingLine, isPlus, needsDataChoice, sharesData, tierOf, type Subscription } from '../src/lib/plan'
+import { COMPARE, PLUS, billingLine, isPlus, needsDataChoice, sharesData, tierOf, afterStoreCheck, type Subscription } from '../src/lib/plan'
 
 const plus: Subscription = { tier: 'plus', since: '2026-11-18T12:00:00.000Z', via: 'store' }
 const yes = { share: true, at: '2026-11-18T12:00:00.000Z' }
@@ -41,4 +41,17 @@ test('the yearly saving quoted matches the two prices', () => {
   const saving = Math.round((1 - pounds(PLUS.yearly) / (pounds(PLUS.monthly) * 12)) * 100)
   assert.equal(`${saving}%`, PLUS.yearlySaving)
   assert.ok(COMPARE.length >= 3 && COMPARE.every((r) => r.title && r.free && r.plus))
+})
+
+test('the store decides whether a paid subscription is still on', () => {
+  const now = '2026-11-20T10:00:00.000Z'
+  // bought elsewhere, or before a reinstall: it comes back
+  assert.deepEqual(afterStoreCheck(undefined, true, now), { tier: 'plus', since: now, via: 'store' })
+  const paid: Subscription = { tier: 'plus', since: '2026-10-01T00:00:00.000Z', via: 'store' }
+  assert.equal(afterStoreCheck(paid, true, now), paid)
+  // lapsed or cancelled: it ends
+  assert.equal(afterStoreCheck(paid, false, now), undefined)
+  // switched on in a development build: the store does not turn it off
+  const preview: Subscription = { tier: 'plus', since: now, via: 'preview' }
+  assert.equal(afterStoreCheck(preview, false, now), preview)
 })

@@ -44,6 +44,16 @@ export const PLUS = {
   yearlySaving: '49%',
 } as const
 
+/**
+ * The plan after the store has been asked whether Plus is paid for. A paid
+ * subscription that has lapsed ends; one bought on another phone or before a
+ * reinstall comes back. Plus switched on in a development build is left alone.
+ */
+export function afterStoreCheck(current: Subscription | undefined, paid: boolean, now = new Date().toISOString()): Subscription | undefined {
+  if (paid) return current?.tier === 'plus' && current.via === 'store' ? current : { tier: 'plus', since: now, via: 'store' }
+  return current?.via === 'store' ? undefined : current
+}
+
 export const tierOf = (s: Pick<AppState, 'subscription'>): Tier => (s.subscription?.tier === 'plus' ? 'plus' : 'free')
 export const isPlus = (s: Pick<AppState, 'subscription'>) => tierOf(s) === 'plus'
 
