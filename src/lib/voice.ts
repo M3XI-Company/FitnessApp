@@ -18,6 +18,7 @@ import * as Speech from 'expo-speech'
 import { isEcho, isInterruption } from './echo'
 import { deviceId } from './foodPhoto'
 import { DEFAULT_VOICE, PHONE_VOICE, forSpeech, spokenParts, voiceOf } from './voices'
+import { advisorVoice, type Advisor } from './advisors'
 
 /** A speech server on the developer's own computer, e.g. http://10.0.2.2:8790 seen from the Android emulator. Unset in released builds. */
 const LOCAL_URL = process.env.EXPO_PUBLIC_VOICE_URL?.replace(/\/+$/, '')
@@ -196,6 +197,9 @@ function speakWithPhone(text: string): Promise<void> {
     })
   })
 }
+
+/** Say it in the voice of the coach who wrote it; with no coach named, in the chosen voice. */
+export const speakAs = (text: string, who?: Advisor) => speak(text, advisorVoice(who, current) ?? current)
 
 export const stopSpeaking = () => {
   turn++

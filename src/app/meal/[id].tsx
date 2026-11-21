@@ -15,6 +15,7 @@ import { MealPlanCard } from '../../components/coach/PlanCard'
 import { CopyButton } from '../../components/chat/DayCard'
 import { LiftingDumbbell } from '../../components/chat/LiftingDumbbell'
 import { FoodIcon } from '../../components/foodIcons'
+import { MacroBoard } from '../../components/MacroBoard'
 import { Photo } from '../../components/Photo'
 import { RecipeCover } from '../../components/RecipeCover'
 import { Button, Icon, IconButton, success, tap } from '../../components/ui'
@@ -89,7 +90,8 @@ export default function MealChat() {
       </View>
 
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 8, gap: 10 }} keyboardShouldPersistTaps="handled">
-        <Photo id={c.recipe.id} label={`A photo of ${c.recipe.title}`} style={{ width: '100%', height: 190, borderRadius: 22 }} />
+        <Photo id={c.recipe.id} label={`A photo of ${c.recipe.title}`} style={{ width: '100%', height: 230, borderRadius: 28 }} />
+        <MacroBoard kcal={kcal} protein={protein} carbs={c.perServing.carbs * portion} fat={c.perServing.fat * portion} dayKcal={state.targets.kcal} />
         <Bubble role="coach" text={opening} />
         {/* what goes in it: folded away until asked for, every item on the same tile, each with where to buy it */}
         <View style={{ backgroundColor: '#fff', borderRadius: 20, ...shadow }}>

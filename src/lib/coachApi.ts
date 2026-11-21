@@ -13,6 +13,7 @@
  * Without them the app falls back to the on-device rule-based coach.
  */
 import { cleanQuestions } from './questions'
+import { isAdvisor } from './advisors'
 import { EXERCISES } from '../data/exercises'
 import { achievements } from './achievements'
 import { addDays, todayKey, uid } from './date'
@@ -42,6 +43,9 @@ const MAX_CHARS = 2000
 
 interface ServerResult {
   reply: string
+  /** which coach wrote it, and a line the other one added; absent from older deployments */
+  speaker?: string
+  second?: string
   update_routine: boolean
   routine_days: { day: Weekday; title: string; focus: string; style?: string; items: { exercise_id: string; sets: number; reps: string }[] }[]
   update_meal_plan: boolean
@@ -160,6 +164,7 @@ const comingWeek = () => Object.fromEntries(Array.from({ length: 7 }, (_, i) => 
 export function toChatMessage(r: ServerResult, s?: AppState): ChatMessage {
   const msg: ChatMessage = { id: uid(), role: 'coach', text: r.reply.trim() }
   if (isMood(r.mood)) msg.mood = r.mood
+  if (isAdvisor(r.speaker)) { msg.speaker = r.speaker; if (typeof r.second === 'string' && r.second.trim()) msg.second = r.second.trim().slice(0, 500) }
   if (r.show === 'today') msg.day = todayKey()
   else if (r.show === 'tomorrow') msg.day = addDays(todayKey(), 1)
   else if (r.show === 'preview') {

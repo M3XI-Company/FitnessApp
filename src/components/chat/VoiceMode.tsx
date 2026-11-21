@@ -4,10 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Mood } from '../../lib/mood'
 import type { ChatMessage } from '../../lib/types'
 import { plainText } from '../../lib/chat'
-import { canListen, listen, listenOver, pause, speak, stopSpeaking, type Listening, type Overhearing } from '../../lib/voice'
+import { canListen, listen, listenOver, pause, speakAs, stopSpeaking, type Listening, type Overhearing } from '../../lib/voice'
 import { C, T } from '../../theme'
 import { SkyOrb, type OrbMode } from '../SkyOrb'
 import { VoiceBar } from '../VoiceBar'
+import type { Advisor } from '../../lib/advisors'
+import { AdvisorTag } from './AdvisorTag'
 
 type Mode = 'waiting' | 'listening' | 'thinking' | 'speaking'
 const ORB: Record<Mode, OrbMode> = { waiting: 'idle', listening: 'listening', thinking: 'thinking', speaking: 'speaking' }
@@ -37,6 +39,8 @@ export function VoiceMode({ onClose, respond, mood, opening }: {
   const [mode, setMode] = useState<Mode>('waiting')
   const [line, setLine] = useState(() => opening ?? (hears ? 'I’m listening.' : 'Type below and I’ll answer out loud.'))
   const [partial, setPartial] = useState('')
+  // which coach is speaking
+  const [who, setWho] = useState<Advisor | undefined>()
   const [thought, setThought] = useState('')
   const [level, setLevel] = useState(0)
   const [typed, setTyped] = useState('')
@@ -68,7 +72,7 @@ export function VoiceMode({ onClose, respond, mood, opening }: {
     if (!open.current) return
     const say = spoken(reply)
     setLine(say); setCard(hasCard(reply)); setPartial(''); setThought('')
-    await sayAloud(say)
+    await sayAloud(say, reply.speaker)
   }
 
   /**
@@ -76,11 +80,11 @@ export function VoiceMode({ onClose, respond, mood, opening }: {
    * mid-sentence and what the person says becomes their turn; otherwise it
    * finishes and then listens in the ordinary way.
    */
-  async function sayAloud(say: string) {
-    setMode('speaking')
+  async function sayAloud(say: string, by?: Advisor) {
+    setWho(by); setMode('speaking')
     const o = listenOver(say, () => { stopSpeaking(); setLevel(0); setMode('listening') }, setPartial, setLevel)
     over.current = o
-    await speak(say)
+    await speakAs(say, by)
     if (!open.current || over.current !== o) return
     if (!o.cutIn()) {
       o.cancel(); over.current = null
@@ -124,6 +128,7 @@ export function VoiceMode({ onClose, respond, mood, opening }: {
               <Text style={[T.body, { textAlign: 'center', fontSize: 18, lineHeight: 25, color: partial ? C.text : C.text3 }]}>{partial || 'Listening…'}</Text>
             ) : (
               <>
+                {who && <AdvisorTag who={who} center />}
                 <Text style={[T.body, { textAlign: 'center', fontSize: 18, lineHeight: 25, color: C.text }]}>{line}</Text>
                 {card && <Text style={[T.caption, { textAlign: 'center' }]}>I’ve put the details in your chat.</Text>}
               </>

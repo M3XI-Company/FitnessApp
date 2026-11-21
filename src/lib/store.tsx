@@ -248,7 +248,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .catch(() => { /* corrupt storage: keep seed */ })
       .finally(() => setReady(true))
   }, [])
-  useEffect(() => { if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {}) }, [state, ready])
+  // saving turns the whole state into text, so it waits for a short pause rather than running on every tap;
+  // if the screen goes away first, the save happens there and then, so nothing is lost
+  useEffect(() => {
+    if (!ready) return
+    const save = () => { AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {}) }
+    let pending = true
+    const t = setTimeout(() => { pending = false; save() }, 400)
+    return () => { clearTimeout(t); if (pending) save() }
+  }, [state, ready])
   // each time the app opens the store is asked whether Plus is still paid for
   useEffect(() => {
     if (!ready || !storeReady()) return

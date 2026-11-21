@@ -15,7 +15,9 @@ import { computeTargets } from '../lib/nutrition'
 import { buildRoutine } from '../lib/routine'
 import { useStore } from '../lib/store'
 import type { Activity, GoalType, Profile, WeeklyRoutine } from '../lib/types'
-import { canListen, listen, listenOver, pause, speak, stopSpeaking, type Listening, type Overhearing } from '../lib/voice'
+import type { Advisor } from '../lib/advisors'
+import { AdvisorTag } from '../components/chat/AdvisorTag'
+import { canListen, listen, listenOver, pause, speak, speakAs, stopSpeaking, type Listening, type Overhearing } from '../lib/voice'
 import { C, T, shadow } from '../theme'
 import { SkyOrb, type OrbMode } from '../components/SkyOrb'
 import { VoiceBar } from '../components/VoiceBar'
@@ -64,6 +66,8 @@ export default function Welcome() {
   const over = useRef<Overhearing | null>(null)
   const [mode, setMode] = useState<Mode>('thinking')
   const [line, setLine] = useState('')
+  // which of the two coaches is speaking
+  const [who, setWho] = useState<Advisor | undefined>()
   const [partial, setPartial] = useState('')
   const [level, setLevel] = useState(0)
   const [heard, setHeard] = useState<HeardProfile>()
@@ -99,11 +103,11 @@ export default function Welcome() {
     const res = await askInterview(turns.current, known.current, {
       thinking: (t) => { if (alive.current && !speaking) setThought(thinkingLine(t, 110)) },
       // the words arrive before the rest of the answer: start talking straight away
-      say: (say) => {
+      say: (say, by) => {
         if (!alive.current || speaking) return
-        setThought(''); setLine(say); setPartial(''); setMode('speaking')
+        setThought(''); setLine(say); setWho(by); setPartial(''); setMode('speaking')
         overhear(say)
-        speaking = speak(say)
+        speaking = speakAs(say, by)
       },
     })
     if (!alive.current) return
@@ -111,8 +115,8 @@ export default function Welcome() {
     if (!res.ok) { stopSpeaking(); setError(res.error); setMode('waiting'); return }
     const r = res.reply
     turns.current.push({ role: 'coach', text: r.say })
-    setLine(r.say); setPartial(''); setHeard(r.profile); setNotes(r.notes)
-    if (!speaking) { setMode('speaking'); overhear(r.say); speaking = speak(r.say) }
+    setLine(r.say); setWho(r.speaker); setPartial(''); setHeard(r.profile); setNotes(r.notes)
+    if (!speaking) { setMode('speaking'); overhear(r.say); speaking = speakAs(r.say, r.speaker) }
     await speaking
     if (!alive.current) return
     const o = over.current
@@ -232,9 +236,9 @@ export default function Welcome() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 26 }}>
           <SkyOrb size={230} />
           <View style={{ gap: 10, alignItems: 'center' }}>
-            <Text style={[T.largeTitle, { textAlign: 'center' }]}>{returning ? 'Let’s catch up' : 'Hi, I’m Breeze'}</Text>
+            <Text style={[T.largeTitle, { textAlign: 'center' }]}>{returning ? 'Let’s catch up' : 'Meet your two coaches'}</Text>
             <Text style={[T.body, { color: C.text2, fontSize: 17, lineHeight: 24, textAlign: 'center', maxWidth: 320 }]}>
-              {returning ? (hears ? 'Tell me what has changed or what is not working, out loud. I will update your plan around it.' : 'Tell me what has changed or what is not working. I ask out loud, you type, and I update your plan around it.') : hears ? 'Let’s talk for a couple of minutes. I ask, you answer out loud, and I build your plan from what you tell me.' : 'Let’s talk for a couple of minutes. I ask out loud, you type your answers, and I build your plan from what you tell me.'}
+              {returning ? (hears ? 'Tell me what has changed or what is not working, out loud. I will update your plan around it.' : 'Tell me what has changed or what is not working. I ask out loud, you type, and I update your plan around it.') : hears ? 'Gale looks after your training and Skye looks after the life round it. Talk with them for a couple of minutes, out loud, and they build your plan from what you tell them.' : 'Gale looks after your training and Skye looks after the life round it. They ask out loud, you type your answers, and they build your plan from what you tell them.'}
             </Text>
           </View>
         </View>
@@ -265,7 +269,10 @@ export default function Welcome() {
             ) : mode === 'listening' ? (
               <Text style={[T.body, { textAlign: 'center', fontSize: 18, lineHeight: 25, color: partial ? C.text : C.text3 }]}>{partial || 'Listening\u2026'}</Text>
             ) : (
-              <Text style={[T.body, { textAlign: 'center', fontSize: 19, lineHeight: 27, color: C.text }]}>{line}</Text>
+              <>
+                {who && <AdvisorTag who={who} center />}
+                <Text style={[T.body, { textAlign: 'center', fontSize: 19, lineHeight: 27, color: C.text }]}>{line}</Text>
+              </>
             )}
             {!!error && <Text style={[T.sub, { color: C.red, textAlign: 'center' }]}>{ERRORS[error]}</Text>}
             {/* what has been understood so far, quietly */}

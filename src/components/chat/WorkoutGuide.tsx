@@ -11,7 +11,12 @@ import { STYLE_LABEL, STYLE_MEANING, dayProgress, routineStreak } from '../../li
 import { useStore } from '../../lib/store'
 import { C, T } from '../../theme'
 import { ExerciseFigure } from '../trainer/ExerciseFigure'
-import { Bar, Button, Card, Icon, success, tap } from '../ui'
+import { Bar, Card, Icon, success, tap } from '../ui'
+
+// the colours of the session in progress: near-black, a warm gold for what is live, pale sky for the rest
+const INK = '#0B1422'
+const GOLD = '#F2D27A'
+const PALE = 'rgba(255,255,255,0.72)'
 
 const plain = (name: string) => name.replace(/\s*\(.*\)/, '').toLowerCase()
 const list = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
@@ -85,32 +90,50 @@ export function WorkoutGuide({ date, active }: { date: string; active: boolean }
   // stop here: what is done is kept, and Breeze asks out loud how it went
   const endSession = () => dispatch({ type: 'chat', messages: [checkinMessage(date, { early: true, easing: easingIn(before) })] })
 
+  const upNext = left.find((i) => i.exerciseId !== current.exerciseId)
+  const nextName = upNext ? exerciseById(upNext.exerciseId)?.name : undefined
+
+  // the session in progress is the one dark thing in the chat: it reads as a different place, the gym floor
   return (
-    <Card style={{ padding: 0, overflow: 'hidden' }}>
+    <View style={{ borderRadius: 24, overflow: 'hidden', backgroundColor: INK }}>
       <ExerciseFigure key={ex.id} exerciseId={ex.id} sex={state.profile.sex} height={250} />
-      <View style={{ padding: 14, gap: 10 }}>
-        <View style={{ gap: 6 }}>
-          <Text style={[T.caption, { fontWeight: '700', letterSpacing: 1, color: C.text3 }]}>{style ? `${STYLE_LABEL[style].toUpperCase()} · ` : ''}EXERCISE {index + 1} OF {day.items.length} · ABOUT {remaining} MIN LEFT</Text>
-          <Bar pct={day.doneItems / day.items.length} height={5} />
+      <View style={{ padding: 16, gap: 14 }}>
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={[T.num, { color: GOLD, fontWeight: '800', fontSize: 12, letterSpacing: 1 }]}>SET {current.done + 1} / {current.sets}{style ? ` · ${STYLE_LABEL[style].toUpperCase()}` : ''}</Text>
+            <Text style={[T.num, { color: PALE, fontWeight: '600', fontSize: 12 }]}>{index + 1} of {day.items.length} · about {remaining} min left</Text>
+          </View>
+          <Bar pct={day.doneItems / day.items.length} height={4} color={GOLD} track="rgba(255,255,255,0.12)" />
         </View>
-        <View>
-          <Text style={T.title3}>{ex.name}</Text>
-          <Text style={[T.headline, T.num, { color: C.accent, marginTop: 2 }]}>
-            Set {current.done + 1} of {current.sets} · {weight ? `${weight} kg × ` : ''}{reps}{timed ? ' seconds' : ' reps'}
-          </Text>
+        <Text style={[T.title2, { color: '#fff' }]}>{ex.name}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }} accessibilityLabel={`${weight ? `${weight} kilograms, ` : ''}${reps} ${timed ? 'seconds' : 'reps'}`}>
+          <View>
+            <Text style={[T.bigNum, T.num, { color: '#fff' }]}>{reps}</Text>
+            <Text style={{ color: PALE, fontSize: 13, fontWeight: '600' }}>{timed ? 'Seconds' : 'Reps'}</Text>
+          </View>
+          {weight > 0 && (
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[T.bigNum, T.num, { color: '#fff' }]}>{weight}</Text>
+              <Text style={{ color: PALE, fontSize: 13, fontWeight: '600' }}>Kg</Text>
+            </View>
+          )}
         </View>
-        <Text style={[T.sub, { lineHeight: 19 }]}>
+        <Text style={{ color: PALE, fontSize: 14, lineHeight: 20 }}>
           {works.length ? `Works your ${list(works)}. ` : ''}{ex.cues[0]}{/[.!?]$/.test(ex.cues[0] ?? '') ? '' : '.'}
           {current.done > 0 ? ` Rest about ${rest >= 120 ? `${Math.round(rest / 60)} minutes` : `${rest} seconds`} between sets.` : ''}
         </Text>
-        {!!why && <Text style={[T.caption, { lineHeight: 17 }]}>{why}</Text>}
+        {!!why && <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12.5, lineHeight: 17 }}>{why}</Text>}
         {tips.length > 0 && (
-          <View style={{ gap: 4, padding: 10, borderRadius: 12, backgroundColor: C.accentSoft }}>
-            <Text style={[T.caption, { fontWeight: '700', letterSpacing: 0.8, color: C.accent }]}>FOR YOUR BUILD</Text>
-            {tips.map((t) => <Text key={t} style={[T.sub, { color: C.text, lineHeight: 19 }]}>{t}</Text>)}
+          <View style={{ gap: 4, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.07)' }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.9, color: GOLD }}>FOR YOUR BUILD</Text>
+            {tips.map((t) => <Text key={t} style={{ color: '#fff', fontSize: 13.5, lineHeight: 19 }}>{t}</Text>)}
           </View>
         )}
-        <Button title={lastSet ? 'Set done · next exercise' : 'Set done'} icon="checkmark" onPress={setDone} />
+        <Pressable onPress={setDone} accessibilityRole="button" accessibilityLabel={lastSet ? 'Set done, next exercise' : 'Set done'}
+          style={({ pressed }) => [{ height: 54, borderRadius: 27, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, pressed && { opacity: 0.8 }]}>
+          <Icon name="checkmark" size={20} color={INK} />
+          <Text style={{ color: INK, fontWeight: '800', fontSize: 16 }}>{lastSet ? 'Set done · next exercise' : 'Set done'}</Text>
+        </Pressable>
         <View style={{ flexDirection: 'row', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           {supportsForm(ex.id) && <Link icon="videocam-outline" label="Check my form" onPress={() => router.push(`/form-check/${ex.id}`)} />}
           <Link icon="information-circle" label="More detail" onPress={() => router.push(`/exercise/${ex.id}`)} />
@@ -118,15 +141,21 @@ export function WorkoutGuide({ date, active }: { date: string; active: boolean }
           {day.doneItems + current.done > 0 && <Link icon="flag-outline" label="End session" onPress={endSession} />}
         </View>
       </View>
-    </Card>
+      {!!nextName && (
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+          <Text style={{ color: GOLD, fontWeight: '700', fontSize: 13 }}>Next</Text>
+          <Text style={{ color: PALE, fontSize: 13, flex: 1 }} numberOfLines={1}>{nextName}</Text>
+        </View>
+      )}
+    </View>
   )
 }
 
 function Link({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: () => void }) {
   return (
     <Pressable onPress={() => { tap(); onPress() }} hitSlop={8} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4 }, pressed && { opacity: 0.6 }]}>
-      <Icon name={icon} size={15} color={C.accent} />
-      <Text style={{ color: C.accent, fontWeight: '600', fontSize: 13.5 }}>{label}</Text>
+      <Icon name={icon} size={15} color={C.skyLight} />
+      <Text style={{ color: C.skyLight, fontWeight: '600', fontSize: 13.5 }}>{label}</Text>
     </Pressable>
   )
 }

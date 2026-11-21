@@ -117,6 +117,10 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'coach'
   text: string
+  /** which of the two coaches wrote it (lib/advisors); absent on the built-in coach's replies */
+  speaker?: import('./advisors').Advisor
+  /** a line or two the other coach added */
+  second?: string
   /** optional structured workout card */
   workout?: { title: string; items: { exerciseId: string; sets: number; reps: string }[] }
   /** a weekly routine the coach proposes; nothing changes until the user applies it */

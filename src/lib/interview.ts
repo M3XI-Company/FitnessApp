@@ -7,6 +7,7 @@
  * is checked here against the app's own limits before it is used, and the
  * user confirms it on screen before anything is saved.
  */
+import { isAdvisor, type Advisor } from './advisors'
 import { MIN_AGE } from './age'
 import { deviceId } from './foodPhoto'
 import { postForOutcome } from './stream'
@@ -20,7 +21,7 @@ export interface HeardProfile {
   name: string; age: number; sex: Sex | 'unknown'; height_cm: number; weight_kg: number; target_weight_kg: number
   goal: GoalType | 'unknown'; activity: Activity | 'unknown'
 }
-export interface InterviewReply { say: string; done: boolean; profile: HeardProfile; notes: string }
+export interface InterviewReply { speaker?: Advisor; say: string; done: boolean; profile: HeardProfile; notes: string }
 
 const URL_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL
 const ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -40,7 +41,7 @@ export const knownFrom = (p: Profile, memory: string[]): Known => ({
  * Ask for the next thing to say. `turns` is the conversation so far; empty to
  * get the opening line. `known` is passed for a user who has already set up.
  */
-export async function askInterview(turns: InterviewTurn[], known?: Known, on?: { thinking?: (thinking: string) => void; say?: (say: string) => void }): Promise<{ ok: true; reply: InterviewReply } | { ok: false; error: InterviewError }> {
+export async function askInterview(turns: InterviewTurn[], known?: Known, on?: { thinking?: (thinking: string) => void; say?: (say: string, speaker?: Advisor) => void }): Promise<{ ok: true; reply: InterviewReply } | { ok: false; error: InterviewError }> {
   if (!interviewConfigured()) return { ok: false, error: 'not_configured' }
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 45000)
@@ -51,10 +52,10 @@ export async function askInterview(turns: InterviewTurn[], known?: Known, on?: {
       (event, data) => {
         if (event === 'thinking' && typeof data.text === 'string') on?.thinking?.(data.text)
         // the words to speak arrive before the rest of the answer, so talking can start sooner
-        else if (event === 'say' && typeof data.say === 'string') on?.say?.(data.say)
+        else if (event === 'say' && typeof data.say === 'string') on?.say?.(data.say, isAdvisor(data.speaker) ? data.speaker : undefined)
       },
       ctrl.signal)
-    if (status === 200 && typeof body.say === 'string' && body.profile) return { ok: true, reply: body as unknown as InterviewReply }
+    if (status === 200 && typeof body.say === 'string' && body.profile) return { ok: true, reply: { ...(body as unknown as InterviewReply), speaker: isAdvisor(body.speaker) ? body.speaker : undefined } }
     if (status === 429) return { ok: false, error: 'monthly_limit' }
     if (status === 422) return { ok: false, error: 'declined' }
     if (status === 503) return { ok: false, error: 'busy' }

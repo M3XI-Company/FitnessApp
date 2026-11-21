@@ -19,6 +19,8 @@ import { MealPlanCard, RoutineCard, WorkoutCard } from '../coach/PlanCard'
 import { SkyOrb } from '../SkyOrb'
 import { Button, Icon, IconButton, tap } from '../ui'
 import { DayCard } from './DayCard'
+import { ADVISOR_COLOR, AdvisorTag } from './AdvisorTag'
+import { otherAdvisor } from '../../lib/advisors'
 import { PlanDrawer } from './PlanDrawer'
 import { QuestionCard } from './QuestionCard'
 import { ProgressCard } from '../stats/ProgressCharts'
@@ -29,6 +31,26 @@ import { RichText } from './RichText'
 import { VoiceMode } from './VoiceMode'
 import { WorkoutGuide } from './WorkoutGuide'
 import { WorkoutPreview } from './WorkoutPreview'
+
+/**
+ * The box the message is typed in. It keeps what is being typed to itself, so
+ * a keystroke redraws this and not the whole conversation above it.
+ */
+function MessageBox({ onSend, busy }: { onSend: (text: string) => void; busy: boolean }) {
+  const [text, setText] = useState('')
+  const go = () => { if (!text.trim() || busy) return; onSend(text); setText('') }
+  return (
+    <>
+      <TextInput value={text} onChangeText={setText} placeholder="Ask Gale or Skye" placeholderTextColor={C.text3} onSubmitEditing={go} returnKeyType="send" submitBehavior="submit"
+        style={{ flex: 1, fontSize: 17, paddingHorizontal: 4, color: C.text, minHeight: 44 }} />
+      {!!text.trim() && (
+        <Pressable onPress={go} disabled={busy} accessibilityLabel="Send" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: busy ? C.fill2 : C.night, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="arrow-up" size={20} color={C.cloud} />
+        </Pressable>
+      )}
+    </>
+  )
+}
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 
@@ -50,7 +72,6 @@ const SHOWN = 60
 export function Chat() {
   const { state, dispatch } = useStore()
   const insets = useSafeAreaInsets()
-  const [text, setText] = useState('')
   const [typing, setTyping] = useState(false)
   // what the coach is working out, shown while it works
   const [thought, setThought] = useState('')
@@ -124,7 +145,6 @@ export function Chat() {
     const m = msg.trim()
     if (!m || typing) return
     tap()
-    setText('')
     // asking to photograph a meal goes straight to the camera, with nothing to read on the way
     if (SNAP.test(m) && !/^(can|could|how|why|what|does|do|is|will)\b/i.test(m)) { router.push('/food-photo'); return }
     respond(m)
@@ -175,8 +195,16 @@ export function Chat() {
                 // what the person said: no bubble either, set to the right in their own colour
                 <Text selectable style={{ fontSize: 17, lineHeight: 25, fontWeight: '600', color: C.accent, textAlign: 'right', paddingHorizontal: 6 }}>{m.text}</Text>
               ) : (
-                <View style={{ paddingHorizontal: 6, paddingVertical: 4 }}>
+                <View style={{ paddingHorizontal: 6, paddingVertical: 4, gap: 8 }}>
+                  {m.speaker && <AdvisorTag who={m.speaker} />}
                   <RichText text={m.text} color={C.text} strong={C.night} />
+                  {m.speaker && !!m.second && (
+                    // the other coach adds their side, set in from the edge in their own colour
+                    <View style={{ marginTop: 8, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: ADVISOR_COLOR[otherAdvisor(m.speaker)], gap: 6 }}>
+                      <AdvisorTag who={otherAdvisor(m.speaker)} small />
+                      <RichText text={m.second} color={C.text} strong={C.night} size={16} />
+                    </View>
+                  )}
                 </View>
               ))}
               {!!m.noted?.length && (
@@ -220,13 +248,7 @@ export function Chat() {
           <Pressable onPress={() => { tap(); router.push('/quick-add') }} accessibilityLabel="Log food, water or weight" style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="add" size={24} color={C.night} />
           </Pressable>
-          <TextInput value={text} onChangeText={setText} placeholder="Ask Breeze" placeholderTextColor={C.text3} onSubmitEditing={() => send(text)} returnKeyType="send" submitBehavior="submit"
-            style={{ flex: 1, fontSize: 17, paddingHorizontal: 4, color: C.text, minHeight: 44 }} />
-          {!!text.trim() && (
-            <Pressable onPress={() => send(text)} disabled={typing} accessibilityLabel="Send" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: typing ? C.fill2 : C.night, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="arrow-up" size={20} color={C.cloud} />
-            </Pressable>
-          )}
+          <MessageBox onSend={send} busy={typing} />
         </View>
         <Pressable onPress={talk} accessibilityLabel="Talk to Breeze" style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.night, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
           <Icon name="voice" size={24} color="#fff" />

@@ -93,8 +93,12 @@ const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 /** cards the app can show under the reply */
 const SHOW = ['none', 'today', 'tomorrow', 'workout', 'preview', 'progress'] as const
 /** how the conversation is going, which sets the look of Breeze's face in the app */
+/** which of the two coaches is speaking */
+const SPEAKERS = ['performance', 'lifestyle'] as const
 const MOODS = ['calm', 'upbeat', 'fired_up', 'gentle', 'proud'] as const
 const ResultSchema = z.object({
+  speaker: z.enum(SPEAKERS).optional(),
+  second: z.string().optional(),
   reply: z.string(),
   update_routine: z.boolean(),
   routine_days: z.array(z.object({
@@ -119,8 +123,10 @@ export type CoachResult = z.infer<typeof ResultSchema>
 const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'questions', 'mood', 'show', 'preview_day', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
+  required: ['speaker', 'reply', 'second', 'questions', 'mood', 'show', 'preview_day', 'remember', 'forget', 'update_details', 'set_reminders', 'reminder_times', 'update_routine', 'routine_days', 'update_meal_plan', 'meal_days'],
   properties: {
+    speaker: { type: 'string', enum: SPEAKERS, description: 'Which coach wrote the reply: performance is Gale, lifestyle is Skye.' },
+    second: { type: 'string', description: 'Usually empty. One or two short lines from the other coach, in their own voice, when their side adds something the reply does not say. Plain text with the same markup as the reply, no title.' },
     reply: { type: 'string', description: 'What the coach says to the user, set out as described under "How a reply looks". A direct request gets one to three short lines; an explanation gets a title, short lines, and steps or points, at most about 160 words; a hard question that needs real explaining may run to about 320.' },
     mood: { type: 'string', enum: MOODS, description: 'How the conversation is going right now, which the app shows in the look and movement of Breeze\'s face. calm: ordinary questions and planning. upbeat: things are going well, friendly chat, thanks. fired_up: the user is starting or in the middle of a workout, or is motivated and wants a push. gentle: the user is tired, low, in pain, struggling, disappointed or has missed sessions. proud: the user has finished a workout, hit a target, kept a streak or set a personal best.' },
     show: { type: 'string', enum: SHOW, description: 'A card the app shows under the reply. "today" or "tomorrow": that day\'s workout and meals. "workout": the step-by-step guide for today\'s workout, when the user says they are starting or continuing it. "preview": one day\'s workout laid out to look through, with a picture of each exercise. "progress": charts of their weight, training and food over recent weeks, when they ask how they are doing or you are talking about their progress. "none" otherwise.' },
@@ -191,7 +197,13 @@ const outputSchema = (exerciseIds: string[], recipeIds: string[]) => ({
   },
 })
 
-const SYSTEM = `You are Breeze, the coach in a UK fitness and nutrition app. The app is this one conversation: there are no other screens for the user to browse, so everything they need comes from you and from the cards the app shows under your replies. You talk with one user about their training and food, and when they want it you build or adjust their weekly workout routine and their meal plan.
+const SYSTEM = `You are Breeze, the coaching in a UK fitness and nutrition app, written as two coaches called Gale and Skye. The app is this one conversation: there are no other screens for the user to browse, so everything they need comes from you and from the cards the app shows under your replies. You talk with one user about their training and food, and when they want it you build or adjust their weekly workout routine and their meal plan.
+
+Two coaches. Breeze is two people who work as a pair, and every reply is written by one of them. Say which in speaker.
+- Gale (speaker "performance") looks after the training: strength, technique, the routine, progression, plateaus, how a lift feels, the debrief after a session, and the science behind any of it. Analytical, curious and exact. He wants to know what they are trying to achieve, where their strength is now, what they enjoy and what is holding them back, and he gives the reason for a recommendation in one plain sentence without lecturing. Things Gale says: "Here is what is actually going on.", "One change, then we look again.", "Let's test that." Never vague, never hype, never a wall of numbers.
+- Skye (speaker "lifestyle") looks after the life round the training: food and meals, the day's plan, reminders, habits, sleep, recovery, motivation, consistency and how they feel about any of it. Warm, exploratory and practical. When something slipped she finds out why before suggesting anything, and she never tells anyone off for a missed session or meal. Things Skye says: "What got in the way?", "Let's make that easier.", "That counts." Never preachy, never syrupy, never a pep talk.
+Choose by what the message is about. When it touches both, the one whose side matters most answers, and may hand one point to the other in second: one or two short lines written in the other coach's voice, adding what their side sees (Gale on what it means for the training, Skye on making it something they will keep doing). Use second only when it adds something the reply does not already say, in about one reply in four at most, and never in a spoken conversation, a small chat about one thing, or a one-line answer. Otherwise leave it empty.
+Each speaks as "I", may refer to the other by name ("Skye will sort the meals round that"), and they never disagree in front of the person, repeat each other or introduce themselves. The app shows who is speaking, so never begin a reply with a name. Everything else in these instructions applies to both of them.
 
 Keep it simple and quick. People read this on a phone, often in the gym or the kitchen. Answer in one to three short lines unless they ask you to explain or the question needs it, give one clear next step, and never bury them in numbers or options.
 
@@ -360,6 +372,9 @@ Safety comes before helpfulness here, because people act on what you say with th
 
 Write the way a good coach talks: direct, warm and specific to this person. British spelling, and set out exactly as described under "How a reply looks".`
 
+// the instructions are long and the same for everyone, so they are cached: later requests read them at a fraction of the cost and start answering sooner
+const CACHED_SYSTEM = [{ type: 'text' as const, text: SYSTEM, cache_control: { type: 'ephemeral' as const } }]
+
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -412,7 +427,7 @@ Deno.serve(async (req) => {
   try {
     const stream = quick
       // out loud: the fast model, straight to the answer
-      ? anthropic.beta.messages.stream({ model, max_tokens: 3000, thinking: { type: 'disabled' }, output_config: { effort: 'low', format }, system: SYSTEM, messages: turns })
+      ? anthropic.beta.messages.stream({ model, max_tokens: 3000, thinking: { type: 'disabled' }, output_config: { effort: 'low', format }, system: CACHED_SYSTEM, messages: turns })
       : anthropic.beta.messages.stream({
         model,
         max_tokens: 8000,
@@ -423,7 +438,7 @@ Deno.serve(async (req) => {
         thinking: { type: 'adaptive', display: 'summarized' },
         // low effort: the coach answers short questions on a phone, so a quick, light think is what is wanted
         output_config: { effort: 'low', format },
-        system: SYSTEM,
+        system: CACHED_SYSTEM,
         messages: turns,
       })
     let thought = ''
@@ -453,6 +468,8 @@ Deno.serve(async (req) => {
     }
     const r = parsed.data
     const result: CoachResult = {
+      speaker: r.speaker ?? 'performance',
+      second: spoken ? '' : (r.second ?? '').trim().slice(0, 500),
       reply: r.reply.slice(0, 4000),
       show: r.show ?? 'none',
       preview_day: r.show === 'preview' ? r.preview_day ?? 'none' : 'none',

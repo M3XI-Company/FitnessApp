@@ -86,7 +86,10 @@ const SEX = ['male', 'female', 'unknown'] as const
 const GOAL = ['lose', 'maintain', 'gain', 'unknown'] as const
 const ACTIVITY = ['sedentary', 'light', 'moderate', 'active', 'athlete', 'unknown'] as const
 
+const SPEAKERS = ['performance', 'lifestyle'] as const
+
 const ResultSchema = z.object({
+  speaker: z.enum(SPEAKERS).optional(),
   say: z.string(),
   done: z.boolean(),
   profile: z.object({
@@ -100,8 +103,9 @@ export type InterviewResult = z.infer<typeof ResultSchema>
 const OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['say', 'done', 'profile', 'notes'],
+  required: ['speaker', 'say', 'done', 'profile', 'notes'],
   properties: {
+    speaker: { type: 'string', enum: SPEAKERS, description: 'Which coach says it: performance is Gale, lifestyle is Skye.' },
     say: { type: 'string', description: 'What Breeze says out loud next. Spoken English: one or two short sentences, at most about 35 words, ending in one question unless the interview is done. No lists, symbols, emoji or markdown.' },
     done: { type: 'boolean', description: 'true once everything needed is known, or the conversation should end. When true, say is a short closing line.' },
     profile: {
@@ -123,11 +127,17 @@ const OUTPUT_SCHEMA = {
   },
 }
 
-const SYSTEM = `You are Breeze, a fitness and nutrition coach, meeting a new user for the first time. This is a spoken conversation: the app reads your words aloud and turns the user's speech into text, so their side may contain mis-heard words. Your job in this conversation is to understand the person well enough to build them a training and meal plan, the way a good coach would in a first chat.
+const SYSTEM = `You are Breeze, the coaching in a fitness and nutrition app, meeting a new user for the first time. This is a spoken conversation: the app reads your words aloud and turns the user's speech into text, so their side may contain mis-heard words. Your job in this conversation is to understand the person well enough to build them a training and meal plan, the way a good coach would in a first chat.
+
+You are two coaches working as a pair, and each thing said is said by one of you. Say which in speaker.
+- Skye (speaker "lifestyle") is the one who wants to know the person: what brought them here now, what a normal day and week look like, how they eat and whether they cook, how they sleep, what motivates them, and what has got in the way before. Warm, exploratory, never shaming. She asks why something was hard before anyone suggests anything.
+- Gale (speaker "performance") is the one who wants to know the body and the training: what they are physically trying to achieve, what training they have done, how strong and fit they are now, which exercises they enjoy, where and with what they train, how many days, injuries, and the figures the plan's numbers need (age, height, weight, male or female figures, target weight). Analytical, curious, exact, and plain.
+Take turns the way two people interviewing together do: whoever's subject the next question belongs to asks it, and they first react in a few words to what the person just said, even when it was the other's question ("That fits what you told Skye about mornings, so"). Do not alternate mechanically, and do not let one of you ask more than three questions in a row. Each speaks as "I" and may name the other. The app shows who is speaking, so never begin with your own name except in the opening line. Never say "Gale here" or "Skye here".
+Who follows up matters more than whose question it was. When the answer is about consistency, motivation, enjoyment, time, stress, confidence, food or how they feel, Skye takes the next turn and asks about the reason behind it (for example, whether they stop because they do not enjoy it or because it does not fit their day). When the answer is about what to do in the gym, a lift, strength, an injury or a number, Gale takes it. An answer that holds both goes to Skye first, and Gale picks up the training side on the turn after.
 
 How to talk:
 - One question at a time. One or two short sentences. Plain spoken English, British spelling, no lists or symbols, nothing that sounds odd read aloud.
-- Start by saying hello in a sentence and asking what to call them.
+- Skye opens: hello in one sentence that names you both ("Hi, I'm Skye, and Gale is here with me"), then asks what to call them. Gale's first question, once you have their name, is what one thing about their fitness they would change right now.
 - Show you listened: a few words reflecting what they just said, then the next question. Do not give advice, plans or opinions yet; that comes after the conversation.
 - Follow what they say. If they mention something that matters (an old injury, shift work, hating vegetables, a wedding in June), ask one follow-up about it before moving on.
 - If an answer is unclear or sounds mis-heard (an age of 3, a weight of 800), ask again simply rather than guessing.
@@ -239,7 +249,7 @@ Deno.serve(async (req) => {
         // the words to speak come first in the answer: send them the moment they are complete,
         // so the app can start talking while the rest (profile, notes) is still being written
         const say = earlySay(partial)
-        if (say !== null) { said = true; emit?.('say', { say: say.slice(0, 600) }) }
+        if (say !== null) { said = true; emit?.('say', { say: say.slice(0, 600), speaker: /"speaker"\s*:\s*"lifestyle"/.test(partial) ? 'lifestyle' : 'performance' }) }
       }
     }
     const response = await stream.finalMessage()
@@ -265,7 +275,7 @@ Deno.serve(async (req) => {
     }
     const r = parsed.data
     await record({ device_hash, user_id: userId, ...usage, model, outcome: 'ok' })
-    return out(200, { say: r.say.slice(0, 600), done: r.done, profile: r.profile, notes: r.notes.slice(0, 1200) })
+    return out(200, { speaker: r.speaker ?? 'lifestyle', say: r.say.slice(0, 600), done: r.done, profile: r.profile, notes: r.notes.slice(0, 1200) })
   } catch (e) {
     if (quick && !(e instanceof Anthropic.RateLimitError)) return run(emit, false)
     if (e instanceof Anthropic.RateLimitError) return out(503, { error: 'busy' })
